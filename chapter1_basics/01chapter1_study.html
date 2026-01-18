@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>計算機基礎：互動式重點筆記</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            850: '#1e293b',
+                            900: '#0f172a',
+                            950: '#020617',
+                        },
+                        primary: {
+                            DEFAULT: '#06b6d4', // Cyan-500
+                            hover: '#0891b2',   // Cyan-600
+                            dim: 'rgba(6, 182, 212, 0.1)'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'Microsoft JhengHei', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569; 
+        }
+
+        /* Flip Card Styles */
+        .perspective-1000 {
+            perspective: 1000px;
+        }
+        .transform-style-3d {
+            transform-style: preserve-3d;
+        }
+        .backface-hidden {
+            backface-visibility: hidden;
+        }
+        .rotate-y-180 {
+            transform: rotateY(180deg);
+        }
+        .card-inner {
+            transition: transform 0.6s;
+        }
+        .flipped .card-inner {
+            transform: rotateY(180deg);
+        }
+
+        /* Matrix Highlight Animation */
+        .highlight-col {
+            background-color: rgba(6, 182, 212, 0.15) !important;
+            transition: background-color 0.3s ease;
+        }
+        
+        /* Fade In */
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-200 min-h-screen font-sans selection:bg-primary selection:text-white pb-20">
+
+    <script id="course-data" type="application/json">
+    {
+      "chapter_positioning": {
+        "one_sentence": "本章作為理解機器運作邏輯的介面，定義了馮紐曼架構（硬體五大單元）、軟體層次及量化標準，為後續邏輯電路與CPU指令週期奠定基礎。",
+        "prerequisites": [],
+        "downstream_links": [
+          "第二章 數位邏輯與邏輯電路",
+          "第三章 CPU 指令週期 (Fetch-Decode-Execute)"
+        ]
+      },
+      "keywords": [
+        {
+          "term": "馮紐曼架構",
+          "why_important": "電腦組成的核心模型，確立了「儲存程式」與五大單元分工的概念。",
+          "common_exam_angle": "五大單元的功能區分、資料流與控制訊號流的方向性（雙向vs單向）。"
+        },
+        {
+          "term": "韌體 (Firmware)",
+          "why_important": "介於軟硬體之間的特殊存在，常被稱為「燒在硬體裡的靈魂」。",
+          "common_exam_angle": "定義題（BIOS為典型範例）、存放在ROM中、兼具軟體邏輯與硬體固化特性。"
+        },
+        {
+          "term": "K 的定義歧義",
+          "why_important": "電腦科學中極易混淆的計量單位，取決於應用場景是「容量」還是「速度」。",
+          "common_exam_angle": "計算題陷阱：記憶體容量 K=1024，傳輸速率 K=1000。"
+        },
+        {
+          "term": "微秒 (μs) 與 奈秒 (ns)",
+          "why_important": "理解現代 CPU 時脈與指令執行速度的基礎時間單位。",
+          "common_exam_angle": "單位換算（1ms = 1000μs = 10^6 ns）以及與頻率 (Hz) 的倒數關係。"
+        }
+      ],
+      "weighting": {
+        "basis": "estimate",
+        "items": [
+          {
+            "topic": "五大單元功能與運作流程",
+            "weight": 40,
+            "reason": "核心觀念，幾乎所有計算機概論考試必考基礎。"
+          },
+          {
+            "topic": "計量單位與換算",
+            "weight": 30,
+            "reason": "計算題的主要來源，學生容易因定義不清而失分。"
+          },
+          {
+            "topic": "軟硬體與韌體概念",
+            "weight": 20,
+            "reason": "基礎名詞定義，常出現在選擇題選項中。"
+          },
+          {
+            "topic": "電腦世代演進",
+            "weight": 10,
+            "reason": "記憶性知識，通常佔比不高，但需留意主要元件的變革。"
+          }
+        ]
+      },
+      "comparison_matrix": {
+        "title": "計量單位定義對照表：容量 vs. 速度",
+        "dimensions": [
+          "應用場景",
+          "K 的數值定義",
+          "M 的數值定義",
+          "常見單位範例"
+        ],
+        "rows": [
+          {
+            "name": "儲存容量 (Capacity)",
+            "values": {
+              "應用場景": "記憶體 (RAM)、硬碟、檔案大小",
+              "K 的數值定義": "2^10 = 1024",
+              "M 的數值定義": "2^20 = 1,048,576",
+              "常見單位範例": "KB, MB, GB (Byte based)"
+            },
+            "pitfall": "計算記憶體位址或檔案大小時，誤用 1000 進行換算。",
+            "rule_of_thumb": "看到「儲存」、「Byte」通常用 1024 (2的次方)。"
+          },
+          {
+            "name": "傳輸/運算速度 (Rate/Speed)",
+            "values": {
+              "應用場景": "網路頻寬、CPU 時脈、傳輸速率",
+              "K 的數值定義": "10^3 = 1000",
+              "M 的數值定義": "10^6 = 1,000,000",
+              "常見單位範例": "bps, Hz (Bit/Cycle based)"
+            },
+            "pitfall": "計算網路下載時間時，誤將頻寬的 M 視為 2^20。",
+            "rule_of_thumb": "看到「Hz」、「bps」、「速度」通常用 1000 (10的次方)。"
+          }
+        ]
+      },
+      "core_concept_lab": {
+        "chosen_concept": "CPU 時間單位與頻率換算",
+        "type": "calculator",
+        "common_mistakes": [
+          {
+            "mistake": "混淆微秒 (μs) 與奈秒 (ns) 的大小關係",
+            "why_wrong": "未記熟 10^-6 與 10^-9 的差異，差了 1000 倍。",
+            "how_to_fix": "記憶口訣：毫(m) -> 微(μ) -> 奈(n)，每次縮小 1000 倍。"
+          },
+          {
+            "mistake": "頻率轉週期時忘記單位換算",
+            "why_wrong": "直接用 1/MHz 運算而未先轉成 Hz 或對應的微秒。",
+            "how_to_fix": "口訣對應：MHz 對應 μs，GHz 對應 ns。"
+          }
+        ]
+      },
+      "flashcards": [
+        {
+          "front": "韌體 (Firmware)",
+          "back": "定義：燒錄在 ROM 中的程式（如 BIOS）。<br>特點：兼具軟體邏輯與硬體固化特性，被稱為「微程式」或「硬體的靈魂」。"
+        },
+        {
+          "front": "控制單元 (Control Unit) 的訊號流向",
+          "back": "流向：單向 (One-way)。<br>功能：作為指揮中樞，發送控制訊號協調其他單元，不直接參與運算。"
+        },
+        {
+          "front": "算術邏輯單元 (ALU) 的資料流向",
+          "back": "流向：雙向 (Two-way)。<br>功能：從記憶體取資料運算，並將結果送回，負責加減乘除與邏輯判斷(AND/OR)。"
+        },
+        {
+          "front": "1 KB (Capacity) vs 1 Kbps (Speed)",
+          "back": "容量 KB：1024 Bytes (2^10)<br>速度 Kbps：1000 bits per second (10^3)<br>考點：注意 K 的定義隨情境改變。"
+        },
+        {
+          "front": "電腦硬體五大單元",
+          "back": "1.輸入 (Input)<br>2.輸出 (Output)<br>3.記憶 (Memory)<br>4.算術邏輯 (ALU)<br>5.控制 (CU)<br>(後兩者合稱 CPU)"
+        }
+      ],
+      "scenario_checks": [
+        {
+          "statement": "硬碟 (Hard Disk) 是電腦運作的中心，屬於主記憶體。",
+          "answer": "X",
+          "explanation": "RAM 才是運作中心（主記憶體）。硬碟屬於「輔助記憶體」，僅是資料倉庫，CPU 無法直接對其進行運算。"
+        },
+        {
+          "statement": "某網路傳輸速度為 10 Mbps，代表每秒可傳輸 10 x 1024 x 1024 bits。",
+          "answer": "X",
+          "explanation": "在傳輸速率 (bps) 中，M 代表 10^6 (1,000,000)，而非 2^20。正確為 10,000,000 bits。"
+        },
+        {
+          "statement": "控制單元 (CU) 負責執行加法與邏輯判斷。",
+          "answer": "X",
+          "explanation": "控制單元負責「指揮與協調」，實際的運算（加減乘除、邏輯判斷）是由「算術邏輯單元 (ALU)」執行。"
+        }
+      ],
+      "original_notes_for_appendix": "在「第一章 計算機基礎」的宏觀背景下，來源資料將**「基本常識 (1-1)」與「電腦組成」視為理解整個電腦科學的結構藍圖與歷史座標**。這部分內容不僅是名詞解釋，更是建立「電腦如何運作」這一心理模型的關鍵。\n根據來源資料，我們可以從以下四個核心觀點來探討這一主題：\n1. 系統二元論：硬體與軟體的共生\n來源資料首先確立了電腦系統的二元架構，即硬體 (Hardware) 與 軟體 (Software) 的區分與合作。\n• 硬體：被定義為「看得見的部分」，包含電子電路與機械結構，如 CPU、記憶體、I/O 裝置。\n• 軟體：是程式的總稱，負責指揮硬體工作。來源進一步將其細分為系統程式 (System Program)（如作業系統、編譯器）與應用程式 (Application Program)。\n• 韌體 (Firmware) 的特殊地位：來源特別強調了韌體這一概念，指燒錄在 ROM 中的程式（如 BIOS），兼具軟體的邏輯與硬體的固化特性，被稱為「燒在硬體裡的靈魂」或「微程式 (microcode)」。這在考試中是常見的考點，用於測試學生對軟硬體邊界的理解。\n2. 運作的核心模型：五大單元 (Von Neumann 架構)\n這是「電腦組成」中最核心的觀點。來源資料將電腦的功能解構為五大單元，這也是我們在討論製作互動網頁時，建議用「工廠」或「大腦」比喻的基礎：\n1. 輸入單元 (Input)：由外界供給資料（如鍵盤、滑鼠）。\n2. 記憶單元 (Memory)：存放程式與資料的倉庫。來源在此處埋下了伏筆，區分了主記憶體 (RAM/ROM) 與 輔助記憶體 (硬碟/光碟)，指出 RAM 是運作中心，而硬碟僅是輔助。\n3. 算術邏輯運算單元 (ALU)：負責實際的加減乘除與邏輯判斷 (AND, OR)，資料流是雙向的（取資料運算後送回）。\n4. 輸出單元 (Output)：將運算結果傳送給外界（螢幕、印表機）。\n5. 控制單元 (Control Unit)：作為指揮中樞，負責協調上述單元，其訊號流是單向的（發號施令）。\n觀點分析：這個架構直接對應了後續**第三章「CPU 與記憶體概論」**的內容。若不在此確立「控制單元指揮、ALU 運算、記憶體儲存」的概念，學生將難以理解 CPU 的 Fetch-Decode-Execute 週期。\n3. 演進的歷史觀：從真空管到 AI\n來源資料透過電腦發展的五個世代，建立了技術演進的座標系。這顯示了「電腦組成」並非一成不變，而是隨著電子元件的物理特性而進化：\n• 元件的微縮：從第一代真空管（體積大、耗電）、第二代電晶體、第三代積體電路 (IC) 到第四代超大型積體電路 (VLSI)。\n• 記憶體的變革：從早期的磁蕊記憶體演進為現代的半導體記憶體。\n• 當代視角：來源特別提到了第五代「人工智慧 (AI)」與第六代「量子電腦/生物電腦」的概念，將基礎知識連結到現代科技趨勢。\n4. 量化的語言：計量單位\n在「基本常識」中，來源資料極其重視計量單位的定義，因為這是人與電腦溝通的橋樑。\n• 容量 vs. 速度的差異：來源特別指出了一個易混淆點—— K 的定義。在記憶體容量中，K=2 \n10\n =1024；但在傳輸速率（如 Hz, bps）中，K=10 \n3\n =1000。\n• 時間單位的微觀化：介紹了毫秒 (10 \n−3\n )、微秒 (10 \n−6\n )、奈秒 (10 \n−9\n ) 等單位，這對於理解 CPU 時脈 (Clock Rate) 和指令執行時間至關重要。\n總結\n在這些來源資料的脈絡下，「基本常識與電腦組成」不僅僅是第一章的開頭，它是為了讓人類理解機器運作邏輯所建立的介面。它定義了硬體架構（五大單元）、軟體層次（系統/應用/韌體）以及量化標準（單位），為後續章節深入探討邏輯電路（第二章）和 CPU 細部構造（第三章）提供了必要的知識基礎。"
+    }
+    </script>
+
+    <header class="max-w-4xl mx-auto p-6 border-b border-slate-800">
+        <h1 class="text-3xl font-bold text-primary tracking-tight">第一章 計算機基礎：重點結構筆記</h1>
+        <p class="text-slate-400 mt-2 text-sm">Created with AI • Focused on Learning Science</p>
+    </header>
+
+    <main class="max-w-4xl mx-auto p-6 space-y-12">
+
+        <section id="dashboard" class="space-y-6 fade-in">
+            <h2 class="text-xl font-semibold text-white border-l-4 border-primary pl-3">A. 戰略儀表板</h2>
+            
+            <div id="positioning-box" class="bg-slate-900 border border-primary/30 rounded-lg p-4 shadow-lg shadow-primary/5">
+                <div class="flex items-start gap-3">
+                    <svg class="w-6 h-6 text-primary flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <div>
+                        <h3 class="text-primary font-medium mb-1">章節定位</h3>
+                        <p id="position-text" class="text-slate-300 text-sm leading-relaxed"></p>
+                        <div class="mt-3 flex flex-wrap gap-2 text-xs">
+                            <span class="text-slate-500">後續連結：</span>
+                            <div id="downstream-links" class="flex flex-wrap gap-2"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-slate-800/50 rounded-xl p-5 border border-slate-700">
+                    <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">考試佔比分佈 (預估)</h3>
+                    <div id="weighting-chart" class="space-y-3">
+                        </div>
+                </div>
+
+                <div class="bg-slate-800/50 rounded-xl p-5 border border-slate-700">
+                    <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">關鍵字 (點擊查看考點)</h3>
+                    <div id="keywords-container" class="flex flex-wrap gap-2">
+                        </div>
+                    <div id="keyword-detail" class="mt-4 p-3 bg-slate-900 rounded border border-slate-700 hidden text-sm">
+                        <p class="text-primary font-bold mb-1" id="kw-term"></p>
+                        <p class="text-slate-300 mb-2" id="kw-why"></p>
+                        <p class="text-slate-400 italic text-xs border-t border-slate-800 pt-2" id="kw-angle"></p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="lab" class="space-y-6 fade-in">
+            <div class="flex items-center justify-between">
+                <h2 class="text-xl font-semibold text-white border-l-4 border-primary pl-3">B. 核心觀念實驗室：時間與頻率</h2>
+                <span class="text-xs font-mono bg-primary/20 text-primary px-2 py-1 rounded">Interactive</span>
+            </div>
+
+            <div class="bg-slate-900 rounded-xl border border-slate-700 p-6 md:p-8 shadow-xl">
+                <p class="text-slate-400 mb-6 text-sm">請輸入數值與單位，系統將自動換算至所有層級，幫助你建立「微秒、奈秒、頻率」的數量級直覺。</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                    <div class="col-span-2">
+                        <label class="block text-xs text-slate-500 mb-1">數值輸入</label>
+                        <input type="number" id="lab-input-val" value="1" class="w-full bg-slate-800 border border-slate-600 rounded p-3 text-white focus:border-primary focus:outline-none transition-colors">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-500 mb-1">選擇單位</label>
+                        <select id="lab-input-unit" class="w-full bg-slate-800 border border-slate-600 rounded p-3 text-white focus:border-primary focus:outline-none transition-colors">
+                            <optgroup label="時間 (Time)">
+                                <option value="s">秒 (s)</option>
+                                <option value="ms">毫秒 (ms)</option>
+                                <option value="us" selected>微秒 (μs)</option>
+                                <option value="ns">奈秒 (ns)</option>
+                            </optgroup>
+                            <optgroup label="頻率 (Frequency)">
+                                <option value="Hz">赫茲 (Hz)</option>
+                                <option value="MHz">百萬赫茲 (MHz)</option>
+                                <option value="GHz">十億赫茲 (GHz)</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs text-slate-500 uppercase bg-slate-800/50">
+                            <tr>
+                                <th class="px-4 py-3 rounded-tl-lg">類型</th>
+                                <th class="px-4 py-3">單位</th>
+                                <th class="px-4 py-3">數值 (Scientific)</th>
+                                <th class="px-4 py-3 rounded-tr-lg">數值 (Decimal)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lab-results" class="bg-slate-800/20 divide-y divide-slate-800">
+                            </tbody>
+                    </table>
+                </div>
+
+                <div id="lab-mistakes" class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    </div>
+            </div>
+        </section>
+
+        <section id="matrix" class="space-y-6 fade-in">
+            <h2 class="text-xl font-semibold text-white border-l-4 border-primary pl-3">D. 比較矩陣：K 的多重宇宙</h2>
+            
+            <div class="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
+                <div class="p-4 border-b border-slate-700 bg-slate-900/50 flex flex-wrap gap-2" id="matrix-toggles">
+                    <span class="text-sm text-slate-400 py-1 mr-2">強調維度：</span>
+                    </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left border-collapse" id="comparison-table">
+                        <thead class="text-xs text-slate-400 uppercase bg-slate-900 border-b border-slate-700">
+                            <tr id="matrix-head">
+                                <th class="px-6 py-4 font-bold text-primary w-1/5">比較對象</th>
+                                </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-700 text-slate-300" id="matrix-body">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section id="drill" class="space-y-8 fade-in">
+            <h2 class="text-xl font-semibold text-white border-l-4 border-primary pl-3">C. 實戰演練場</h2>
+
+            <div>
+                <h3 class="text-lg font-medium text-slate-300 mb-4 flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-primary"></span> 閃示卡 (點擊翻面)
+                </h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4" id="flashcards-container">
+                    </div>
+            </div>
+
+            <div>
+                <h3 class="text-lg font-medium text-slate-300 mb-4 flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-red-400"></span> 陷阱題判斷
+                </h3>
+                <div class="space-y-4" id="scenarios-container">
+                    </div>
+            </div>
+        </section>
+
+        <section class="border-t border-slate-800 pt-8">
+            <details class="group bg-slate-900 rounded-lg border border-slate-800">
+                <summary class="list-none flex flex-wrap items-center cursor-pointer p-4 focus:outline-none">
+                    <h3 class="flex-1 font-semibold text-slate-400 group-open:text-primary transition-colors">附錄：我的原始筆記</h3>
+                    <div class="flex items-center">
+                        <span class="text-xs text-slate-600 mr-2 group-open:hidden">展開閱讀</span>
+                        <div class="border-8 border-transparent border-l-slate-600 ml-2 group-open:rotate-90 transition-transform origin-left"></div>
+                    </div>
+                </summary>
+                <div class="p-4 pt-0 border-t border-slate-800 overflow-x-auto">
+                    <pre id="appendix-content" class="text-xs leading-relaxed text-slate-400 font-mono whitespace-pre-wrap max-h-96 overflow-y-auto"></pre>
+                </div>
+            </details>
+        </section>
+
+    </main>
+
+    <footer class="text-center text-slate-600 text-sm py-8 border-t border-slate-900 mt-12">
+        <p>互動式備考筆記系統 v1.0</p>
+    </footer>
+
+    <script>
+        // 1. Load Data
+        const rawData = document.getElementById('course-data').textContent;
+        const data = JSON.parse(rawData);
+
+        // --- Render Functions ---
+
+        // A. Dashboard
+        function renderDashboard() {
+            // Positioning
+            document.getElementById('position-text').textContent = data.chapter_positioning.one_sentence;
+            const linkContainer = document.getElementById('downstream-links');
+            data.chapter_positioning.downstream_links.forEach(link => {
+                const span = document.createElement('span');
+                span.className = 'px-2 py-1 bg-slate-800 text-primary rounded border border-slate-700 text-xs';
+                span.textContent = link;
+                linkContainer.appendChild(span);
+            });
+
+            // Weighting
+            const chartContainer = document.getElementById('weighting-chart');
+            data.weighting.items.forEach(item => {
+                const wrapper = document.createElement('div');
+                wrapper.innerHTML = `
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-slate-300">${item.topic}</span>
+                        <span class="text-primary font-mono">${item.weight}%</span>
+                    </div>
+                    <div class="w-full bg-slate-700 rounded-full h-2">
+                        <div class="bg-primary h-2 rounded-full" style="width: ${item.weight}%"></div>
+                    </div>
+                `;
+                chartContainer.appendChild(wrapper);
+            });
+
+            // Keywords
+            const kwContainer = document.getElementById('keywords-container');
+            const detailBox = document.getElementById('keyword-detail');
+            
+            data.keywords.forEach((kw, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'px-3 py-1 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs rounded transition-colors border border-transparent focus:border-primary focus:outline-none';
+                btn.textContent = kw.term;
+                btn.onclick = () => {
+                    detailBox.classList.remove('hidden');
+                    document.getElementById('kw-term').textContent = kw.term;
+                    document.getElementById('kw-why').textContent = kw.why_important;
+                    document.getElementById('kw-angle').textContent = `考點：${kw.common_exam_angle}`;
+                    
+                    // Reset other buttons
+                    Array.from(kwContainer.children).forEach(c => c.classList.remove('bg-primary', 'text-white'));
+                    btn.classList.add('bg-primary', 'text-white');
+                    btn.classList.remove('bg-slate-700');
+                };
+                kwContainer.appendChild(btn);
+            });
+        }
+
+        // B. Core Concept Lab (Calculator Logic)
+        function renderLab() {
+            const inputVal = document.getElementById('lab-input-val');
+            const inputUnit = document.getElementById('lab-input-unit');
+            const resultsBody = document.getElementById('lab-results');
+            const mistakesContainer = document.getElementById('lab-mistakes');
+
+            // Render Common Mistakes
+            data.core_concept_lab.common_mistakes.forEach(m => {
+                const div = document.createElement('div');
+                div.className = 'bg-red-900/20 border border-red-900/50 p-4 rounded text-sm';
+                div.innerHTML = `
+                    <p class="text-red-300 font-bold mb-1">⚠️ 誤區：${m.mistake}</p>
+                    <p class="text-slate-400 mb-2">${m.why_wrong}</p>
+                    <p class="text-primary text-xs bg-slate-900/50 p-2 rounded">💡 修正：${m.how_to_fix}</p>
+                `;
+                mistakesContainer.appendChild(div);
+            });
+
+            function updateCalculator() {
+                const val = parseFloat(inputVal.value) || 0;
+                const unit = inputUnit.value;
+                let seconds = 0;
+
+                // 1. Convert everything to Base Unit: Seconds
+                switch(unit) {
+                    case 's': seconds = val; break;
+                    case 'ms': seconds = val * 1e-3; break;
+                    case 'us': seconds = val * 1e-6; break;
+                    case 'ns': seconds = val * 1e-9; break;
+                    case 'Hz': seconds = 1 / val; break;
+                    case 'MHz': seconds = 1 / (val * 1e6); break;
+                    case 'GHz': seconds = 1 / (val * 1e9); break;
+                }
+
+                if (!isFinite(seconds) || seconds === 0) {
+                    resultsBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-500">請輸入有效數值</td></tr>';
+                    return;
+                }
+
+                // 2. Generate Output Rows
+                const rows = [
+                    { type: 'Time', unit: 's', label: '秒', val: seconds },
+                    { type: 'Time', unit: 'ms', label: '毫秒', val: seconds * 1e3 },
+                    { type: 'Time', unit: 'us', label: '微秒', val: seconds * 1e6 },
+                    { type: 'Time', unit: 'ns', label: '奈秒', val: seconds * 1e9 },
+                    { type: 'Freq', unit: 'Hz', label: '赫茲', val: 1/seconds },
+                    { type: 'Freq', unit: 'MHz', label: '百萬赫茲', val: (1/seconds) / 1e6 },
+                    { type: 'Freq', unit: 'GHz', label: '十億赫茲', val: (1/seconds) / 1e9 },
+                ];
+
+                resultsBody.innerHTML = '';
+                rows.forEach(r => {
+                    const isSelected = r.unit === unit; // Highlight input row
+                    const tr = document.createElement('tr');
+                    tr.className = isSelected ? 'bg-primary/10' : 'hover:bg-slate-800/50';
+                    
+                    // Format numbers
+                    let sci = r.val.toExponential(2);
+                    let dec = r.val.toLocaleString(undefined, { maximumFractionDigits: 9 });
+                    if(r.val < 0.000001) dec = r.val.toFixed(9); // Avoid messy small floats
+
+                    // Filter logic: Show relevant ranges (optional, but cleaner)
+                    // Showing all for complete comparison as requested
+                    tr.innerHTML = `
+                        <td class="px-4 py-2 font-mono text-slate-500 text-xs">${r.type}</td>
+                        <td class="px-4 py-2 ${isSelected ? 'text-primary font-bold' : 'text-slate-300'}">${r.label} (${r.unit})</td>
+                        <td class="px-4 py-2 font-mono text-xs text-slate-400">${sci}</td>
+                        <td class="px-4 py-2 font-mono text-xs text-slate-400">${dec}</td>
+                    `;
+                    resultsBody.appendChild(tr);
+                });
+            }
+
+            inputVal.addEventListener('input', updateCalculator);
+            inputUnit.addEventListener('change', updateCalculator);
+            updateCalculator(); // init
+        }
+
+        // D. Comparison Matrix
+        function renderMatrix() {
+            const matrix = data.comparison_matrix;
+            const tableHead = document.getElementById('matrix-head');
+            const tableBody = document.getElementById('matrix-body');
+            const toggleContainer = document.getElementById('matrix-toggles');
+
+            // Setup Columns and Toggles
+            matrix.dimensions.forEach((dim, idx) => {
+                // Header
+                const th = document.createElement('th');
+                th.className = 'px-6 py-4 font-medium text-slate-400 matrix-col-' + idx;
+                th.textContent = dim;
+                tableHead.appendChild(th);
+
+                // Toggle Button
+                const btn = document.createElement('button');
+                btn.className = 'px-3 py-1 text-xs rounded border border-slate-600 text-slate-400 hover:text-white hover:border-slate-400 transition-colors';
+                btn.textContent = dim;
+                btn.onclick = () => highlightColumn(idx, btn);
+                toggleContainer.appendChild(btn);
+            });
+
+            // Rows
+            matrix.rows.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.className = 'group border-b border-slate-700 hover:bg-slate-800/30 transition-colors';
+                
+                let cellsHtml = `<td class="px-6 py-4 font-medium text-slate-200">${row.name}</td>`;
+                
+                matrix.dimensions.forEach((dim, idx) => {
+                    cellsHtml += `<td class="px-6 py-4 matrix-col-${idx}">${row.values[dim]}</td>`;
+                });
+
+                tr.innerHTML = cellsHtml;
+                
+                // Expandable Details Row
+                const detailsTr = document.createElement('tr');
+                detailsTr.className = 'bg-slate-900/50 hidden';
+                detailsTr.innerHTML = `
+                    <td colspan="${matrix.dimensions.length + 1}" class="px-6 py-3">
+                        <div class="flex flex-col sm:flex-row gap-4 text-xs">
+                            <div class="flex-1 text-red-300"><strong class="block text-red-400 mb-1">⚠️ 陷阱 (Pitfall)</strong>${row.pitfall}</div>
+                            <div class="flex-1 text-emerald-300"><strong class="block text-emerald-400 mb-1">👍 口訣 (Rule of Thumb)</strong>${row.rule_of_thumb}</div>
+                        </div>
+                    </td>
+                `;
+
+                // Click to toggle details
+                tr.style.cursor = 'pointer';
+                tr.addEventListener('click', () => {
+                    detailsTr.classList.toggle('hidden');
+                    tr.classList.toggle('bg-slate-800');
+                });
+
+                tableBody.appendChild(tr);
+                tableBody.appendChild(detailsTr);
+            });
+
+            function highlightColumn(colIdx, btnCtx) {
+                // Remove existing highlights
+                document.querySelectorAll('.highlight-col').forEach(el => el.classList.remove('highlight-col'));
+                document.querySelectorAll('#matrix-toggles button').forEach(b => {
+                    b.classList.remove('bg-primary', 'text-white', 'border-transparent');
+                    b.classList.add('border-slate-600', 'text-slate-400');
+                });
+
+                // Add highlight logic
+                const cells = document.querySelectorAll(`.matrix-col-${colIdx}`);
+                cells.forEach(c => c.classList.add('highlight-col'));
+
+                // Button State
+                btnCtx.classList.remove('border-slate-600', 'text-slate-400');
+                btnCtx.classList.add('bg-primary', 'text-white', 'border-transparent');
+            }
+        }
+
+        // C. Exam Drill
+        function renderDrills() {
+            // Flashcards
+            const fcContainer = document.getElementById('flashcards-container');
+            data.flashcards.forEach(fc => {
+                const card = document.createElement('div');
+                card.className = 'group h-40 perspective-1000 cursor-pointer';
+                card.innerHTML = `
+                    <div class="card-inner relative w-full h-full duration-500 transform-style-3d shadow-lg">
+                        <div class="absolute w-full h-full bg-slate-800 border border-slate-700 rounded-xl p-6 flex items-center justify-center backface-hidden">
+                            <h4 class="text-lg font-bold text-primary text-center">${fc.front}</h4>
+                        </div>
+                        <div class="absolute w-full h-full bg-slate-700 border border-primary/50 rounded-xl p-4 flex flex-col items-center justify-center backface-hidden rotate-y-180">
+                            <p class="text-sm text-slate-200 text-center leading-relaxed">${fc.back}</p>
+                        </div>
+                    </div>
+                `;
+                card.onclick = () => card.classList.toggle('flipped');
+                fcContainer.appendChild(card);
+            });
+
+            // Scenarios
+            const scContainer = document.getElementById('scenarios-container');
+            data.scenario_checks.forEach((sc, idx) => {
+                const div = document.createElement('div');
+                div.className = 'bg-slate-800/50 border border-slate-700 rounded-lg p-4';
+                div.innerHTML = `
+                    <div class="flex items-start justify-between gap-4 mb-3">
+                        <p class="text-slate-200 font-medium text-sm">Q${idx+1}: ${sc.statement}</p>
+                    </div>
+                    <div class="flex gap-3" id="sc-btns-${idx}">
+                        <button class="flex-1 py-2 rounded bg-slate-700 hover:bg-slate-600 text-sm font-bold text-slate-300 transition-colors" onclick="checkScenario(${idx}, 'O')">O</button>
+                        <button class="flex-1 py-2 rounded bg-slate-700 hover:bg-slate-600 text-sm font-bold text-slate-300 transition-colors" onclick="checkScenario(${idx}, 'X')">X</button>
+                    </div>
+                    <div id="sc-ans-${idx}" class="hidden mt-3 pt-3 border-t border-slate-700 text-sm">
+                        <p class="font-bold mb-1"></p>
+                        <p class="text-slate-400 text-xs leading-relaxed">${sc.explanation}</p>
+                    </div>
+                `;
+                scContainer.appendChild(div);
+            });
+        }
+
+        window.checkScenario = function(idx, userAns) {
+            const sc = data.scenario_checks[idx];
+            const ansBox = document.getElementById(`sc-ans-${idx}`);
+            const title = ansBox.querySelector('p');
+            const btns = document.getElementById(`sc-btns-${idx}`).children;
+
+            ansBox.classList.remove('hidden');
+            
+            if (userAns === sc.answer) {
+                title.textContent = "✅ 正確！";
+                title.className = "font-bold mb-1 text-emerald-400";
+                btns[userAns === 'O' ? 0 : 1].className = "flex-1 py-2 rounded bg-emerald-600 text-white font-bold";
+            } else {
+                title.textContent = "❌ 答錯了...";
+                title.className = "font-bold mb-1 text-red-400";
+                btns[userAns === 'O' ? 0 : 1].className = "flex-1 py-2 rounded bg-red-600 text-white font-bold";
+            }
+        };
+
+        // E. Appendix
+        function renderAppendix() {
+            document.getElementById('appendix-content').textContent = data.original_notes_for_appendix;
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            renderDashboard();
+            renderLab();
+            renderMatrix();
+            renderDrills();
+            renderAppendix();
+        });
+
+    </script>
+</body>
+</html>
