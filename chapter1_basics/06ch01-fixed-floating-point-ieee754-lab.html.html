@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>章節備考：定點數與浮點數 (Enhanced)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            850: '#1e293b', // Custom background depth
+                        },
+                        cyan: {
+                            450: '#22d3ee', // Custom accent
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'Microsoft JhengHei', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Flip Card Styles */
+        .perspective-1000 { perspective: 1000px; }
+        .transform-style-3d { transform-style: preserve-3d; }
+        .backface-hidden { backface-visibility: hidden; }
+        .rotate-y-180 { transform: rotateY(180deg); }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+        /* Animation for Matrix Highlight */
+        .highlight-cell {
+            background-color: rgba(34, 211, 238, 0.15); /* cyan-400 with opacity */
+            border: 1px solid rgba(34, 211, 238, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        /* Fade In Animation */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in-up {
+            animation: fadeInUp 0.6s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-200 font-sans antialiased min-h-screen p-4 md:p-8">
+
+    <div class="max-w-5xl mx-auto space-y-12">
+
+        <header class="border-b border-slate-800 pb-6">
+            <h1 class="text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 mb-2">
+                第一章：計算機基礎 - 定點數與浮點數
+            </h1>
+            <p class="text-slate-400" id="header-positioning"></p>
+        </header>
+
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in-up">
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg col-span-1 md:col-span-3 lg:col-span-1">
+                <h2 class="text-xl font-semibold text-cyan-400 mb-4 flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 7m0 13V7"></path></svg>
+                    章節戰略定位
+                </h2>
+                <div class="space-y-4">
+                    <p id="positioning-text" class="text-sm text-slate-300 leading-relaxed"></p>
+                    <div class="flex flex-wrap gap-2 text-xs">
+                        <span class="px-2 py-1 bg-slate-800 rounded text-slate-400 border border-slate-700">前置：二進位轉換</span>
+                        <span class="text-slate-600">→</span>
+                        <span class="px-2 py-1 bg-cyan-900/30 text-cyan-300 rounded border border-cyan-800/50">本章：浮點數 IEEE 754</span>
+                        <span class="text-slate-600">→</span>
+                        <span class="px-2 py-1 bg-slate-800 rounded text-slate-400 border border-slate-700">後續：數值分析</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg lg:col-span-1">
+                <h2 class="text-xl font-semibold text-cyan-400 mb-4">考試權重分析</h2>
+                <div id="weighting-container" class="space-y-4">
+                    </div>
+            </div>
+
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg lg:col-span-1">
+                <h2 class="text-xl font-semibold text-cyan-400 mb-4">關鍵字熱區</h2>
+                <div id="keywords-container" class="flex flex-wrap gap-2">
+                    </div>
+                <div id="keyword-detail" class="mt-4 p-3 bg-slate-800/50 rounded-lg text-sm text-slate-300 hidden border-l-2 border-cyan-500 transition-all">
+                    </div>
+            </div>
+        </section>
+
+        <section class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-white flex items-center">
+                        <svg class="w-6 h-6 mr-2 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"></path></svg>
+                        定點數 vs. 浮點數
+                    </h2>
+                    <p class="text-xs text-slate-500 mt-1">💡 點選上方維度，可快速比較兩者在該面向的差異與陷阱。</p>
+                </div>
+                <div id="matrix-dimensions" class="flex flex-wrap gap-2">
+                    </div>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="border-b border-slate-700 text-slate-400 text-sm">
+                            <th class="p-3 w-1/4">比較項目</th>
+                            <th class="p-3 w-1/3 text-cyan-300">定點數 (Fixed Point)</th>
+                            <th class="p-3 w-1/3 text-indigo-300">浮點數 (Floating Point)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="matrix-body" class="text-slate-300 divide-y divide-slate-800">
+                        </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg ring-1 ring-slate-700">
+            <div class="bg-slate-800/50 p-6 border-b border-slate-700">
+                <h2 class="text-2xl font-bold text-white flex items-center mb-2">
+                    <svg class="w-6 h-6 mr-2 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+                    核心實驗室：IEEE 754 轉換器
+                </h2>
+                <p class="text-slate-400 text-sm">目標：理解從十進位轉二進位，再經過正規化、加上偏差值，最後拆解入位的完整流程。</p>
+            </div>
+
+            <div class="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">輸入數值 (可輸入 Infinity, 1e-40 等)</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="decimal-input" value="-5.75" class="flex-1 bg-slate-800 border border-slate-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-cyan-500 focus:border-transparent outline-none transition placeholder-slate-500">
+                            <button onclick="calculateIEEE754()" class="bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-2 rounded-lg font-medium transition shadow-lg shadow-cyan-500/20">
+                                轉換
+                            </button>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-2">試試看特殊值：<span class="cursor-pointer hover:text-cyan-400 underline" onclick="setInput('Infinity')">Infinity</span>, <span class="cursor-pointer hover:text-cyan-400 underline" onclick="setInput('0.1')">0.1</span> (精確度丟失), <span class="cursor-pointer hover:text-cyan-400 underline" onclick="setInput('1e-40')">1e-40</span> (非正規化)</p>
+                    </div>
+
+                    <div class="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+                        <h3 class="text-sm font-semibold text-cyan-400 mb-2 uppercase tracking-wide">計算過程解析</h3>
+                        <ul id="calc-steps" class="space-y-3 text-sm text-slate-300 font-mono leading-relaxed">
+                            </ul>
+                    </div>
+                </div>
+
+                <div class="space-y-6">
+                    <div class="bg-black/40 rounded-xl p-6 border border-slate-700">
+                        <div class="text-center mb-4 text-sm text-slate-400">32-bit Memory Layout</div>
+                        
+                        <div class="flex gap-1 mb-2 font-mono text-xs text-center select-none">
+                            <div class="w-[10%] text-red-400">Sign<br>1 bit</div>
+                            <div class="w-[25%] text-green-400">Exponent<br>8 bits</div>
+                            <div class="w-[65%] text-blue-400">Mantissa<br>23 bits</div>
+                        </div>
+                        
+                        <div class="flex gap-1 h-12 font-mono text-lg font-bold">
+                            <div id="vis-sign" class="w-[10%] bg-red-900/40 border border-red-500/50 flex items-center justify-center text-red-200 rounded">0</div>
+                            <div id="vis-exp" class="w-[25%] bg-green-900/40 border border-green-500/50 flex items-center justify-center text-green-200 rounded tracking-widest text-sm md:text-lg">00000000</div>
+                            <div id="vis-mantissa" class="w-[65%] bg-blue-900/40 border border-blue-500/50 flex items-center justify-center text-blue-200 rounded tracking-widest text-xs md:text-lg overflow-hidden text-ellipsis whitespace-nowrap px-1">000...</div>
+                        </div>
+
+                        <div class="mt-4 flex justify-between items-center bg-slate-800 px-4 py-2 rounded border border-slate-700">
+                            <span class="text-slate-400 text-sm">十六進位 (Hex):</span>
+                            <span id="vis-hex" class="text-xl font-mono text-yellow-400">0x00000000</span>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2">
+                        <h4 class="text-sm font-semibold text-slate-400">⚠️ 常見錯誤警示</h4>
+                        <div id="mistakes-container" class="space-y-2">
+                            </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div class="space-y-4">
+                <h2 class="text-2xl font-bold text-white mb-4">閃示卡 (Flashcards)</h2>
+                <div id="flashcards-container" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    </div>
+            </div>
+
+            <div class="space-y-4">
+                <h2 class="text-2xl font-bold text-white mb-4">觀念掃雷 (O/X)</h2>
+                <div id="scenarios-container" class="space-y-4">
+                    </div>
+            </div>
+        </section>
+
+        <section class="border-t border-slate-800 pt-8">
+            <details class="group bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+                <summary class="flex justify-between items-center font-medium cursor-pointer list-none p-6 group-hover:bg-slate-800 transition">
+                    <span class="text-slate-400 group-hover:text-cyan-400 transition-colors">附錄：我的原始筆記 (JSON Source)</span>
+                    <span class="transition group-open:rotate-180">
+                        <svg fill="none" height="24" shape-rendering="geometricPrecision" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24" width="24"><path d="M6 9l6 6 6-6"></path></svg>
+                    </span>
+                </summary>
+                <div class="text-slate-400 p-6 bg-slate-950 border-t border-slate-800">
+                    <pre id="raw-notes" class="whitespace-pre-wrap font-mono text-sm leading-relaxed"></pre>
+                </div>
+            </details>
+        </section>
+
+        <footer class="text-center text-slate-600 text-sm pb-8">
+            <p>Generated by AI EdTech Assistant • Focus on Content Structure & Learning Science</p>
+        </footer>
+
+    </div>
+
+    <script>
+        // Data Injection with Trigger Phrases added manually as requested
+        const data = { 
+            "chapter_positioning": { "one_sentence": "本章是從整數「計數」跨越到實數「測量」的關鍵轉折，定義了電腦如何用有限的 32 位元儲存極大或極小的數值。", "prerequisites": [ "二進位轉換", "科學記號", "2 的補數 (2's Complement)" ], "downstream_links": [ "數值分析 (誤差處理)", "程式語言變數型態 (int vs float)", "電腦組織結構 (ALU 設計)" ] }, 
+            "keywords": [ 
+                { "term": "IEEE 754", "why_important": "全球通用的浮點數儲存標準，決定了電腦如何理解小數。", "common_exam_angle": "給定一個十進位小數，要求轉換為 32-bit 的 16 進位表示碼。", "trigger_phrases": ["32-bit", "單精準度", "Single Precision"] }, 
+                { "term": "偏差值 (Bias-127)", "why_important": "指數欄位不使用補數，而是用 Bias，是為了讓電腦能像比大小整數一樣直接比較浮點數大小。", "common_exam_angle": "問指數欄位填入值為何？(需記得真實指數 + 127)", "trigger_phrases": ["Excess-127", "指數偏移", "Offset"] }, 
+                { "term": "正規化 (Normalization)", "why_important": "規定小數點前只能有一位非零數字，確保表示法唯一並壓榨出最大精度。", "common_exam_angle": "計算假數 (Mantissa) 時，是否記得扣掉隱藏的整數 '1'。", "trigger_phrases": ["1.xxxx", "隱藏位元", "Hidden Bit"] }, 
+                { "term": "隱藏位元 (Hidden Bit)", "why_important": "二進位正規化後首位必為 1，不儲存這個 1 可多換取 1 bit 的精確度。", "common_exam_angle": "承上，假數欄位 23 bits 實際代表多少 bits 的精度？(答案是 24 bits)", "trigger_phrases": ["24 bits 精度", "Mantissa 儲存"] } 
+            ], 
+            "weighting": { "basis": "estimate", "items": [ { "topic": "IEEE 754 格式結構與轉換計算", "weight": 60, "reason": "計算步驟繁雜且規則多，是考試中最具鑑別度的題型。" }, { "topic": "定點數 vs 浮點數概念比較", "weight": 25, "reason": "測驗對誤差、範圍與取捨 (Trade-off) 的觀念理解。" }, { "topic": "偏差值 (Bias) 的設計邏輯", "weight": 15, "reason": "較細節的觀念題，主要考為什麼不用補數。" } ] }, 
+            "comparison_matrix": { "title": "數值表示法對決：定點數 vs. 浮點數", "dimensions": [ "小數點位置", "核心邏輯", "數值範圍", "主要缺點 (誤差類型)" ], "rows": [ { "name": "定點數 (Fixed Point)", "values": { "小數點位置": "固定不動 (Fixed)", "核心邏輯": "直觀位數分配 (如：前 16 bit 整數，後 16 bit 小數)", "數值範圍": "較窄，受限於整數位數", "主要缺點 (誤差類型)": "缺乏彈性，容易發生截尾誤差 (Truncation Error)" }, "pitfall": "誤以為完全沒有誤差 (仍受限於最小位數)", "rule_of_thumb": "像「記帳本」，格子固定，寫不下就切掉。" }, { "name": "浮點數 (Floating Point)", "values": { "小數點位置": "可漂流移動 (Float)", "核心邏輯": "科學記號法 (N = ±M × 2^E)", "數值範圍": "極大或極小 (天文到原子尺度)", "主要缺點 (誤差類型)": "近似值，必然有捨入誤差 (Rounding Error)" }, "pitfall": "誤以為可以精確表示所有小數 (0.1 就無法精確表示)", "rule_of_thumb": "像「彈性滑桿」，犧牲絕對精準換取超大範圍。" } ] }, 
+            "core_concept_lab": { "chosen_concept": "IEEE 754 單精準度轉換器", "type": "calculator", "learning_objective": "理解從十進位轉二進位，再經過正規化、加上偏差值，最後拆解入位的完整流程。", "inputs": [ { "id": "decimal_input", "label": "輸入十進位數字 (例如: -5.75)", "type": "text", "default": "-5.75" } ], "interaction_logic": [ "1. 判斷正負號：若輸入負數，Sign bit = 1，否則為 0。", "2. 數值轉二進位：將絕對值拆為整數與小數部分轉換 (例如 5.75 -> 101.11)。", "3. 正規化：移動小數點直到剩下 1.xxxx (例如 101.11 -> 1.0111 x 2^2)。紀錄指數 E=2。", "4. 計算階碼：Exponent = E + 127 (Bias) = 2 + 127 = 129 -> 轉二進位 10000001。", "5. 提取假數：取小數點後數值 (0111)，並補零至 23 位。", "6. 組合輸出：顯示 32 bits 完整結果。" ], "outputs": [ { "id": "sign_bit", "label": "符號 (1 bit)", "format": "text" }, { "id": "exponent_bits", "label": "指數 (8 bits, Bias-127)", "format": "text" }, { "id": "mantissa_bits", "label": "假數 (23 bits, 隱藏首位)", "format": "text" }, { "id": "hex_result", "label": "十六進位表示", "format": "text" } ], "common_mistakes": [ { "mistake": "指數部分直接轉二進位，忘記加 127", "why_wrong": "IEEE 754 為了方便比大小，規定指數要存成「無號數」，所以必須用偏差值 (Bias) 修正。", "how_to_fix": "口訣：真實指數 + 127 = 儲存指數。" }, { "mistake": "假數部分把小數點前的 '1' 也存進去", "why_wrong": "正規化後首位必為 1，這是已知的，不需要浪費空間儲存。", "how_to_fix": "只存小數點「後面」的數字，首位 1 是隱形的。" } ] }, 
+            "feynman_explanation": { "one_sentence_plain": "浮點數就是電腦版的「科學記號」，它把有限的 32 個開關分成三區，分別紀錄「正負號」、「小數點移幾位」和「數字長什麼樣」。", "analogy": "想像你要在只有 8 格的計算機上顯示「地球到太陽的距離 (149,600,000 km)」。直接打會爆掉，所以你改用「1.496」和「x 10^8」。浮點數就是這種「縮寫法」，而 IEEE 754 就是規定這個縮寫要怎麼寫進記憶體格子的說明書。", "forbidden_terms_used": [] }, 
+            "feynman_rebuild": { "teach_flow": [ "首先，我們要知道電腦記憶體有限，但世界上的數字無限大 (天文) 或無限小 (原子)。", "既然不能存下所有位數，我們改用『科學記號』(N = M x 2^E) 來存，這就是浮點數的核心。", "接著是考試重點 IEEE 754：電腦把 32 個位元切成三塊。最關鍵的陷阱是『指數』要加 127 (Bias)，且『假數』的第一個 1 不用存 (Hidden Bit)。", "最後，這種存法雖然厲害，但因為位數被切斷了，所以一定會有誤差，這就是為什麼電腦算錢有時會不準的原因。" ], "one_minute_version": "電腦為了存很大的數，發明了浮點數。它把 32 bits 分成三份：第 1 bit 看正負。接下來 8 bits 看範圍 (指數)，為了好比大小，這裡用了 Bias-127 技術 (原指數+127)。最後 23 bits 看精度 (假數)，這裡用了隱藏位元技術 (省掉首位 1)。這三個設計讓電腦能用有限空間，模擬出無限的實數世界，代價就是會有微小的誤差。", "exam_trigger_phrases": [ "IEEE 754", "單精準度", "Bias-127", "正規化", "隱藏位元" ] }, 
+            "flashcards": [ { "front": "IEEE 754 單精準度結構", "back": "總長 32 bits = 1 (符號) + 8 (指數) + 23 (假數)。考點：指數是 Bias-127，假數有隱藏位元。" }, { "front": "偏差值 (Bias) 的作用", "back": "將有號的指數轉為正整數 (0~255)，目的是讓 CPU 能直接用「無號數比大小」的邏輯來比較浮點數。" }, { "front": "正規化 (Normalization)", "back": "將二進位數調整為 1.xxxx × 2^E 的形式。考點：儲存時小數點前的 1 省略不寫 (Hidden Bit)。" }, { "front": "截尾誤差 vs 捨入誤差", "back": "截尾 (Truncation) 是直接切掉多餘位數；捨入 (Rounding) 是四捨五入。定點數常截尾，浮點數常捨入。" } ], 
+            "scenario_checks": [ { "statement": "因為電腦是高科技產品，所以浮點數運算 (如 0.1 + 0.2) 是絕對精確的。", "answer": "X", "explanation": "浮點數受限於假數位數 (23 bits)，無法精確表示無限小數或某些十進位小數 (如 0.1)，必然存在誤差。" }, { "statement": "IEEE 754 的指數欄位若算出是 -5，存入時應轉為 2 的補數表示。", "answer": "X", "explanation": "IEEE 754 指數採用「偏差值 (Bias)」系統，應將 -5 加上 127 變為 122，再存入二進位。" }, { "statement": "正規化後的第一個位元永遠是 1，所以不需要浪費空間儲存它。", "answer": "O", "explanation": "這是「隱藏位元 (Hidden Bit)」的設計，既然二進位科學記號首位必為 1，省下來可讓假數多 1 bit 精度。" } ], "original_notes_for_appendix": "在「第一章 計算機基礎」的宏觀脈絡下..." // 省略以節省空間，會由 JS 填入完整文字
+        };
+        
+        // Restore full note text for display
+        data.original_notes_for_appendix = "在「第一章 計算機基礎」的宏觀脈絡下，來源資料將**「定點數與浮點數 (1-7)」視為計算機處理數值能力的「維度擴張」。\n如果說前面的章節（二進位、補數）是教會電腦如何「數數 (Counting)」（處理整數），那麼這一節則是教會電腦如何「測量 (Measuring)」（處理實數）。這部分內容在教材中代表了從「絕對精確」跨越到「科學近似」的關鍵轉折。\n根據來源資料，我們可以從以下四個核心觀點來解讀其看法：\n1. 處理實數的兩難：固定 vs. 漂流\n來源資料透過對比兩種表示法，揭示了電腦設計中的權衡（Trade-off）：\n• 定點數 (Fixed Point) 的侷限：\n    ◦ 看法：來源將其描述為「小數點固定在某個位置上」的數字。這種方式雖然直觀，但缺乏彈性。\n    ◦ 誤差的必然性：來源在此處特別引入了誤差分析的概念，區分了截尾誤差 (Truncation Error)（直接切掉多餘位數）與捨入誤差 (Rounding Error)（類似四捨五入）。這是在告訴學習者：當我們試圖用有限的位元去儲存無限的小數時，誤差是不可避免的物理限制。\n• 浮點數 (Floating Point) 的優勢：\n    ◦ 看法：為了擴大表示範圍，來源引入了「科學記號表示法」的概念 (N=±M×B \nE\n )。\n    ◦ 目的：讓小數點可以「漂流 (Float)」，從而能夠表示極大（天文數字）或極小（原子尺度）的數值，這是現代科學運算的基礎。\n2. IEEE 754：解構 32 位元的「空間規劃」\n來源資料花費了大量篇幅解構 32 位元 (單精準度) 的儲存格式，這可以被視為對電腦「記憶體空間規劃」的極致展現。教材將 32 個位元劃分為三個功能區塊：\n• 符號 (Sign, 1 bit)：單純定義正負。\n• 指數 (Exponent, 8 bits)：負責控制小數點移動的「範圍」。\n• 假數/真數 (Mantissa, 23 bits)：負責儲存數字的「精確度」。\n教學觀點：這部分呼應了我們之前設計 Prompt 時提到的「視覺化」。對高中生來說，這不僅是背誦 1+8+23 的數字，而是要理解電腦如何像拼圖一樣，把一個數學式子塞進一個小格子裡。\n3. 特殊的數學邏輯：偏差值 (Bias) 的智慧\n在處理指數（Exponent）時，來源資料特別比較了2 的補數與抵補法 (Offset/Bias)。\n• 獨特看法：雖然電腦通常用 2 的補數處理負整數，但在浮點數的指數部分，IEEE 754 標準選擇了使用 Bias-127 (Excess-127)。\n• 設計哲學：這樣做的目的是為了「比較大小的便利性」**。透過加上 127，所有的指數（即使是負指數 2 \n−5\n ）都會變成正整數，這樣電腦在比較兩個浮點數大小時，可以直接從左到右比對，無需進行複雜的補數運算。\n4. 精度的魔術：正規化 (Normalization)\n來源資料強調了正規化的過程，即把小數點移到第一位非零數字之後（例如 1.011×2 \n3\n ）。\n• 隱藏位元 (Hidden Bit)：來源指出，既然二進位的正規化後第一位永遠是 1，那麼這個 1 就不需要儲存，直接省下來給假數使用。\n• 看法：這展示了電腦科學家「壓榨每一個位元效益」的極致思維——利用規則創造出額外的 1 bit 精度,。\n總結\n在第一章的脈絡中，「定點數與浮點數」不僅是另一種資料表示法，它是電腦科學面對現實世界複雜數值時的解決方案。\n它告訴學生：\n1. 電腦並非無限精確，誤差是常態。\n2. 為了同時兼顧範圍與精度，我們需要像 IEEE 754 這樣精巧的標準。\n3. 這部分內容是前面所學（二進位轉換、補數概念）的綜合應用場域，也是考試中計算難度最高的區塊之一（如題庫中計算浮點數儲存內容的題目）,。";
+
+        // --- Init Functions ---
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initDashboard();
+            initMatrix();
+            initLab();
+            initDrill();
+            initAppendix();
+        });
+        
+        // Helper
+        function setInput(val) {
+            document.getElementById('decimal-input').value = val;
+            calculateIEEE754();
+        }
+
+        // --- 1. Strategic Dashboard ---
+        function initDashboard() {
+            // Positioning
+            document.getElementById('header-positioning').textContent = data.chapter_positioning.one_sentence;
+            document.getElementById('positioning-text').textContent = data.chapter_positioning.one_sentence;
+
+            // Weighting
+            const weightContainer = document.getElementById('weighting-container');
+            data.weighting.items.forEach(item => {
+                const el = document.createElement('div');
+                el.innerHTML = `
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-slate-300 font-medium">${item.topic}</span>
+                        <span class="text-cyan-400 font-bold">${item.weight}%</span>
+                    </div>
+                    <div class="w-full bg-slate-800 rounded-full h-2.5">
+                        <div class="bg-cyan-500 h-2.5 rounded-full" style="width: ${item.weight}%"></div>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-1">${item.reason}</p>
+                `;
+                weightContainer.appendChild(el);
+            });
+
+            // Keywords
+            const kwContainer = document.getElementById('keywords-container');
+            data.keywords.forEach((kw, index) => {
+                const btn = document.createElement('button');
+                btn.className = "px-3 py-1 bg-slate-800 hover:bg-slate-700 text-cyan-400 text-sm rounded-full border border-slate-700 transition focus:ring-2 focus:ring-cyan-500";
+                btn.textContent = kw.term;
+                btn.onclick = () => showKeywordDetail(kw);
+                kwContainer.appendChild(btn);
+            });
+        }
+
+        function showKeywordDetail(kw) {
+            const detailBox = document.getElementById('keyword-detail');
+            detailBox.classList.remove('hidden');
+            
+            // Build Trigger Phrases HTML
+            let triggerHtml = '';
+            if(kw.trigger_phrases && kw.trigger_phrases.length > 0) {
+                triggerHtml = `
+                    <p class="mt-2 text-yellow-400 font-medium text-xs border-t border-slate-700 pt-2">
+                        🔥 考試反射詞：${kw.trigger_phrases.join(' / ')}
+                    </p>
+                `;
+            }
+
+            detailBox.innerHTML = `
+                <strong class="block text-cyan-300 mb-1 text-base">${kw.term}</strong>
+                <p class="mb-2"><strong>Why:</strong> ${kw.why_important}</p>
+                <p class="text-slate-400"><strong>Exam Angle:</strong> ${kw.common_exam_angle}</p>
+                ${triggerHtml}
+            `;
+        }
+
+        // --- 2. Comparison Matrix ---
+        function initMatrix() {
+            const dimContainer = document.getElementById('matrix-dimensions');
+            const tbody = document.getElementById('matrix-body');
+            
+            // Render Dimension Chips
+            data.comparison_matrix.dimensions.forEach((dim, idx) => {
+                const btn = document.createElement('button');
+                btn.textContent = dim;
+                btn.className = "dim-btn px-3 py-1 text-xs bg-slate-800 text-slate-400 rounded-lg hover:bg-slate-700 hover:text-white transition border border-slate-700";
+                btn.onclick = () => highlightDimension(idx, btn);
+                dimContainer.appendChild(btn);
+            });
+
+            // Render Rows (Pivot to Dimensions)
+            data.comparison_matrix.dimensions.forEach((dim, dimIdx) => {
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-slate-800 hover:bg-slate-800/30 transition matrix-row";
+                tr.dataset.dimIndex = dimIdx;
+                
+                const fixedVal = data.comparison_matrix.rows[0].values[dim];
+                const floatVal = data.comparison_matrix.rows[1].values[dim];
+
+                tr.innerHTML = `
+                    <td class="p-3 font-medium text-slate-400 align-top">${dim}</td>
+                    <td class="p-3 text-slate-300 align-top">${fixedVal}</td>
+                    <td class="p-3 text-slate-300 align-top">${floatVal}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+            
+            // Add Footer Row for Pitfalls
+             const footerTr = document.createElement('tr');
+             footerTr.innerHTML = `
+                <td class="p-3 font-medium text-slate-500">陷阱與口訣</td>
+                <td class="p-3 text-xs text-slate-400 align-top">
+                    <p class="mb-1 text-red-400">⚠️ ${data.comparison_matrix.rows[0].pitfall}</p>
+                    <p class="text-green-400">💡 ${data.comparison_matrix.rows[0].rule_of_thumb}</p>
+                </td>
+                <td class="p-3 text-xs text-slate-400 align-top">
+                    <p class="mb-1 text-red-400">⚠️ ${data.comparison_matrix.rows[1].pitfall}</p>
+                    <p class="text-green-400">💡 ${data.comparison_matrix.rows[1].rule_of_thumb}</p>
+                </td>
+             `;
+             tbody.appendChild(footerTr);
+        }
+
+        function highlightDimension(idx, btn) {
+            document.querySelectorAll('.dim-btn').forEach(b => {
+                b.classList.remove('bg-cyan-600', 'text-white', 'border-cyan-500');
+                b.classList.add('bg-slate-800', 'text-slate-400');
+            });
+            document.querySelectorAll('.matrix-row').forEach(r => r.classList.remove('highlight-cell'));
+
+            btn.classList.remove('bg-slate-800', 'text-slate-400');
+            btn.classList.add('bg-cyan-600', 'text-white', 'border-cyan-500');
+            
+            const rows = document.querySelectorAll('.matrix-row');
+            if(rows[idx]) rows[idx].classList.add('highlight-cell');
+        }
+
+        // --- 3. Core Concept Lab (IEEE 754 Logic) ---
+        function initLab() {
+            const mistContainer = document.getElementById('mistakes-container');
+            data.core_concept_lab.common_mistakes.forEach(m => {
+                const div = document.createElement('div');
+                div.className = "bg-red-900/20 border border-red-900/50 p-3 rounded text-xs";
+                div.innerHTML = `
+                    <strong class="text-red-400 block mb-1">❌ ${m.mistake}</strong>
+                    <p class="text-slate-400 mb-1">${m.why_wrong}</p>
+                    <p class="text-green-400 font-medium">💡 Fix: ${m.how_to_fix}</p>
+                `;
+                mistContainer.appendChild(div);
+            });
+            
+            calculateIEEE754();
+        }
+
+        function calculateIEEE754() {
+            const inputStr = document.getElementById('decimal-input').value;
+            const input = parseFloat(inputStr);
+            const stepsEl = document.getElementById('calc-steps');
+            
+            // Pedagogical Disclaimer (Important!)
+            const disclaimer = `<li class="text-xs text-slate-500 mb-2 pb-2 border-b border-slate-700 italic">※ 下列步驟為「對已產生位元的解構說明」，用於理解 IEEE 754 設計邏輯，非 JavaScript 實際運算流程。</li>`;
+            
+            if (isNaN(input)) {
+                stepsEl.innerHTML = '<li>請輸入有效的數字 (例如 -5.75, 12.5)</li>';
+                return;
+            }
+
+            // Using DataView to get exact IEEE 754 bit representation
+            const buffer = new ArrayBuffer(4);
+            const view = new DataView(buffer);
+            view.setFloat32(0, input);
+            const bits = view.getUint32(0);
+            
+            const binStr = bits.toString(2).padStart(32, '0');
+            const sign = binStr[0];
+            const exponent = binStr.substring(1, 9);
+            const mantissa = binStr.substring(9);
+            const hex = '0x' + bits.toString(16).toUpperCase().padStart(8, '0');
+
+            // --- Visualization Update ---
+            document.getElementById('vis-sign').textContent = sign;
+            document.getElementById('vis-exp').textContent = exponent;
+            document.getElementById('vis-mantissa').textContent = mantissa;
+            document.getElementById('vis-hex').textContent = hex;
+
+            // --- Logic Explanation with Special Values ---
+            
+            const rawExp = parseInt(exponent, 2);
+            
+            // Case 1: Special Values (Infinity / NaN) - Exponent = 255
+            if (rawExp === 255) {
+                const isInf = mantissa.split('').every(c => c === '0');
+                stepsEl.innerHTML = disclaimer + `
+                    <li><strong>特殊狀態偵測：</strong> 指數欄位全為 1 (11111111)。</li>
+                    <li><strong>判斷：</strong> 假數欄位 ${isInf ? '全為 0' : '不全為 0'}。</li>
+                    <li><strong>結果：</strong> ${isInf ? (sign === '0' ? '+Infinity (正無限大)' : '-Infinity (負無限大)') : 'NaN (非數值)'}。</li>
+                `;
+                return;
+            }
+
+            // Case 2: Zero or Denormalized - Exponent = 0
+            if (rawExp === 0) {
+                const isZero = mantissa.split('').every(c => c === '0');
+                if (isZero) {
+                    stepsEl.innerHTML = disclaimer + `
+                        <li><strong>數值為 0：</strong> 指數與假數全為 0。</li>
+                        <li><strong>符號：</strong> ${sign === '0' ? '+0' : '-0'}。</li>
+                    `;
+                } else {
+                    stepsEl.innerHTML = disclaimer + `
+                        <li><strong>非正規化數 (Denormalized)：</strong> 指數欄位全為 0。</li>
+                        <li><strong>規則：</strong> 此時沒有隱藏位元 (Hidden Bit)，真實指數固定為 -126。</li>
+                        <li><strong>用途：</strong> 用來表示極接近 0 的微小數值。</li>
+                    `;
+                }
+                return;
+            }
+
+            // Case 3: Normalized Numbers (Standard)
+            const trueExp = rawExp - 127;
+            stepsEl.innerHTML = disclaimer + `
+                <li><strong>1. 符號位 (Sign):</strong> ${input > 0 ? '正數' : '負數'}，Sign = <span class="text-red-400">${sign}</span></li>
+                <li><strong>2. 正規化 (Norm):</strong> 將數值轉為二進位科學記號。<br>電腦推算真實指數為 ${trueExp} (即 2^${trueExp})。</li>
+                <li><strong>3. 偏差值 (Bias):</strong> 指數欄位 = 真實指數 ${trueExp} + 127 = <span class="text-green-400">${rawExp}</span>。<br>二進位存為 ${exponent}。</li>
+                <li><strong>4. 假數 (Mantissa):</strong> 移除首位隱藏的 '1'，補足 23 位。<br>儲存值為 <span class="text-blue-400">${mantissa}</span>。</li>
+            `;
+        }
+
+        // --- 4. Exam Drill ---
+        function initDrill() {
+            // Flashcards
+            const fcContainer = document.getElementById('flashcards-container');
+            data.flashcards.forEach(card => {
+                const el = document.createElement('div');
+                el.className = "group h-40 perspective-1000 cursor-pointer";
+                el.onclick = () => {
+                    el.querySelector('.card-inner').classList.toggle('rotate-y-180');
+                };
+                el.innerHTML = `
+                    <div class="card-inner relative w-full h-full text-center transition-transform duration-500 transform-style-3d shadow-lg rounded-xl border border-slate-700">
+                        <div class="absolute w-full h-full backface-hidden bg-slate-800 flex items-center justify-center p-4 rounded-xl">
+                            <h3 class="text-lg font-semibold text-cyan-400 select-none">${card.front}</h3>
+                            <span class="absolute bottom-2 right-2 text-xs text-slate-600">點擊翻面</span>
+                        </div>
+                        <div class="absolute w-full h-full backface-hidden bg-slate-700 flex items-center justify-center p-4 rounded-xl rotate-y-180">
+                            <p class="text-sm text-slate-200 select-none">${card.back}</p>
+                        </div>
+                    </div>
+                `;
+                fcContainer.appendChild(el);
+            });
+
+            // Scenarios
+            const scContainer = document.getElementById('scenarios-container');
+            data.scenario_checks.forEach((sc, idx) => {
+                const el = document.createElement('div');
+                el.className = "bg-slate-800 p-4 rounded-lg border border-slate-700";
+                el.innerHTML = `
+                    <p class="mb-3 text-slate-300 font-medium">Q${idx+1}: ${sc.statement}</p>
+                    <div class="flex gap-2 mb-2" id="sc-btns-${idx}">
+                        <button onclick="checkScenario(${idx}, 'O')" class="px-4 py-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-300 border border-slate-600">O</button>
+                        <button onclick="checkScenario(${idx}, 'X')" class="px-4 py-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-300 border border-slate-600">X</button>
+                    </div>
+                    <div id="sc-res-${idx}" class="hidden text-sm mt-2 p-2 rounded bg-slate-900/50 border border-slate-600"></div>
+                `;
+                scContainer.appendChild(el);
+            });
+        }
+
+        function checkScenario(idx, userGuess) {
+            const sc = data.scenario_checks[idx];
+            const resEl = document.getElementById(`sc-res-${idx}`);
+            const isCorrect = userGuess === sc.answer;
+            
+            resEl.classList.remove('hidden');
+            resEl.innerHTML = `
+                <strong class="${isCorrect ? 'text-green-400' : 'text-red-400'}">
+                    ${isCorrect ? '✅ 答對了！' : '❌ 答錯了。'} 
+                </strong>
+                <span class="text-slate-400">正確答案是 ${sc.answer}。</span>
+                <p class="mt-1 text-cyan-200">${sc.explanation}</p>
+            `;
+        }
+
+        // --- 5. Appendix ---
+        function initAppendix() {
+            document.getElementById('raw-notes').textContent = data.original_notes_for_appendix;
+        }
+
+    </script>
+</body>
+</html>
