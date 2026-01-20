@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+
+<html lang="zh-TW" class="dark"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>字元碼系統：備考戰略儀表板</title> <script src="https://cdn.tailwindcss.com"></script> <script> tailwind.config = { darkMode: 'class', theme: { extend: { colors: { slate: { 850: '#1e293b', 900: '#0f172a', 950: '#020617', }, cyan: { 400: '#22d3ee', 500: '#06b6d4', 900: '#164e63', } } } } } </script> <style> /* Custom scrollbar for dark mode */ ::-webkit-scrollbar { width: 8px; height: 8px; } ::-webkit-scrollbar-track { background: #0f172a; } ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; } ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+    .flip-card {
+        background-color: transparent;
+        perspective: 1000px;
+    }
+    .flip-card-inner {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        text-align: center;
+        transition: transform 0.6s;
+        transform-style: preserve-3d;
+    }
+    .flip-card.flipped .flip-card-inner {
+        transform: rotateY(180deg);
+    }
+    .flip-card-front, .flip-card-back {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        padding: 1rem;
+        border-radius: 0.5rem;
+    }
+    .flip-card-back {
+        transform: rotateY(180deg);
+        background-color: #1e293b; /* slate-800 */
+        border: 1px solid #06b6d4; /* cyan-500 */
+    }
+    .flip-card-front {
+        background-color: #1e293b;
+        border: 1px solid #334155;
+    }
+
+    /* Matrix Highlight Animation */
+    .highlight-cell {
+        background-color: rgba(6, 182, 212, 0.15) !important;
+        transition: background-color 0.3s ease;
+    }
+</style>
+</head> <body class="bg-slate-950 text-slate-200 font-sans antialiased min-h-screen p-4 md:p-8">
+
+<div class="max-w-5xl mx-auto space-y-12">
+
+    <header class="space-y-4 border-b border-slate-800 pb-6">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <h1 class="text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">
+                    第一章：字元碼系統
+                </h1>
+                <p class="text-slate-400 mt-2 text-lg">
+                    資料表示法拼圖的最後一塊：從 ASCII 到 Unicode
+                </p>
+            </div>
+            <div class="text-right hidden md:block">
+                <span class="px-3 py-1 bg-cyan-900/30 text-cyan-400 text-xs rounded-full border border-cyan-800">Exam Mode</span>
+            </div>
+        </div>
+        
+        <div class="bg-slate-900/50 p-4 rounded-lg border-l-4 border-cyan-500">
+            <p class="text-slate-300">
+                <span class="font-bold text-cyan-400">定位：</span>
+                本章解決電腦如何將人類語言轉化為機器數值（0與1），並從單一語系（ASCII）演進至全球通用（Unicode）的過程。
+            </p>
+        </div>
+    </header>
+
+    <section class="grid grid-cols-1 md:grid-cols-12 gap-6">
+        <div class="md:col-span-7 bg-slate-900 rounded-xl p-6 border border-slate-800 shadow-lg">
+            <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                考點權重 (出題常見度估計)
+            </h2>
+            <div class="space-y-4">
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span>ASCII 規格與特性 (7 bits)</span>
+                        <span class="text-cyan-400 font-bold">80%</span>
+                    </div>
+                    <div class="w-full bg-slate-800 rounded-full h-2.5">
+                        <div class="bg-gradient-to-r from-cyan-600 to-cyan-400 h-2.5 rounded-full" style="width: 80%"></div>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-1">基礎中的基礎，數字規格極易成為選擇題陷阱。</p>
+                </div>
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span>編碼順序 (Sorting Logic)</span>
+                        <span class="text-cyan-400 font-bold">70%</span>
+                    </div>
+                    <div class="w-full bg-slate-800 rounded-full h-2.5">
+                        <div class="bg-gradient-to-r from-cyan-600 to-cyan-400 h-2.5 rounded-full" style="width: 70%"></div>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-1">實務應用題型常見，測驗學生是否理解電腦內部排序原理。</p>
+                </div>
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span>Unicode vs Big-5 vs ASCII</span>
+                        <span class="text-cyan-400 font-bold">60%</span>
+                    </div>
+                    <div class="w-full bg-slate-800 rounded-full h-2.5">
+                        <div class="bg-gradient-to-r from-cyan-600 to-cyan-400 h-2.5 rounded-full" style="width: 60%"></div>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-1">記憶性考點，主要考位元組大小差異。</p>
+                </div>
+                 <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span>同位檢查機制</span>
+                        <span class="text-cyan-400 font-bold">50%</span>
+                    </div>
+                    <div class="w-full bg-slate-800 rounded-full h-2.5">
+                        <div class="bg-gradient-to-r from-cyan-600 to-cyan-400 h-2.5 rounded-full" style="width: 50%"></div>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-1">偏向計算與邏輯，通常出一題簡單計算。</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="md:col-span-5 flex flex-col gap-6">
+            <div class="bg-slate-900 rounded-xl p-6 border border-slate-800 shadow-lg flex-1">
+                <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>
+                    關鍵字 (點擊查看考點)
+                </h2>
+                <div class="flex flex-wrap gap-2" id="keywords-container">
+                    </div>
+                <div id="keyword-detail" class="mt-4 p-3 bg-slate-800/50 rounded-lg text-sm text-slate-300 hidden border border-slate-700">
+                    </div>
+            </div>
+
+            <div class="bg-slate-900 rounded-xl p-6 border border-slate-800 shadow-lg">
+                <h3 class="text-sm font-semibold text-cyan-500 uppercase tracking-wider mb-2">學習脈絡</h3>
+                <div class="text-xs text-slate-400 space-y-2">
+                    <p><span class="text-slate-200">⬅️ 前置：</span>二進位系統、Byte定義、單位換算</p>
+                    <p><span class="text-slate-200">➡️ 後續：</span>排序演算法、錯誤偵測、字串處理</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="bg-slate-900 rounded-xl border border-cyan-900/50 shadow-2xl overflow-hidden relative">
+        <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-500 to-blue-600"></div>
+        <div class="p-6 md:p-8">
+            <h2 class="text-2xl font-bold mb-2 flex items-center gap-2 text-white">
+                <svg class="w-6 h-6 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+                核心觀念實驗室：ASCII 排序與同位檢查
+            </h2>
+            <p class="text-slate-400 mb-6">輸入字元，觀察電腦內部如何編碼、排序，並計算同位檢查碼。</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="space-y-6 bg-slate-800/30 p-5 rounded-lg border border-slate-700">
+                    <div>
+                        <label class="block text-sm font-medium text-cyan-300 mb-2">1. 輸入一個字元</label>
+                        <input type="text" id="charInput" maxlength="1" value="A" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-2xl text-center text-white focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition-all placeholder-slate-600" placeholder="A">
+                        <p class="text-xs text-slate-500 mt-2">支援範圍：0-9, A-Z, a-z</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-cyan-300 mb-2">2. 選擇檢查模式</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="setParityMode('even')" id="btn-even" class="py-2 px-4 rounded-lg text-sm font-medium transition-colors bg-cyan-600 text-white hover:bg-cyan-500">偶同位 (Even)</button>
+                            <button onclick="setParityMode('odd')" id="btn-odd" class="py-2 px-4 rounded-lg text-sm font-medium transition-colors bg-slate-700 text-slate-300 hover:bg-slate-600">奇同位 (Odd)</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="md:col-span-2 space-y-6">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="bg-slate-800 p-4 rounded-lg border-l-4 border-blue-500">
+                            <p class="text-xs text-slate-400 uppercase">ASCII 十進位 (排序依據)</p>
+                            <p id="asciiVal" class="text-3xl font-mono font-bold text-white mt-1">65</p>
+                        </div>
+                        <div class="bg-slate-800 p-4 rounded-lg border-l-4 border-blue-500">
+                            <p class="text-xs text-slate-400 uppercase">原始 7-bit 二進位</p>
+                            <p id="binary7" class="text-3xl font-mono font-bold text-blue-300 mt-1">1000001</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="bg-slate-700 text-xs px-2 py-0.5 rounded text-slate-300">計算過程</span>
+                            <span id="oneCountText" class="text-sm text-cyan-200">目前有 2 個 '1'</span>
+                        </div>
+                        <div class="flex items-center gap-4 text-lg font-mono">
+                            <div class="flex flex-col items-center">
+                                <span class="text-xs text-slate-500">Parity Bit</span>
+                                <span id="parityBitDisplay" class="text-2xl font-bold text-yellow-400 border-b-2 border-yellow-400 pb-1">0</span>
+                            </div>
+                            <span class="text-slate-500">+</span>
+                            <div class="flex flex-col items-center">
+                                <span class="text-xs text-slate-500">Data Bits</span>
+                                <span id="dataBitsDisplay" class="text-2xl text-slate-300">1000001</span>
+                            </div>
+                            <span class="text-slate-500">=</span>
+                            <div class="flex flex-col items-center">
+                                <span class="text-xs text-slate-500">Final 8-bit</span>
+                                <span id="finalByte" class="text-2xl font-bold text-white">01000001</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-slate-800 p-3 rounded-lg flex items-start gap-3">
+                        <div class="mt-1 min-w-[20px] h-[20px] rounded-full bg-cyan-900 flex items-center justify-center text-xs text-cyan-400 font-bold">i</div>
+                        <p class="text-sm text-slate-300" id="sortingRuleText">排序判斷：此為大寫字母，排在數字之後，小寫字母之前。</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-red-900/20 border border-red-900/50 p-4 rounded-lg flex gap-3">
+                    <div class="text-red-400 mt-1">⚠️</div>
+                    <div>
+                        <p class="font-bold text-red-400 text-sm">常見陷阱：數字 '0' 的值</p>
+                        <p class="text-xs text-red-200/70 mt-1">數字 '0' 是文字字元，ASCII 是 48；數值 0 (Null) 才是 0。</p>
+                    </div>
+                </div>
+                <div class="bg-red-900/20 border border-red-900/50 p-4 rounded-lg flex gap-3">
+                    <div class="text-red-400 mt-1">⚠️</div>
+                    <div>
+                        <p class="font-bold text-red-400 text-sm">常見陷阱：偶同位定義</p>
+                        <p class="text-xs text-red-200/70 mt-1">偶同位是讓「1 的總數」為偶數，不是讓檢查碼固定為 0。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="space-y-4">
+        <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+            <svg class="w-6 h-6 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+            規格對照表：ASCII vs Unicode vs Big-5
+        </h2>
+        <p class="text-sm text-slate-400">點擊下方維度標籤，高亮比較重點。</p>
+        
+        <div class="flex flex-wrap gap-2 mb-4">
+            <button onclick="highlightColumn(0)" class="dim-chip px-3 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-400 hover:bg-cyan-900 hover:text-cyan-300 border border-slate-700 transition-colors focus:ring-2 focus:ring-cyan-500">有效位元數 (Bits)</button>
+            <button onclick="highlightColumn(1)" class="dim-chip px-3 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-400 hover:bg-cyan-900 hover:text-cyan-300 border border-slate-700 transition-colors focus:ring-2 focus:ring-cyan-500">存儲空間 (Bytes)</button>
+            <button onclick="highlightColumn(2)" class="dim-chip px-3 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-400 hover:bg-cyan-900 hover:text-cyan-300 border border-slate-700 transition-colors focus:ring-2 focus:ring-cyan-500">總字元數 (Math)</button>
+            <button onclick="highlightColumn(3)" class="dim-chip px-3 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-400 hover:bg-cyan-900 hover:text-cyan-300 border border-slate-700 transition-colors focus:ring-2 focus:ring-cyan-500">主要支援範圍</button>
+        </div>
+
+        <div class="overflow-x-auto rounded-xl border border-slate-800 shadow-lg">
+            <table class="w-full text-sm text-left text-slate-300">
+                <thead class="text-xs text-cyan-400 uppercase bg-slate-900 border-b border-slate-700">
+                    <tr>
+                        <th scope="col" class="px-6 py-4 font-extrabold w-32">系統名稱</th>
+                        <th scope="col" class="px-6 py-4 matrix-col-0">有效位元數 (Bits)</th>
+                        <th scope="col" class="px-6 py-4 matrix-col-1">存儲空間 (Bytes)</th>
+                        <th scope="col" class="px-6 py-4 matrix-col-2">總字元數 (Math)</th>
+                        <th scope="col" class="px-6 py-4 matrix-col-3">主要支援範圍</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800 bg-slate-850">
+                    <tr class="hover:bg-slate-800/50 transition-colors group">
+                        <td class="px-6 py-4 font-bold text-white bg-slate-900/50">
+                            標準 ASCII
+                            <div class="text-[10px] text-slate-500 font-normal mt-1">口訣：美國標準=7bits</div>
+                        </td>
+                        <td class="px-6 py-4 matrix-col-0 text-cyan-200">7 bits</td>
+                        <td class="px-6 py-4 matrix-col-1">通常佔 1 Byte<br><span class="text-[10px] text-slate-500">(第8位元閒置)</span></td>
+                        <td class="px-6 py-4 matrix-col-2">2^7 = 128</td>
+                        <td class="px-6 py-4 matrix-col-3">美國英語</td>
+                    </tr>
+                     <tr class="bg-slate-900/30 text-xs border-b border-slate-800/50">
+                        <td colspan="5" class="px-6 py-2 text-slate-400">
+                            <span class="text-yellow-500 font-bold mr-2">! 陷阱:</span>常誤以為標準 ASCII 用滿 8 bits (256字)，其實只有 7 bits (128字)。
+                        </td>
+                    </tr>
+
+                    <tr class="hover:bg-slate-800/50 transition-colors">
+                        <td class="px-6 py-4 font-bold text-white bg-slate-900/50">
+                            Unicode
+                            <div class="text-[10px] text-slate-500 font-normal mt-1">口訣：萬國碼=2Bytes</div>
+                        </td>
+                        <td class="px-6 py-4 matrix-col-0 text-cyan-200">16 bits (基礎)</td>
+                        <td class="px-6 py-4 matrix-col-1">2 Bytes</td>
+                        <td class="px-6 py-4 matrix-col-2">2^16 = 65536</td>
+                        <td class="px-6 py-4 matrix-col-3">全球多國語言</td>
+                    </tr>
+                    <tr class="bg-slate-900/30 text-xs border-b border-slate-800/50">
+                        <td colspan="5" class="px-6 py-2 text-slate-400">
+                            <span class="text-yellow-500 font-bold mr-2">! 陷阱:</span>考試若無特別說明，Unicode 通常指 UCS-2 (2 Bytes) 而非 UTF-8。
+                        </td>
+                    </tr>
+
+                    <tr class="hover:bg-slate-800/50 transition-colors">
+                        <td class="px-6 py-4 font-bold text-white bg-slate-900/50">
+                            Big-5
+                            <div class="text-[10px] text-slate-500 font-normal mt-1">口訣：台灣舊標準</div>
+                        </td>
+                        <td class="px-6 py-4 matrix-col-0 text-cyan-200">16 bits</td>
+                        <td class="px-6 py-4 matrix-col-1">2 Bytes</td>
+                        <td class="px-6 py-4 matrix-col-2">約 1.3 萬字</td>
+                        <td class="px-6 py-4 matrix-col-3">繁體中文 (舊)</td>
+                    </tr>
+                    <tr class="bg-slate-900/30 text-xs">
+                        <td colspan="5" class="px-6 py-2 text-slate-400">
+                            <span class="text-yellow-500 font-bold mr-2">! 陷阱:</span>雖與 Unicode 同為 2 Bytes，但編碼不同，同一字碼值不同。
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div>
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                閃示卡 (點擊翻面)
+            </h2>
+            <div class="grid grid-cols-2 gap-4" id="flashcards-container">
+                </div>
+        </div>
+
+        <div class="bg-slate-900 p-6 rounded-xl border border-slate-800">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                觀念是非題
+            </h2>
+            <div class="space-y-4" id="scenario-container">
+                </div>
+        </div>
+    </section>
+
+    <footer class="pt-8 border-t border-slate-800">
+        <details class="group bg-slate-900 rounded-lg border border-slate-800 overflow-hidden">
+            <summary class="flex justify-between items-center font-medium cursor-pointer list-none p-4 hover:bg-slate-800 text-slate-400 group-open:text-cyan-400 transition-colors">
+                <span>附錄：我的原始筆記 (Original Notes)</span>
+                <span class="transition group-open:rotate-180">
+                    <svg fill="none" height="24" shape-rendering="geometricPrecision" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24" width="24"><path d="M6 9l6 6 6-6"></path></svg>
+                </span>
+            </summary>
+            <div class="text-slate-400 group-open:animate-fadeIn p-4 bg-slate-950/50">
+                <pre class="whitespace-pre-wrap font-mono text-sm leading-relaxed" id="original-notes-content"></pre>
+            </div>
+        </details>
+    </footer>
+
+</div>
+
+<script>
+    // Data derived from JSON
+    const keywordsData = [
+        { term: "ASCII", desc: "規格：7 bits / 128字元。考試陷阱：不要與8位元混淆。", angle: "標準 ASCII 佔用位元數 (7 bits vs 8 bits)" },
+        { term: "Collating Sequence", desc: "編碼順序：數字 < 大寫 < 小寫。", angle: "判斷檔案排序先後" },
+        { term: "Unicode", desc: "萬國碼：2 Bytes / 65536字元，解決多語系與空間不足。", angle: "位元組長度比較 (2 Bytes)" },
+        { term: "Parity Check", desc: "同位檢查：利用第8位元偵測傳輸錯誤。", angle: "計算同位位元 (0/1)" }
+    ];
+
+    const flashcardsData = [
+        { front: "標準 ASCII 的位元數", back: "7 bits (第8位元閒置)。<br>總字數：2^7 = 128。" },
+        { front: "ASCII 編碼順序", back: "數字(0-9) < 大寫(A-Z) < 小寫(a-z)。" },
+        { front: "Unicode 位元組長度", back: "2 Bytes (16 bits)。<br>解決 ASCII 無法容納象形文字的問題。" },
+        { front: "同位檢查的用途", back: "利用閒置的第 8 位元偵測資料傳輸錯誤。<br>(奇同位 vs 偶同位)" }
+    ];
+
+    const scenariosData = [
+        { id: 1, q: "因為現在電腦很進步，所以標準 ASCII 碼現在都改用 8 bits 來編碼以增加效率。", a: "X", exp: "標準 ASCII 定義鎖定在 7 bits (0-127)。雖存儲用 1 Byte，但有效內容僅 7 bits。" },
+        { id: 2, q: "檔案排序：'zebra.jpg' 會排在 'Apple.jpg' 之後。", a: "O", exp: "正確。ASCII 中大寫(A) 碼值小於小寫(z)，數值小的排前面。" },
+        { id: 3, q: "同一個中文字在 Big-5 與 Unicode 的二進位數值是相同的。", a: "X", exp: "錯誤。不同系統對應的碼值不同，互不相通，這也是亂碼的主因。" }
+    ];
+
+    const originalNotes = `在「第一章 計算機基礎」的宏觀背景下，來源資料將**「字元碼系統 (1-8)」視為資料表示法拼圖的最後一塊。
+如果說前面的章節（二進位、補數、浮點數）解決了「電腦如何處理數量」的問題，那麼這一節則是解決「電腦如何處理語言」的問題。來源資料對此抱持著一種「從標準化到全球化」的演進觀點。 根據來源資料，我們可以從以下三個核心面向來解讀其看法：
+
+定義溝通的基石：ASCII 的「7 位元」堅持 來源資料對 ASCII (美國標準資訊交換碼) 的看法非常強調其「原始規格的嚴謹性」。 • 7 位元的本質：雖然我們現在習慣說 1 Byte = 8 Bits，但來源特別強調標準 ASCII 碼只用了 7 個位元，只能表示 2 7 =128 個字元。 • 看法分析：這反映了早期電腦硬體資源珍貴，且當時的計算環境以美國（英語）為主，因此 7 位元已足夠涵蓋大小寫英文字母、數字與控制符號。教材特意區分 7 位元（標準）與 8 位元（擴充），是為了建立學生對「資料存儲效率」的敏感度。
+
+資料的邏輯順序：大小比較的規則 來源資料不僅將 ASCII 視為編碼表，更將其視為電腦進行排序 (Sorting) 的邏輯依據。 • 大小順序 (Collating Sequence)：來源明確列出了 ASCII 的編碼順序為 數字 (0-9) < 大寫字母 (A-Z) < 小寫字母 (a-z)。 • 實務意義：這解釋了為什麼在電腦檔案排序中，數字開頭的檔案會排在英文檔名之前，而大寫又排在小寫之前。這是將人類的「字母順序」轉化為機器「數值大小」的關鍵轉譯規則。
+
+空間換取全球化：Unicode 的擴張 針對 Unicode (萬國碼)，來源資料將其定位為解決 ASCII 「語言霸權」與「空間不足」 的方案。 • 從 1 Byte 到 2 Bytes：來源指出，為了容納各國文字（特別是像中文這種象形文字），Unicode 打破了 ASCII 的空間限制，使用 2 個位元組 (16 bits) 來編碼。 • 在地化的過渡：來源特別提到了 Big-5 (大五碼) 作為繁體中文通用的舊標準（同樣是 2 bytes），並舉例說明同一個「字」在 Big-5 與 Unicode會有不同的編碼。 • 看法：這部分展示了計算機科學如何透過增加儲存空間（從 7 bits 變成 16 bits）來換取通用性（支援所有語言）。
+
+資料完整性的初探：同位檢查 (Parity Check) 在介紹 ASCII 的擴充應用時，來源資料引入了 同位檢查 的概念。 • 廢物利用：由於標準 ASCII 只用了 7 個位元，第 8 個位元（最高位元）往往被閒置。來源解釋，這個空位常被用來作為檢查碼 (Parity Bit)，用以偵測資料傳輸過程中是否發生錯誤。 • 系統觀點：這是第一章中首次觸及「資訊安全與容錯」**的概念，暗示了電腦運作並非完美，需要額外的機制來確保資料正確性。 總結 在來源資料的脈絡中，「字元碼系統」不僅是背誦編碼表，它是連接「人類語言」與「機器數值」的介面。它確立了電腦處理文字的三大原則：
+
+標準化 (透過 ASCII 確保互通)。
+
+數值化 (透過編碼順序實現排序)。
+
+全球化 (透過 Unicode 擴充支援多語系)。`;
+
+ // ------------------
+ // Initialization
+ // ------------------
+ document.addEventListener('DOMContentLoaded', () => {
+     renderKeywords();
+     renderFlashcards();
+     renderScenarios();
+     document.getElementById('original-notes-content').textContent = originalNotes;
+
+     // Lab Init
+     document.getElementById('charInput').addEventListener('input', updateLab);
+     updateLab(); // Initial run
+ });
+
+ // ------------------
+ // Module: Lab
+ // ------------------
+ let currentParityMode = 'even';
+
+ function setParityMode(mode) {
+     currentParityMode = mode;
+     document.getElementById('btn-even').className = mode === 'even' 
+         ? 'py-2 px-4 rounded-lg text-sm font-medium transition-colors bg-cyan-600 text-white hover:bg-cyan-500'
+         : 'py-2 px-4 rounded-lg text-sm font-medium transition-colors bg-slate-700 text-slate-300 hover:bg-slate-600';
+     document.getElementById('btn-odd').className = mode === 'odd' 
+         ? 'py-2 px-4 rounded-lg text-sm font-medium transition-colors bg-cyan-600 text-white hover:bg-cyan-500'
+         : 'py-2 px-4 rounded-lg text-sm font-medium transition-colors bg-slate-700 text-slate-300 hover:bg-slate-600';
+     updateLab();
+ }
+
+ function updateLab() {
+     const input = document.getElementById('charInput');
+     let char = input.value.charAt(0);
+
+     if (!char) {
+         // Reset/Empty state
+         document.getElementById('asciiVal').textContent = '-';
+         document.getElementById('binary7').textContent = '-';
+         document.getElementById('parityBitDisplay').textContent = '-';
+         document.getElementById('dataBitsDisplay').textContent = '-';
+         document.getElementById('finalByte').textContent = '-';
+         document.getElementById('oneCountText').textContent = '';
+         document.getElementById('sortingRuleText').textContent = '請輸入字元以查看規則';
+         return;
+     }
+
+     // ASCII & Binary Calculation
+     const asciiCode = char.charCodeAt(0);
+
+     // Limit to standard ASCII for demo purposes (0-127)
+     if (asciiCode > 127) {
+         document.getElementById('sortingRuleText').innerHTML = `<span class='text-yellow-400'>注意：此字元超出標準 ASCII 範圍 (0-127)，計算可能不準確。</span>`;
+     }
+
+     let binary7 = asciiCode.toString(2).padStart(7, '0');
+
+     // Count 1s
+     const count1s = (binary7.match(/1/g) || []).length;
+
+     // Parity Logic
+     let parityBit = 0;
+     if (currentParityMode === 'even') {
+         // To make total even: if count is odd, add 1. If even, add 0.
+         parityBit = (count1s % 2 !== 0) ? 1 : 0;
+     } else {
+         // To make total odd: if count is odd, add 0. If even, add 1.
+         parityBit = (count1s % 2 === 0) ? 1 : 0;
+     }
+
+     // Update UI
+     document.getElementById('asciiVal').textContent = asciiCode;
+     document.getElementById('binary7').textContent = binary7;
+     document.getElementById('parityBitDisplay').textContent = parityBit;
+     document.getElementById('dataBitsDisplay').textContent = binary7;
+     document.getElementById('finalByte').textContent = parityBit + binary7;
+     document.getElementById('oneCountText').innerHTML = `目前 7 bits 中有 <strong class="text-white">${count1s}</strong> 個 '1'`;
+
+     // Sorting Rule Text
+     let rule = "";
+     if (asciiCode >= 48 && asciiCode <= 57) rule = "數字 (0-9)：ASCII 碼最小，排序在最前。";
+     else if (asciiCode >= 65 && asciiCode <= 90) rule = "大寫字母 (A-Z)：排在數字之後，小寫之前。";
+     else if (asciiCode >= 97 && asciiCode <= 122) rule = "小寫字母 (a-z)：ASCII 碼最大，排序在最後。";
+     else rule = "控制符號或其他符號。";
+     document.getElementById('sortingRuleText').textContent = rule;
+ }
+
+ // ------------------
+ // Module: Matrix Highlight
+ // ------------------
+ function highlightColumn(index) {
+     // Remove highlighting
+     document.querySelectorAll('.highlight-cell').forEach(el => el.classList.remove('highlight-cell'));
+     document.querySelectorAll('.bg-cyan-900').forEach(el => el.classList.remove('bg-cyan-900', 'text-cyan-300'));
+
+     // Add highlighting
+     const cells = document.querySelectorAll(`.matrix-col-${index}`);
+     cells.forEach(el => el.classList.add('highlight-cell'));
+
+     // Highlight Button
+     const btns = document.querySelectorAll('.dim-chip');
+     btns.forEach((btn, i) => {
+         if (i === index) {
+             btn.classList.remove('bg-slate-800', 'text-slate-400');
+             btn.classList.add('bg-cyan-900', 'text-cyan-300');
+         } else {
+             btn.classList.add('bg-slate-800', 'text-slate-400');
+             btn.classList.remove('bg-cyan-900', 'text-cyan-300');
+         }
+     });
+ }
+
+ // ------------------
+ // Module: Keywords
+ // ------------------
+ function renderKeywords() {
+     const container = document.getElementById('keywords-container');
+     container.innerHTML = keywordsData.map((k, i) => `
+         <button onclick="showKeyword(${i})" class="px-3 py-1 bg-slate-800 hover:bg-cyan-900 border border-slate-700 hover:border-cyan-500 rounded text-sm text-cyan-400 transition-all">
+             #${k.term}
+         </button>
+     `).join('');
+ }
+
+ function showKeyword(index) {
+     const k = keywordsData[index];
+     const detail = document.getElementById('keyword-detail');
+     detail.classList.remove('hidden');
+     detail.innerHTML = `
+         <strong class="text-cyan-400 text-base">${k.term}</strong>
+         <p class="mt-1 text-slate-300">${k.desc}</p>
+         <div class="mt-2 text-xs text-slate-500 border-t border-slate-700 pt-2">
+             <span class="text-cyan-600 font-bold">考點視角：</span> ${k.angle}
+         </div>
+     `;
+ }
+
+ // ------------------
+ // Module: Flashcards
+ // ------------------
+ function renderFlashcards() {
+     const container = document.getElementById('flashcards-container');
+     container.innerHTML = flashcardsData.map(card => `
+         <div class="flip-card h-32 cursor-pointer group" onclick="this.classList.toggle('flipped')">
+             <div class="flip-card-inner">
+                 <div class="flip-card-front shadow-lg">
+                     <h3 class="font-bold text-lg text-cyan-400">${card.front}</h3>
+                     <p class="text-xs text-slate-500 mt-2">(點擊翻面)</p>
+                 </div>
+                 <div class="flip-card-back shadow-lg">
+                     <p class="text-sm text-slate-200 leading-relaxed">${card.back}</p>
+                 </div>
+             </div>
+         </div>
+     `).join('');
+ }
+
+ // ------------------
+ // Module: Scenarios
+ // ------------------
+ function renderScenarios() {
+     const container = document.getElementById('scenario-container');
+     container.innerHTML = scenariosData.map((s, i) => `
+         <div class="bg-slate-800 p-4 rounded-lg border border-slate-700 scenario-item">
+             <p class="text-sm text-slate-200 mb-3 font-medium">${i+1}. ${s.q}</p>
+             <div class="flex gap-2" id="scen-btns-${i}">
+                 <button onclick="checkScenario(${i}, 'O')" class="flex-1 py-1.5 rounded bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm transition-colors border border-slate-600">O (正確)</button>
+                 <button onclick="checkScenario(${i}, 'X')" class="flex-1 py-1.5 rounded bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm transition-colors border border-slate-600">X (錯誤)</button>
+             </div>
+             <div id="scen-res-${i}" class="hidden mt-3 text-sm p-3 rounded bg-slate-900/50 border border-slate-700"></div>
+         </div>
+     `).join('');
+ }
+
+ function checkScenario(index, choice) {
+     const s = scenariosData[index];
+     const isCorrect = choice === s.a;
+     const resBox = document.getElementById(`scen-res-${index}`);
+
+     resBox.classList.remove('hidden');
+     if (isCorrect) {
+         resBox.innerHTML = `<span class="text-green-400 font-bold">✅ 答對了！</span> <span class="text-slate-400 block mt-1">${s.exp}</span>`;
+         resBox.classList.add('border-green-900');
+     } else {
+         resBox.innerHTML = `<span class="text-red-400 font-bold">❌ 答錯了...</span> <span class="text-slate-400 block mt-1">${s.exp}</span>`;
+         resBox.classList.add('border-red-900');
+     }
+ }
+</script>
+
+</body> </html>

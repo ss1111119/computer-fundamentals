@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+
+<html lang="zh-TW" class="scroll-smooth"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>補數與整數表示法 - 互動備考指南</title> <script src="https://cdn.tailwindcss.com"></script> <script> tailwind.config = { theme: { extend: { colors: { slate: { 850: '#1e293b', 900: '#0f172a', 950: '#020617', }, cyan: { 400: '#22d3ee', 500: '#06b6d4', 900: '#164e63', } }, fontFamily: { sans: ['"Noto Sans TC"', 'Inter', 'sans-serif'], } } } } </script> <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet"> <style> body { font-family: 'Noto Sans TC', sans-serif; } .card-flip { perspective: 1000px; } .card-inner { position: relative; width: 100%; height: 100%; text-align: center; transition: transform 0.6s; transform-style: preserve-3d; } .card-flip.flipped .card-inner { transform: rotateY(180deg); } .card-front, .card-back { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 1rem; border-radius: 0.5rem; } .card-back { transform: rotateY(180deg); background-color: #1e293b; border: 1px solid #22d3ee; } .card-front { background-color: #1e293b; border: 1px solid #334155; }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+    /* Range Slider Styling */
+    input[type=range] { -webkit-appearance: none; background: transparent; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 20px; width: 20px; border-radius: 50%; background: #22d3ee; cursor: pointer; margin-top: -8px; }
+    input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #334155; border-radius: 2px; }
+</style>
+</head> <body class="bg-slate-950 text-slate-200 min-h-screen p-4 md:p-8">
+
+<div class="max-w-5xl mx-auto space-y-12">
+    
+    <header class="text-center space-y-4 pt-8">
+        <div class="inline-block px-3 py-1 text-xs font-semibold tracking-wider text-cyan-400 uppercase bg-cyan-900/30 rounded-full">Chapter 1-6</div>
+        <h1 class="text-3xl md:text-5xl font-bold text-white tracking-tight">補數與整數表示法</h1>
+        <p class="text-slate-400 text-lg max-w-2xl mx-auto">
+            本章解決電腦硬體「如何用加法電路執行減法」的難題，並定義整數儲存邊界。
+        </p>
+        
+        <div class="bg-slate-900/50 border border-slate-800 rounded-lg p-4 mt-6 max-w-3xl mx-auto text-left flex items-start gap-4">
+            <div class="text-2xl">💡</div>
+            <div>
+                <h3 class="font-bold text-cyan-400 mb-1">費曼直覺理解</h3>
+                <p class="text-slate-300 text-sm md:text-base">
+                    補數就是透過「把數字轉一圈」的方式，讓電腦只用加法就能算出減法的結果。就像時鐘倒退 3 小時很麻煩，但往前轉 9 小時也能到同一個位置。
+                </p>
+            </div>
+        </div>
+    </header>
+
+    <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 md:col-span-2 shadow-lg">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                考點權重分佈
+            </h2>
+            <div class="space-y-5">
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-slate-300">數值範圍計算 (特別是 2 的補數)</span>
+                        <span class="text-cyan-400 font-mono">50%</span>
+                    </div>
+                    <div class="w-full bg-slate-800 rounded-full h-2.5">
+                        <div class="bg-cyan-500 h-2.5 rounded-full" style="width: 50%"></div>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-1">極易因為公式記錯或忽略不對稱性而失分。</p>
+                </div>
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-slate-300">三種表示法的比較</span>
+                        <span class="text-cyan-400 font-mono">30%</span>
+                    </div>
+                    <div class="w-full bg-slate-800 rounded-full h-2.5">
+                        <div class="bg-cyan-600 h-2.5 rounded-full" style="width: 30%"></div>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-1">理解為何現代電腦選用 2 的補數。</p>
+                </div>
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-slate-300">補數運算規則</span>
+                        <span class="text-cyan-400 font-mono">20%</span>
+                    </div>
+                    <div class="w-full bg-slate-800 rounded-full h-2.5">
+                        <div class="bg-cyan-700 h-2.5 rounded-full" style="width: 20%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>
+                關鍵字 (點擊查看)
+            </h2>
+            <div class="flex flex-wrap gap-2" id="keyword-container">
+                </div>
+            <div id="keyword-detail" class="mt-4 text-sm text-slate-400 min-h-[80px] border-t border-slate-800 pt-3 hidden">
+                </div>
+        </div>
+    </section>
+
+    <section class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-2xl relative">
+        <div class="absolute top-0 right-0 p-4 opacity-10 text-9xl font-bold select-none pointer-events-none">LAB</div>
+        
+        <div class="p-6 border-b border-slate-800 bg-slate-800/50">
+            <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                <svg class="w-6 h-6 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+                核心觀念實驗室：N 位元整數範圍計算器
+            </h2>
+            <p class="text-slate-400 mt-1">拖曳滑桿調整位元數 (n)，觀察三種表示法邊界數值的變化與不對稱性。</p>
+        </div>
+
+        <div class="p-6 md:p-8">
+            <div class="mb-8">
+                <div class="flex justify-between items-end mb-2">
+                    <label for="bit_depth" class="text-sm font-medium text-cyan-400">位元數 (n)</label>
+                    <span id="bit-display" class="text-4xl font-mono font-bold text-white">8 <span class="text-sm text-slate-500 font-sans font-normal">bits</span></span>
+                </div>
+                <input type="range" id="bit_depth" min="4" max="64" value="8" step="1" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+                <div class="flex justify-between text-xs text-slate-500 mt-2 px-1">
+                    <span>4 bits</span>
+                    <span>32 bits</span>
+                    <span>64 bits</span>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="text-slate-400 text-sm border-b border-slate-700">
+                            <th class="py-3 px-4 font-normal">表示法</th>
+                            <th class="py-3 px-4 font-normal">公式</th>
+                            <th class="py-3 px-4 font-normal text-right">最小值 (Min)</th>
+                            <th class="py-3 px-4 font-normal text-right">最大值 (Max)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="calc-results" class="font-mono text-sm md:text-base">
+                        </tbody>
+                </table>
+            </div>
+
+            <div class="mt-6 bg-red-900/20 border border-red-500/30 rounded-lg p-4 flex gap-3 items-start">
+                <div class="text-red-400 mt-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                </div>
+                <div>
+                    <h4 class="font-bold text-red-400 text-sm">常見陷阱</h4>
+                    <p class="text-slate-300 text-sm mt-1">
+                        別忘了！2 的補數沒有「負零」，所以它的負數範圍比正數多 1 (-128 vs +127)。
+                        <br><span class="text-xs text-slate-400">口訣：2 的補數，負數多一數 (-2^(n-1))。</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="space-y-4">
+        <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+            <svg class="w-6 h-6 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
+            三種整數表示法總整理
+        </h2>
+        <p class="text-slate-400 text-sm">點擊上方維度按鈕，高亮對應比較重點。點擊表格列可展開詳細說明。</p>
+
+        <div class="flex flex-wrap gap-2" id="matrix-controls">
+            </div>
+
+        <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm md:text-base" id="comparison-table">
+                    <thead class="bg-slate-950 text-slate-400 border-b border-slate-800">
+                        <tr>
+                            <th class="p-4 w-1/4">比較對象</th>
+                            <th class="p-4" data-col="0">0 的表示法</th>
+                            <th class="p-4" data-col="1">數值範圍</th>
+                            <th class="p-4" data-col="2">減法規則</th>
+                            <th class="p-4" data-col="3">硬體複雜度</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800" id="matrix-body">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        <div>
+            <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                <svg class="w-6 h-6 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+                閃卡複習 (點擊翻面)
+            </h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4" id="flashcards-container">
+                </div>
+        </div>
+
+        <div>
+            <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                <svg class="w-6 h-6 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                情境判斷 (True / False)
+            </h2>
+            <div class="space-y-4" id="scenario-container">
+                </div>
+        </div>
+    </section>
+
+    <section class="border-t border-slate-800 pt-8">
+        <details class="group">
+            <summary class="flex items-center justify-between cursor-pointer list-none p-4 bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors">
+                <span class="font-bold text-slate-300">附錄：我的原始筆記</span>
+                <span class="transition group-open:rotate-180">
+                    <svg fill="none" height="24" shape-rendering="geometricPrecision" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24" width="24"><path d="M6 9l6 6 6-6"></path></svg>
+                </span>
+            </summary>
+            <div class="text-slate-400 mt-4 px-4 pb-4">
+                <pre class="whitespace-pre-wrap font-sans text-sm leading-relaxed bg-slate-950 p-4 rounded border border-slate-800 overflow-x-auto" id="original-notes"></pre>
+            </div>
+        </details>
+    </section>
+
+    <footer class="text-center text-slate-600 text-sm py-12">
+        Generated by AI Thought Partner | 學習科學 x 前端技術
+    </footer>
+
+</div>
+
+<script>
+    // Data derived from User Input JSON
+    const data = {
+        keywords: [
+            { term: "補數", why: "電腦減法基礎，將 A-B 轉為 A+(-B)", angle: "給定十進位求補數、運算原理" },
+            { term: "2 的補數", why: "現代標準，解決雙零問題，簡化電路", angle: "範圍計算、與1補數差異、溢位" },
+            { term: "數值範圍", why: "避免 Overflow，決定變數大小", angle: "必考：N位元下的 Max/Min" }
+        ],
+        matrix: {
+            dimensions: ["0 的表示法", "數值範圍 (n位元)", "減法運算規則", "硬體複雜度"],
+            rows: [
+                { name: "帶號大小", values: ["兩種 (+0, -0)", "-(2^(n-1) - 1) ~ +(2^(n-1) - 1)", "需判斷符號位，邏輯複雜", "高 (需減法電路)"], pitfall: "容易誤以為範圍是 -2^(n-1)，但其實是對稱的。", rule: "看到 +0/-0 雙胞胎就是它。" },
+                { name: "1 的補數", values: ["兩種 (00..0, 11..1)", "-(2^(n-1) - 1) ~ +(2^(n-1) - 1)", "端回進位 (End-around carry) 需加回 1", "中 (需處理額外進位)"], pitfall: "運算完有進位忘記加回最低位元 (LSB)。", rule: "全部反相，雙零問題仍在。" },
+                { name: "2 的補數", values: ["唯一 (00...0)", "-2^(n-1) ~ +(2^(n-1) - 1)", "進位直接捨去，無需加回", "低 (最適合電腦)"], pitfall: "負數範圍比正數多 1 (不對稱)。", rule: "1 的補數 + 1；唯一零；範圍多一負數。" }
+            ]
+        },
+        flashcards: [
+            { front: "2 的補數定義", back: "定義：1 的補數 + 1。<br>考點：唯一零(0000)，解決雙零問題。" },
+            { front: "n 位元 2 的補數範圍", back: "範圍：-2^(n-1) 到 +(2^(n-1) - 1)<br>考點：不對稱，負數比正數多一個。" },
+            { front: "運算進位處理差異", back: "1 的補數：進位要加回 (End-around)。<br>2 的補數：進位直接丟掉 (Drop carry)。" }
+        ],
+        scenarios: [
+            { q: "在 8 位元系統中，使用 2 的補數表示法，可以儲存數值 -128。", a: true, exp: "正確。2 的補數範圍是不對稱的，最小值為 -128。" },
+            { q: "電腦計算 5 - 3 時，內部電路會啟動減法器進行運算。", a: false, exp: "錯誤。電腦是將 3 轉為補數 (-3)，再與 5 進行「加法」運算。" }
+        ],
+        originalNotes: `在「第一章 計算機基礎」的宏觀背景下，來源資料將**「補數與整數表示法 (1-6)」視為解決電腦硬體運作限制的關鍵數學解決方案。這一節的核心觀點在於解釋「如何用僅能識別 0 與 1 的電路來處理負數與減法運算」**。
+根據來源資料，我們可以從以下四個層面來探討其看法：
+
+為了「簡化硬體設計」而生的數學工具 來源資料明確指出，電腦內部的運作常採用**「被減數加上減數的補數」**的方式來處理減法。 • 核心邏輯：電腦的算術邏輯單元 (ALU) 設計加法電路相對容易，設計減法電路則較複雜。透過引入補數系統，電腦可以將「A - B」轉化為「A + (B 的補數)」。 • 運算一致性：這意味著電腦只需要一套加法電路就能同時處理加法與減法，這是計算機硬體設計效率化的基石。
+
+整數表示法的演進與優劣比較 來源資料並非直接給出結論，而是展示了三種表示法的演進，並透過比較突顯為何現代電腦選擇 2 的補數： • 帶號大小 (Sign-Magnitude)：     ◦ 最直觀，最左邊位元 (MSB) 為符號位 (0正1負)。     ◦ 缺點：有「正零 (+0)」與「負零 (-0)」兩種表示法，且加減法運算邏輯複雜。 • 1 的補數 (1's Complement)：     ◦ 定義為將數值反相 (0變1，1變0)。     ◦ 缺點：仍然存在 +0 (0000) 與 -0 (1111) 的問題，運算時若有進位需要額外加回 (End-around carry),。 • 2 的補數 (2's Complement)：     ◦ 定義為「1 的補數 + 1」。     ◦ 優勢 (看法重點)：來源特別標示這部分為重點。它只有唯一的 0 (0000)，解決了雙零問題。     ◦ 運算規則：減法運算後的進位直接捨去即可，無需像 1 的補數那樣加回，電路設計最簡單,。
+
+定義數值範圍的邊界 (Range) 在第一章的脈絡中，理解「補數」對於掌握電腦能儲存多大的數字至關重要。來源資料詳細列出了 n 位元下的表示範圍，這是考試常考的計算題： • 帶號大小 & 1 的補數：範圍對稱，從 −(2 n−1 −1) 到 +(2 n−1 −1)。 • 2 的補數：範圍不對稱，因為少了一個負零，多了一個負數表示空間。範圍從 −2 n−1 到 +(2 n−1 −1)。     ◦ 例如：以 8 位元為例，2 的補數可以表示到 -128，而其他兩種只能到 -127。來源強調這是考試必考的細節。
+
+數學定義的嚴謹性 (r's vs r-1's) 來源資料在介紹二進位補數前，先用十進位解釋了通用的補數定義，這有助於學生從熟悉的十進位過渡到二進位： • (r-1)'s 補數：對應於二進位的 1 的補數，計算方式是 r n −1−N (每一位數都用最大值去減)。 • r's 補數：對應於二進位的 2 的補數，計算方式是 r n −N (或先求 r-1 補數再加 1)。 總結 在來源資料的觀點中，「補數與整數表示法」是硬體邏輯的數學基礎。它解釋了為什麼電腦硬體可以做得這麼精簡（不需要減法器），以及為什麼在程式設計中（如 C/C++ 的 int），整數的範圍是不對稱的（負數比正數多一個）。這一節承接了 1-4 節的二進位概念，並直接支撐了後續 1-7 節浮點數中指數與尾數的儲存格式理解。` };
+
+ // --- Init Keywords ---
+ const keywordContainer = document.getElementById('keyword-container');
+ const keywordDetail = document.getElementById('keyword-detail');
+
+ data.keywords.forEach(k => {
+     const btn = document.createElement('button');
+     btn.className = "px-3 py-1 bg-slate-800 hover:bg-cyan-900 border border-slate-700 hover:border-cyan-500 rounded-full text-sm transition-colors text-slate-200";
+     btn.textContent = k.term;
+     btn.onclick = () => {
+         keywordDetail.innerHTML = `<span class="text-cyan-400 font-bold block mb-1">Why Important?</span> ${k.why} <br><span class="text-yellow-500 font-bold block mt-2 mb-1">考試考點：</span> ${k.angle}`;
+         keywordDetail.classList.remove('hidden');
+     };
+     keywordContainer.appendChild(btn);
+ });
+
+ // --- Init Lab (Calculator) ---
+ const bitSlider = document.getElementById('bit_depth');
+ const bitDisplay = document.getElementById('bit-display');
+ const resultBody = document.getElementById('calc-results');
+
+ function updateCalc() {
+     const n = parseInt(bitSlider.value);
+     bitDisplay.innerHTML = `${n} <span class="text-sm text-slate-500 font-sans font-normal">bits</span>`;
+
+     // Calc logic using BigInt
+     const powerNm1 = 2n ** BigInt(n - 1); // 2^(n-1)
+
+     // Sign-Magnitude & 1's Comp: -(2^(n-1) - 1) ~ +(2^(n-1) - 1)
+     const symMax = powerNm1 - 1n;
+     const symMin = -symMax;
+
+     // 2's Comp: -2^(n-1) ~ +(2^(n-1) - 1)
+     const twoMin = -powerNm1;
+     const twoMax = symMax; // Same max
+
+     // Helper for thousands separator
+     const fmt = (num) => num.toLocaleString();
+
+     const rows = [
+         { type: "帶號大小", formula: "±(2^(n-1) - 1)", min: fmt(symMin), max: fmt(symMax) },
+         { type: "1 的補數", formula: "±(2^(n-1) - 1)", min: fmt(symMin), max: fmt(symMax) },
+         { type: "2 的補數", formula: "-2^(n-1) ~ +(2^(n-1)-1)", min: fmt(twoMin), max: fmt(twoMax), highlight: true }
+     ];
+
+     resultBody.innerHTML = rows.map(r => `
+         <tr class="border-b border-slate-800 hover:bg-slate-800/30 transition-colors">
+             <td class="py-3 px-4 ${r.highlight ? 'text-cyan-400 font-bold' : 'text-slate-300'}">${r.type}</td>
+             <td class="py-3 px-4 text-slate-500 text-xs md:text-sm font-sans">${r.formula}</td>
+             <td class="py-3 px-4 text-right ${r.highlight ? 'text-cyan-400 font-bold bg-cyan-900/20' : ''}">${r.min}</td>
+             <td class="py-3 px-4 text-right text-emerald-400">${r.max}</td>
+         </tr>
+     `).join('');
+ }
+
+ bitSlider.addEventListener('input', updateCalc);
+ updateCalc(); // Initial run
+
+ // --- Init Matrix ---
+ const matrixControls = document.getElementById('matrix-controls');
+ const matrixBody = document.getElementById('matrix-body');
+ const table = document.getElementById('comparison-table');
+
+ // Generate Chips
+ data.matrix.dimensions.forEach((dim, idx) => {
+     const chip = document.createElement('button');
+     chip.className = "px-3 py-1.5 bg-slate-800 rounded-md text-xs border border-slate-700 hover:bg-slate-700 transition-colors matrix-chip";
+     chip.textContent = dim;
+     chip.onclick = () => highlightColumn(idx, chip);
+     matrixControls.appendChild(chip);
+ });
+
+ // Generate Rows
+ data.matrix.rows.forEach(row => {
+     const tr = document.createElement('tr');
+     tr.className = "group hover:bg-slate-800/50 cursor-pointer transition-colors";
+
+     // Build cells
+     let cellsHtml = `<td class="p-4 font-bold text-white align-top border-b border-slate-800">${row.name}</td>`;
+     row.values.forEach((val, idx) => {
+         cellsHtml += `<td class="p-4 align-top text-slate-300 border-b border-slate-800 cell-col-${idx}">${val}</td>`;
+     });
+     tr.innerHTML = cellsHtml;
+
+     // Row click for detail
+     const detailRow = document.createElement('tr');
+     detailRow.className = "hidden bg-slate-900/80 border-b border-slate-800";
+     detailRow.innerHTML = `
+         <td colspan="5" class="p-4">
+             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                 <div class="text-amber-500"><span class="font-bold border border-amber-500/50 px-1 rounded text-xs mr-2">陷阱</span>${row.pitfall}</div>
+                 <div class="text-emerald-500"><span class="font-bold border border-emerald-500/50 px-1 rounded text-xs mr-2">口訣</span>${row.rule}</div>
+             </div>
+         </td>
+     `;
+
+     tr.onclick = () => {
+         detailRow.classList.toggle('hidden');
+         tr.classList.toggle('bg-slate-800');
+     };
+
+     matrixBody.appendChild(tr);
+     matrixBody.appendChild(detailRow);
+ });
+
+ function highlightColumn(colIdx, btn) {
+     // Reset chips
+     document.querySelectorAll('.matrix-chip').forEach(c => {
+         c.classList.remove('bg-cyan-600', 'text-white', 'border-cyan-500');
+         c.classList.add('bg-slate-800', 'border-slate-700');
+     });
+     // Activate chip
+     btn.classList.remove('bg-slate-800', 'border-slate-700');
+     btn.classList.add('bg-cyan-600', 'text-white', 'border-cyan-500');
+
+     // Reset table highlights
+     table.querySelectorAll('td, th').forEach(c => c.classList.remove('bg-cyan-900/20', 'text-cyan-200'));
+
+     // Highlight new column
+     // Header
+     table.querySelector(`th[data-col="${colIdx}"]`).classList.add('bg-cyan-900/20', 'text-cyan-200');
+     // Body cells
+     table.querySelectorAll(`.cell-col-${colIdx}`).forEach(c => c.classList.add('bg-cyan-900/20', 'text-cyan-200'));
+ }
+
+ // --- Init Drill ---
+ // Flashcards
+ const cardContainer = document.getElementById('flashcards-container');
+ data.flashcards.forEach((card, i) => {
+     const wrapper = document.createElement('div');
+     wrapper.className = "h-40 cursor-pointer card-flip group";
+     wrapper.onclick = () => wrapper.classList.toggle('flipped');
+     wrapper.innerHTML = `
+         <div class="card-inner">
+             <div class="card-front shadow-lg">
+                 <span class="text-slate-400 text-xs uppercase mb-2">Card ${i+1}</span>
+                 <h3 class="text-lg font-bold text-white text-center">${card.front}</h3>
+                 <p class="text-xs text-slate-500 mt-4 absolute bottom-4">點擊翻面</p>
+             </div>
+             <div class="card-back shadow-lg">
+                 <p class="text-sm text-slate-200 leading-relaxed">${card.back}</p>
+             </div>
+         </div>
+     `;
+     cardContainer.appendChild(wrapper);
+ });
+
+ // Scenarios
+ const scenarioContainer = document.getElementById('scenario-container');
+ data.scenarios.forEach((item, i) => {
+     const div = document.createElement('div');
+     div.className = "bg-slate-900 border border-slate-800 p-4 rounded-lg";
+     div.innerHTML = `
+         <p class="font-medium text-slate-200 mb-3"><span class="text-cyan-500 mr-2">Q${i+1}.</span>${item.q}</p>
+         <div class="flex gap-2 mb-2">
+             <button class="btn-o flex-1 py-1 rounded border border-slate-700 hover:bg-slate-800 text-slate-300">O (True)</button>
+             <button class="btn-x flex-1 py-1 rounded border border-slate-700 hover:bg-slate-800 text-slate-300">X (False)</button>
+         </div>
+         <div class="result hidden mt-3 p-3 rounded text-sm bg-slate-950 border border-slate-800"></div>
+     `;
+
+     const btnO = div.querySelector('.btn-o');
+     const btnX = div.querySelector('.btn-x');
+     const resultBox = div.querySelector('.result');
+
+     const check = (userVal) => {
+         resultBox.classList.remove('hidden');
+         if(userVal === item.a) {
+             resultBox.innerHTML = `<span class="text-emerald-400 font-bold">答對了！</span> ${item.exp}`;
+             resultBox.classList.add('border-emerald-900');
+         } else {
+             resultBox.innerHTML = `<span class="text-red-400 font-bold">答錯了...</span> ${item.exp}`;
+             resultBox.classList.add('border-red-900');
+         }
+     };
+
+     btnO.onclick = () => check(true);
+     btnX.onclick = () => check(false);
+
+     scenarioContainer.appendChild(div);
+ });
+
+ // --- Init Appendix ---
+ document.getElementById('original-notes').textContent = data.originalNotes;
+</script>
+
+</body> </html>
