@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ch2 布林代數與化簡 - 互動複習指南</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#6366f1', // Indigo-500
+                        secondary: '#d946ef', // Fuchsia-500
+                        dark: '#0f172a', // Slate-900
+                        surface: '#1e293b', // Slate-800
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .flip-card {
+            background-color: transparent;
+            perspective: 1000px;
+            cursor: pointer;
+        }
+
+        .flip-card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+
+        .flip-card.flipped .flip-card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .flip-card-front,
+        .flip-card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            border-radius: 0.5rem;
+        }
+
+        .flip-card-back {
+            transform: rotateY(180deg);
+        }
+
+        .raw-notes::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .raw-notes::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+
+        .raw-notes::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body class="bg-dark text-slate-200 font-sans antialiased min-h-screen">
+
+    <div class="max-w-5xl mx-auto p-4 md:p-8 space-y-12">
+
+        <!-- Header -->
+        <header class="space-y-4 text-center border-b border-slate-700 pb-8 animate-fade-in-down">
+            <div
+                class="inline-block px-3 py-1 text-xs font-semibold tracking-wider text-primary uppercase bg-primary/10 rounded-full">
+                Chapter 2: Logic Design (Part 2)
+            </div>
+            <h1
+                class="text-3xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
+                布林代數定理與化簡
+            </h1>
+            <p class="text-slate-400 text-lg max-w-2xl mx-auto">
+                數位電路的「文法」與「優化工具」，連接抽象邏輯與物理實作的中介語言。
+            </p>
+            <div class="flex justify-center gap-4 text-sm text-slate-500 pt-2">
+                <div class="flex items-center gap-1">
+                    <span class="text-xs border border-slate-600 rounded px-1">前置</span>
+                    <span>基本邏輯閘</span>
+                </div>
+                <span>→</span>
+                <div class="flex items-center gap-1">
+                    <span class="text-xs border border-slate-600 rounded px-1">後續</span>
+                    <span>卡諾圖化簡 (K-Map)</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Module A: Strategic Dashboard -->
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-slate-700">
+                <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z">
+                        </path>
+                    </svg>
+                    關鍵字雷達
+                </h2>
+                <div class="flex flex-wrap gap-2" id="keywords-container"></div>
+                <div id="keyword-detail"
+                    class="mt-4 p-3 bg-dark/50 rounded-lg text-sm text-slate-300 min-h-[80px] hidden"></div>
+            </div>
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-slate-700">
+                <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
+                        </path>
+                    </svg>
+                    出題佔比 (預估)
+                </h2>
+                <div class="space-y-3" id="weighting-container"></div>
+            </div>
+        </section>
+
+        <!-- Module D: Comparison Matrix (Standard Forms) -->
+        <section class="bg-surface rounded-xl shadow-lg border border-slate-700 overflow-hidden">
+            <div class="p-6 border-b border-slate-700">
+                <h2 class="text-2xl font-bold text-white mb-2">標準式對決：SOP vs POS</h2>
+                <p class="text-slate-400 text-sm">點擊上方標籤可高亮特定維度進行比較</p>
+                <div class="flex flex-wrap gap-2 mt-4" id="matrix-dimensions"></div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="text-slate-400 text-sm bg-dark/50 border-b border-slate-700">
+                            <th class="p-4 w-1/4">比較對象</th>
+                            <th class="p-4 dimension-col" data-idx="0">全名</th>
+                            <th class="p-4 dimension-col" data-idx="1">基礎單元 (Term)</th>
+                            <th class="p-4 dimension-col" data-idx="2">邏輯對應</th>
+                            <th class="p-4 dimension-col" data-idx="3">電路結構</th>
+                        </tr>
+                    </thead>
+                    <tbody id="matrix-body" class="text-slate-300"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Module B: Core Concept Lab - De Morgan's Law Visualizer -->
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div
+                class="lg:col-span-2 bg-gradient-to-br from-surface to-dark rounded-xl p-1 shadow-lg border border-fuchsia-500/30">
+                <div class="h-full bg-dark/80 rounded-lg p-6 backdrop-blur-sm relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-4 opacity-10">
+                        <svg class="w-32 h-32 text-secondary" fill="currentColor" viewBox="0 0 24 24">
+                            <path
+                                d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 9h-2V7h-2v5H6v2h2v5h2v-5h2v-2z" />
+                        </svg>
+                    </div>
+
+                    <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-2 relative z-10">
+                        <svg class="w-6 h-6 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
+                            </path>
+                        </svg>
+                        Concept Lab: 狄莫根定理轉化器
+                    </h2>
+
+                    <div class="space-y-6 relative z-10">
+                        <p class="text-sm text-slate-300">狄莫根定律是「拆開 Bar，符號變」的魔法。試試看點擊下方按鈕，將左側的 NAND/NOR 形式轉換為右側的等效形式。
+                        </p>
+
+                        <!-- Visualization Area -->
+                        <div
+                            class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center justify-items-center p-4 bg-black/20 rounded-lg border border-dashed border-slate-600">
+                            <!-- Left Side (Original) -->
+                            <div class="text-center group cursor-pointer" onclick="transformDeMorgan()">
+                                <div class="text-xs text-slate-500 mb-2">Original Form</div>
+                                <div id="demorgan-left"
+                                    class="text-2xl font-mono font-bold text-white p-3 rounded bg-slate-800 border border-slate-600 transition-all group-hover:border-secondary">
+                                    (A + B)'
+                                </div>
+                            </div>
+
+                            <!-- Arrow -->
+                            <div class="text-secondary font-bold text-xl">=</div>
+
+                            <!-- Right Side (Transformed) -->
+                            <div class="text-center">
+                                <div class="text-xs text-slate-500 mb-2">Transformed Form</div>
+                                <div id="demorgan-right"
+                                    class="text-2xl font-mono font-bold text-secondary p-3 rounded bg-slate-800 border border-secondary shadow-[0_0_15px_rgba(217,70,239,0.3)]">
+                                    A' · B'
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Controls -->
+                        <div class="flex justify-center gap-4">
+                            <button class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors"
+                                onclick="setDeMorganMode('NOR')">Mode: NOR ((A+B)')</button>
+                            <button class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors"
+                                onclick="setDeMorganMode('NAND')">Mode: NAND ((AB)')</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mistakes Panel -->
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-slate-700 flex flex-col">
+                <h3 class="text-lg font-bold text-white mb-4 text-red-400">⚠️ 常見誤區</h3>
+                <div class="space-y-4 overflow-y-auto pr-2 custom-scrollbar flex-1" id="mistakes-container"></div>
+            </div>
+        </section>
+
+        <!-- Module C: Exam Drill -->
+        <section class="space-y-8">
+            <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                <svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                實戰演練場
+            </h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4" id="flashcards-container"></div>
+            <div class="bg-surface rounded-xl p-6 border border-slate-700">
+                <h3 class="text-lg font-semibold text-slate-400 mb-6">觀念是非題</h3>
+                <div class="space-y-6" id="scenarios-container"></div>
+            </div>
+        </section>
+
+        <!-- Module E: Appendix -->
+        <section class="border-t border-slate-700 pt-8">
+            <button id="accordion-btn"
+                class="w-full flex justify-between items-center p-4 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors">
+                <span class="font-bold text-slate-300">附錄：我的原始筆記</span>
+                <svg id="accordion-icon" class="w-5 h-5 text-slate-400 transform transition-transform" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+            </button>
+            <div id="accordion-content" class="hidden mt-2 p-4 bg-black/30 rounded-lg border border-slate-800">
+                <pre class="raw-notes text-sm text-slate-400 whitespace-pre-wrap font-mono h-64 overflow-y-auto"
+                    id="raw-notes-content"></pre>
+            </div>
+        </section>
+
+        <footer class="text-center text-slate-600 py-8 text-sm">
+            Based on User Notes • Generated by Agentic AI • 2026
+        </footer>
+    </div>
+
+    <!-- Script -->
+    <script>
+        const data = {
+            "keywords": [
+                { "term": "Idempotent Law (單一律)", "why_important": "A+A=A。硬體上多餘的並聯無意義。", "common_exam_angle": "化簡時將重複項目合併" },
+                { "term": "De Morgan's Laws", "why_important": "電路轉換核心，(A+B)' = A'B'。", "common_exam_angle": "將 AND/OR 電路互換，或化簡長 Bar" },
+                { "term": "SOP (Sum of Products)", "why_important": "標準式之一，對應 minterm (Σm)。", "common_exam_angle": "給真值表求 SOP 邏輯式" },
+                { "term": "POS (Product of Sums)", "why_important": "標準式之二，對應 Maxterm (ΠM)。", "common_exam_angle": "找出輸出為 0 的列進行化簡" }
+            ],
+            "weighting": {
+                "items": [
+                    { "topic": "De Morgan's Laws & Simplification", "weight": 95, "reason": "化簡題必考，應用最廣的定理。" },
+                    { "topic": "Standard Forms (SOP/POS)", "weight": 85, "reason": "真值表轉邏輯式的標準程序。" },
+                    { "topic": "Basic Theorems (Idempotent, etc.)", "weight": 60, "reason": "基礎工具，通常融合在化簡題中考。" }
+                ]
+            },
+            "comparison_matrix": {
+                "dimensions": ["全名", "基礎單元 (Term)", "邏輯對應", "電路結構"],
+                "rows": [
+                    {
+                        "name": "SOP (積之和)",
+                        "values": {
+                            "全名": "Sum of Products",
+                            "基礎單元 (Term)": "Minterm (最小項) / Σm",
+                            "邏輯對應": "找真值表輸出為 1 的列",
+                            "電路結構": "AND-OR (先乘後加)"
+                        },
+                        "pitfall": "容易與 POS 的符號搞混 (SOP 是 Σ)。",
+                        "rule_of_thumb": "Sum of Products：很多乘積(Product)加起來(Sum)。"
+                    },
+                    {
+                        "name": "POS (和之積)",
+                        "values": {
+                            "全名": "Product of Sums",
+                            "基礎單元 (Term)": "Maxterm (最大項) / ΠM",
+                            "邏輯對應": "找真值表輸出為 0 的列",
+                            "電路結構": "OR-AND (先加後乘)"
+                        },
+                        "pitfall": "Maxterm 中，輸入為 0 代表原變數(A)，輸入為 1 代表補數(A')，與 SOP 相反。",
+                        "rule_of_thumb": "Product of Sums：很多和(Sum)乘起來(Product)。"
+                    }
+                ]
+            },
+            "core_concept_lab": {
+                "common_mistakes": [
+                    { "mistake": "1+1=2", "why_wrong": "布林代數中沒有 2，1+1=1 (True)。", "how_to_fix": "把 + 想成 OR。" },
+                    { "mistake": "以為 (A+B)' = A' + B'", "why_wrong": "分配 BAR 時符號要變 (狄莫根)。", "how_to_fix": "口訣：拆 Bar 變號。" },
+                    { "mistake": "SOP 取 0 的列", "why_wrong": "SOP 是找輸出為 1 的 minterms。", "how_to_fix": "SOP = Sum of '1's." }
+                ]
+            },
+            "flashcards": [
+                { "front": "狄莫根定理 (De Morgan)", "back": "(A+B)' = A'B' ; (AB)' = A'+B'。拆 Bar 變符號。" },
+                { "front": "單一律 (Idempotent)", "back": "A+A=A ; A·A=A。多餘的輸入無意義。" },
+                { "front": "1+1 在布林代數中", "back": "等於 1。代表 True OR True = True。" },
+                { "front": "Minterm (最小項)", "back": "SOP 的基本單元。真值表輸出 1 的列。變數相乘。" },
+                { "front": "Maxterm (最大項)", "back": "POS 的基本單元。真值表輸出 0 的列。變數相加。" }
+            ],
+            "scenario_checks": [
+                {
+                    "statement": "因為布林代數是數學，所以 A+A=2A 是成立的。",
+                    "answer": "X",
+                    "explanation": "錯。布林代數只有 0 與 1。A+A=A (單一律)。"
+                },
+                {
+                    "statement": "狄莫根定理告訴我們，把一個 OR 閘輸出的訊號反相，等同於把輸入訊號都反相後送入 AND 閘。",
+                    "answer": "O",
+                    "explanation": "對。(A+B)' = A'B'。這就是 NOR 轉 Negative-AND 的物理意義。"
+                },
+                {
+                    "statement": "化簡布林代數的主要目的是為了讓數學式子看起來更簡潔，與硬體無關。",
+                    "answer": "X",
+                    "explanation": "錯。化簡的終極目的是「經濟效益」：減少邏輯閘數量、連線與功耗。"
+                }
+            ],
+            "original_notes_for_appendix": `在「第二章 邏輯設計與布林代數」的宏觀脈絡下，來源資料將**「布林代數定理與化簡」視為數位電路設計的「文法」與「優化工具」**。
+這部分內容在教材中扮演著至關重要的角色：它不只是數學公式的推導，而是為了讓「硬體設計者」能夠用最少的元件（成本最低、速度最快）來實現正確的邏輯功能。
+根據來源資料，我們可以從以下四個核心觀點來深入探討：
+1. 運算規則的重塑：重新定義「加」與「乘」
+來源資料首先確立了布林代數的運算符號與傳統代數的差異，這是理解所有定理的前提。
+• 邏輯意義：教材定義「+」代表 OR（或），「⋅」代表 AND（且）。
+• 二元性的堅持：布林代數中的變數唯一性在於它只有 0 與 1 兩個值。這導致了一些違反直覺但符合邏輯的定理，例如：
+    ◦ 單一律 (Idempotent Law)：A+A=A（而在傳統代數是 2A）。這意味著兩個相同的訊號進行 OR 運算，結果仍是該訊號本身，硬體上這代表多餘的並聯是無意義的。
+    ◦ 1+1=1：這在算術上是錯的，但在邏輯上是對的（True OR True = True）。
+2. 轉化的關鍵：狄莫根定理 (De Morgan's Laws)
+來源資料將狄莫根定理標註為「相當重要」的內容，視其為電路轉換的核心工具。
+• 定理內容：(A+B)' =A'⋅B' 以及 (A⋅B)' =A'+B' 。
+• 看法與應用：教材指出這條定理的用途是**「亦廣，請務必牢記」**。在硬體設計的脈絡下，它意味著我們可以透過「反相」輸入與輸出，將 AND 電路 轉換為 OR 電路 的形式（反之亦然）。這在實際製程中（例如只使用 NAND Gate 來構建所有電路）具有極高的工程價值。
+3. 從「真值表」到「方程式」的橋樑：標準式
+來源資料提出了一套標準化的方法，將人類易懂的真值表 (Truth Table) 轉換為機器能懂的布林代數式。這被視為邏輯設計的「標準作業程序」。
+• 積之和 (Sum of Products, SOP)：
+    ◦ 看法：教材將其稱為「最小項 (minterm)」的累加，符號為 Σm。
+    ◦ 邏輯：找出真值表中輸出為 1 的列，將輸入變數相乘（若為0則取補數），最後將這些乘積相加。這對應到「先 AND 後 OR」的電路結構。
+• 和之積 (Product of Sums, POS)：
+    ◦ 看法：教材將其稱為「最大項 (Maxterm)」的累乘，符號為 ΠM。
+    ◦ 邏輯：找出輸出為 0 的列，對應到「先 OR 後 AND」的電路結構。
+4. 化簡的終極目的：經濟效益
+雖然來源資料在第二章主要展示代數運算，但其背後的驅動力在於**「化簡 (Simplification)」**。
+• 看法：透過分配律 A⋅(B+C)=A⋅B+A⋅C 或 補數運算 A+A'=1，我們可以消除多餘的變數。
+• 實務意義：在題庫中，經常出現要求將複雜式子化簡的題目（例如 Y=(A) A' B…）。這反映了教材的觀點：一個未經化簡的布林函數代表著浪費的硬體資源（更多的邏輯閘、更多的連線、更高的功耗）。因此，布林代數定理不僅是數學真理，更是工程上的「節省成本指南」。`
+        };
+
+        // --- Init Modules (Simplified for this file) ---
+
+        // Keywords
+        const kwContainer = document.getElementById('keywords-container');
+        const kwDetail = document.getElementById('keyword-detail');
+        data.keywords.forEach(kw => {
+            const btn = document.createElement('button');
+            btn.className = 'px-3 py-1 bg-slate-700 hover:bg-primary/50 text-slate-200 text-sm rounded-full transition-colors';
+            btn.textContent = kw.term;
+            btn.onclick = () => {
+                kwDetail.classList.remove('hidden');
+                kwDetail.innerHTML = `<strong class="text-secondary">${kw.term}</strong>：${kw.why_important}<br><span class="text-slate-500 text-xs mt-1 block">💡 考點：${kw.common_exam_angle}</span>`;
+            };
+            kwContainer.appendChild(btn);
+        });
+
+        // Weighting
+        const wContainer = document.getElementById('weighting-container');
+        data.weighting.items.forEach(item => {
+            wContainer.innerHTML += `
+                <div class="flex items-center gap-4">
+                    <div class="w-1/3 text-sm text-slate-300 truncate text-right">${item.topic}</div>
+                    <div class="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-secondary to-primary" style="width: ${item.weight}%"></div>
+                    </div>
+                    <div class="text-xs text-slate-500 w-8">${item.weight}%</div>
+                </div>`;
+        });
+
+        // Matrix
+        const matDims = document.getElementById('matrix-dimensions');
+        const matBody = document.getElementById('matrix-body');
+        const dCols = document.querySelectorAll('.dimension-col'); // Select by class
+
+        data.comparison_matrix.dimensions.forEach((dim, idx) => {
+            const btn = document.createElement('button');
+            btn.className = `dim-btn px-3 py-1 text-xs rounded-full border border-slate-600 hover:border-secondary transition-all ${idx === 0 ? 'bg-secondary text-white' : 'text-slate-400'}`;
+            btn.textContent = dim;
+            btn.onclick = () => highlightDim(idx, btn);
+            matDims.appendChild(btn);
+        });
+
+        function highlightDim(idx, btnClicked) {
+            document.querySelectorAll('.dim-btn').forEach(b => {
+                b.classList.remove('bg-secondary', 'text-white');
+                b.classList.add('text-slate-400');
+            });
+            btnClicked.classList.add('bg-secondary', 'text-white');
+            btnClicked.classList.remove('text-slate-400');
+
+            dCols.forEach(th => {
+                if (parseInt(th.dataset.idx) === idx) th.classList.add('text-secondary', 'bg-white/5');
+                else th.classList.remove('text-secondary', 'bg-white/5');
+            });
+            renderRows(idx);
+        }
+
+        function renderRows(highlightIdx) {
+            matBody.innerHTML = '';
+            data.comparison_matrix.rows.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-slate-700/50 hover:bg-white/5 transition-colors cursor-pointer';
+                let cells = `<td class="p-4 font-bold text-white">${row.name}</td>`;
+                data.comparison_matrix.dimensions.forEach((dim, idx) => {
+                    const isHighlight = idx === highlightIdx;
+                    cells += `<td class="p-4 transition-colors ${isHighlight ? 'text-white bg-white/5 font-medium' : 'text-slate-400'}">${row.values[dim]}</td>`;
+                });
+                tr.innerHTML = cells;
+
+                const detailRow = document.createElement('tr');
+                detailRow.className = 'hidden bg-slate-800/50 text-sm';
+                detailRow.innerHTML = `<td colspan="5" class="p-4"><div class="flex gap-6"><div class="flex-1 text-yellow-500">⚠️ ${row.pitfall}</div><div class="flex-1 text-green-400">💡 ${row.rule_of_thumb}</div></div></td>`;
+
+                tr.onclick = () => detailRow.classList.toggle('hidden');
+                matBody.appendChild(tr);
+                matBody.appendChild(detailRow);
+            });
+        }
+        renderRows(0);
+
+        // Lab - De Morgan
+        let deMorganMode = 'NOR';
+        function setDeMorganMode(mode) {
+            deMorganMode = mode;
+            if (mode === 'NOR') {
+                document.getElementById('demorgan-left').textContent = "(A + B)'";
+                document.getElementById('demorgan-right').textContent = "A' · B'";
+            } else {
+                document.getElementById('demorgan-left').textContent = "(A · B)'";
+                document.getElementById('demorgan-right').textContent = "A' + B'";
+            }
+        }
+
+        // Mistakes
+        const mistContainer = document.getElementById('mistakes-container');
+        data.core_concept_lab.common_mistakes.forEach(m => {
+            mistContainer.innerHTML += `<div class="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm"><strong class="text-red-300 block mb-1">❌ ${m.mistake}</strong><span class="text-slate-400">${m.why_wrong}</span><div class="mt-2 text-green-400 text-xs">✅ ${m.how_to_fix}</div></div>`;
+        });
+
+        // Flashcards
+        const fcContainer = document.getElementById('flashcards-container');
+        data.flashcards.forEach(fc => {
+            const card = document.createElement('div');
+            card.className = 'flip-card h-40';
+            card.innerHTML = `<div class="flip-card-inner bg-surface rounded-lg shadow border border-slate-700"><div class="flip-card-front flex-col"><span class="text-secondary font-bold text-lg">${fc.front}</span><span class="text-xs text-slate-500 mt-2">(點擊翻面)</span></div><div class="flip-card-back bg-gradient-to-br from-primary to-fuchsia-700 rounded-lg text-white text-sm px-2">${fc.back}</div></div>`;
+            card.onclick = () => card.classList.toggle('flipped');
+            fcContainer.appendChild(card);
+        });
+
+        // Scenarios
+        const scContainer = document.getElementById('scenarios-container');
+        data.scenario_checks.forEach((sc, idx) => {
+            const div = document.createElement('div');
+            div.className = 'p-4 bg-slate-800 rounded-lg border border-slate-700';
+            div.innerHTML = `<p class="text-slate-300 mb-4 font-medium"><span class="text-primary mr-2">Q${idx + 1}.</span>${sc.statement}</p><div class="flex gap-3 mb-3"><button class="btn-ans w-12 h-12 rounded-full border-2 border-slate-600 hover:border-green-500 hover:text-green-500 font-bold" data-ans="O">O</button><button class="btn-ans w-12 h-12 rounded-full border-2 border-slate-600 hover:border-red-500 hover:text-red-500 font-bold" data-ans="X">X</button></div><div class="feedback hidden p-3 rounded bg-slate-700 text-sm"></div>`;
+
+            div.querySelectorAll('.btn-ans').forEach(btn => btn.onclick = () => {
+                const fb = div.querySelector('.feedback');
+                fb.classList.remove('hidden', 'bg-green-900/50', 'bg-red-900/50', 'text-green-300', 'text-red-300');
+                if (btn.dataset.ans === sc.answer) {
+                    fb.classList.add('bg-green-900/50', 'text-green-300');
+                    fb.innerHTML = `<strong>正確！</strong> ${sc.explanation}`;
+                } else {
+                    fb.classList.add('bg-red-900/50', 'text-red-300');
+                    fb.innerHTML = `<strong>錯誤。</strong> ${sc.explanation}`;
+                }
+            });
+            scContainer.appendChild(div);
+        });
+
+        // Appendix
+        document.getElementById('accordion-btn').onclick = () => {
+            document.getElementById('accordion-content').classList.toggle('hidden');
+            document.getElementById('accordion-icon').classList.toggle('rotate-180');
+        };
+        document.getElementById('raw-notes-content').textContent = data.original_notes_for_appendix;
+
+    </script>
+</body>
+
+</html>
