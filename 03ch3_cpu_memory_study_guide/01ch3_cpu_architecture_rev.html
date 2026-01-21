@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ch3 CPU 架構與指令週期 - 互動複習指南</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#f43f5e', // Rose-500
+                        secondary: '#3b82f6', // Blue-500
+                        dark: '#0f172a', // Slate-900
+                        surface: '#1e293b', // Slate-800
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .flip-card {
+            background-color: transparent;
+            perspective: 1000px;
+            cursor: pointer;
+        }
+
+        .flip-card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+
+        .flip-card.flipped .flip-card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .flip-card-front,
+        .flip-card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            border-radius: 0.5rem;
+        }
+
+        .flip-card-back {
+            transform: rotateY(180deg);
+        }
+
+        .raw-notes::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .raw-notes::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+
+        .raw-notes::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+
+        /* Cycle Animation */
+        .cycle-step {
+            transition: all 0.5s ease;
+            opacity: 0.4;
+            transform: scale(0.95);
+        }
+
+        .cycle-step.active {
+            opacity: 1;
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+            border-color: #3b82f6;
+        }
+
+        .data-dot {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background-color: #f43f5e;
+            border-radius: 50%;
+            transition: all 1s ease-in-out;
+            opacity: 0;
+        }
+    </style>
+</head>
+
+<body class="bg-dark text-slate-200 font-sans antialiased min-h-screen">
+
+    <div class="max-w-6xl mx-auto p-4 md:p-8 space-y-12">
+
+        <!-- Header -->
+        <header class="space-y-4 text-center border-b border-slate-700 pb-8 animate-fade-in-down">
+            <div
+                class="inline-block px-3 py-1 text-xs font-semibold tracking-wider text-primary uppercase bg-primary/10 rounded-full">
+                Chapter 3: CPU Architecture (Part 1)
+            </div>
+            <h1
+                class="text-3xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
+                CPU 架構與指令週期
+            </h1>
+            <p class="text-slate-400 text-lg max-w-2xl mx-auto">
+                電腦硬體運作的生理機制：心臟般的律動，驅動著 Fetch, Decode, Execute 的永恆循環。
+            </p>
+            <div class="flex justify-center gap-4 text-sm text-slate-500 pt-2">
+                <div class="flex items-center gap-1">
+                    <span class="text-xs border border-slate-600 rounded px-1">前置</span>
+                    <span>數位邏輯</span>
+                </div>
+                <span>→</span>
+                <div class="flex items-center gap-1">
+                    <span class="text-xs border border-slate-600 rounded px-1">後續</span>
+                    <span>管線化 (Pipelining)</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Module A: Strategic Dashboard -->
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-slate-700">
+                <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
+                        </path>
+                    </svg>
+                    關鍵字雷達
+                </h2>
+                <div class="flex flex-wrap gap-2" id="keywords-container"></div>
+                <div id="keyword-detail"
+                    class="mt-4 p-3 bg-dark/50 rounded-lg text-sm text-slate-300 min-h-[80px] hidden"></div>
+            </div>
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-slate-700">
+                <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path>
+                    </svg>
+                    出題佔比 (預估)
+                </h2>
+                <div class="space-y-3" id="weighting-container"></div>
+            </div>
+        </section>
+
+        <!-- Module D: Comparison Matrix -->
+        <section class="bg-surface rounded-xl shadow-lg border border-slate-700 overflow-hidden">
+            <div class="p-6 border-b border-slate-700">
+                <h2 class="text-2xl font-bold text-white mb-2">指令格式權衡：0 與 3 的對決</h2>
+                <p class="text-slate-400 text-sm">Hardware Complexity vs Code Elasticity</p>
+                <div class="flex flex-wrap gap-2 mt-4" id="matrix-dimensions"></div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="text-slate-400 text-sm bg-dark/50 border-b border-slate-700">
+                            <th class="p-4 w-1/4">比較對象</th>
+                            <th class="p-4 dimension-col" data-idx="0">硬體需求</th>
+                            <th class="p-4 dimension-col" data-idx="1">程式長度</th>
+                            <th class="p-4 dimension-col" data-idx="2">運作機制</th>
+                            <th class="p-4 dimension-col" data-idx="3">適用情境</th>
+                        </tr>
+                    </thead>
+                    <tbody id="matrix-body" class="text-slate-300"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Module B: Core Concept Lab - Instruction Cycle Simulator -->
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div
+                class="lg:col-span-2 bg-gradient-to-br from-surface to-dark rounded-xl p-1 shadow-lg border border-blue-500/30">
+                <div class="h-full bg-dark/80 rounded-lg p-6 backdrop-blur-sm relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-4 opacity-10">
+                        <svg class="w-32 h-32 text-secondary" fill="currentColor" viewBox="0 0 24 24">
+                            <path
+                                d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.31-8.86c-1.77-.45-2.34-.94-2.34-1.67 0-.84.79-1.43 2.1-1.43 1.38 0 1.9.66 1.94 1.64h1.71c-.05-1.34-.87-2.57-2.49-2.97V5H10.9v1.69c-1.51.32-2.72 1.3-2.72 2.81 0 1.79 1.49 2.69 3.66 3.21 1.95.46 2.34 1.15 2.34 1.87 0 .53-.39 1.39-2.1 1.39-1.6 0-2.23-.72-2.32-1.64H8.04c.1 1.7 1.36 2.66 2.86 2.97V19h2.34v-1.67c1.52-.29 2.72-1.16 2.73-2.77-.01-2.2-1.9-2.96-3.66-3.42z" />
+                        </svg>
+                    </div>
+
+                    <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-2 relative z-10">
+                        <svg class="w-6 h-6 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        Concept Lab: 機器週期的律動
+                    </h2>
+
+                    <div class="flex flex-col gap-8 relative z-10 items-center">
+                        <!-- Play Controls -->
+                        <div class="flex gap-4">
+                            <button
+                                class="px-4 py-2 bg-secondary hover:bg-blue-600 rounded font-bold shadow text-white transition-all transform hover:scale-105"
+                                onclick="runCycle()">
+                                ▶ 執行單次週期 (Single Step)
+                            </button>
+                            <div class="flex items-center gap-2 px-3 bg-surface rounded border border-slate-600">
+                                <span class="text-xs text-slate-400">PC:</span>
+                                <span class="font-mono text-primary font-bold" id="pc-val">00</span>
+                            </div>
+                            <div class="flex items-center gap-2 px-3 bg-surface rounded border border-slate-600">
+                                <span class="text-xs text-slate-400">IR:</span>
+                                <span class="font-mono text-secondary font-bold" id="ir-val">EMPTY</span>
+                            </div>
+                        </div>
+
+                        <!-- Cycle Visualization -->
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 w-full text-center relative">
+                            <!-- Steps -->
+                            <div class="cycle-step p-4 rounded-lg border-2 border-slate-700 bg-slate-800"
+                                id="step-fetch">
+                                <div class="text-xl mb-2">🤲 Fetch</div>
+                                <div class="text-xs text-slate-400">PC -> MAR -> MBR -> IR</div>
+                            </div>
+                            <div class="cycle-step p-4 rounded-lg border-2 border-slate-700 bg-slate-800"
+                                id="step-decode">
+                                <div class="text-xl mb-2">🧠 Decode</div>
+                                <div class="text-xs text-slate-400">CU: "Load A to ACC"</div>
+                            </div>
+                            <div class="cycle-step p-4 rounded-lg border-2 border-slate-700 bg-slate-800"
+                                id="step-execute">
+                                <div class="text-xl mb-2">⚙️ Execute</div>
+                                <div class="text-xs text-slate-400">ALU / Data Bus Active</div>
+                            </div>
+                            <div class="cycle-step p-4 rounded-lg border-2 border-slate-700 bg-slate-800"
+                                id="step-store">
+                                <div class="text-xl mb-2">💾 Store</div>
+                                <div class="text-xs text-slate-400">Result -> ACC/Ram</div>
+                            </div>
+
+                            <!-- Moving Dot -->
+                            <div class="data-dot" id="data-dot"></div>
+                        </div>
+
+                        <div class="text-center text-sm text-slate-300 min-h-[40px]" id="cycle-msg">準備就緒，請點擊執行。</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mistakes Panel -->
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-slate-700 flex flex-col">
+                <h3 class="text-lg font-bold text-white mb-4 text-red-400">⚠️ 常見誤區</h3>
+                <div class="space-y-4 overflow-y-auto pr-2 custom-scrollbar flex-1" id="mistakes-container"></div>
+            </div>
+        </section>
+
+        <!-- Module C: Exam Drill -->
+        <section class="space-y-8">
+            <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                <svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                實戰演練場
+            </h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4" id="flashcards-container"></div>
+            <div class="bg-surface rounded-xl p-6 border border-slate-700">
+                <h3 class="text-lg font-semibold text-slate-400 mb-6">觀念是非題</h3>
+                <div class="space-y-6" id="scenarios-container"></div>
+            </div>
+        </section>
+
+        <!-- Module E: Appendix -->
+        <section class="border-t border-slate-700 pt-8">
+            <button id="accordion-btn"
+                class="w-full flex justify-between items-center p-4 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors">
+                <span class="font-bold text-slate-300">附錄：我的原始筆記</span>
+                <svg id="accordion-icon" class="w-5 h-5 text-slate-400 transform transition-transform" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+            </button>
+            <div id="accordion-content" class="hidden mt-2 p-4 bg-black/30 rounded-lg border border-slate-800">
+                <pre class="raw-notes text-sm text-slate-400 whitespace-pre-wrap font-mono h-64 overflow-y-auto"
+                    id="raw-notes-content"></pre>
+            </div>
+        </section>
+
+        <footer class="text-center text-slate-600 py-8 text-sm">
+            Based on User Notes • Generated by Agentic AI • 2026
+        </footer>
+    </div>
+
+    <script>
+        const data = {
+            "keywords": [
+                { "term": "Von Neumann Architecture", "why_important": "指令與資料共存於記憶體 (Stored Program)。程序化運作。", "common_exam_angle": "區分 Von Neumann 與 Harvard 架構" },
+                { "term": "Instruction Cycle", "why_important": "電腦運作的基本律動 (Fetch-Decode-Execute)。", "common_exam_angle": "排序各步驟或問 PC/IR 在哪步動作" },
+                { "term": "PC (Program Counter)", "why_important": "最重要的指標，永遠指向「下一條」指令。", "common_exam_angle": "PC 何時增加？抓完指令後。" },
+                { "term": "Opcode (運算碼)", "why_important": "指令中告訴 CPU「做什麼」的部分 (如 ADD, MOV)。", "common_exam_angle": "指令解碼階段就是在分析 Opcode" }
+            ],
+            "weighting": {
+                "items": [
+                    { "topic": "Registers Function (PC/IR/MAR)", "weight": 90, "reason": "必考題。需分清楚 PC 與 IR 的差異。" },
+                    { "topic": "Instruction Cycle Steps", "weight": 85, "reason": "流程題核心。" },
+                    { "topic": "Instruction Formats (0/3 addr)", "weight": 70, "reason": "進階比較題，考 Trade-off 概念。" }
+                ]
+            },
+            "comparison_matrix": {
+                "dimensions": ["硬體需求", "程式長度", "運作機制", "適用情境"],
+                "rows": [
+                    {
+                        "name": "零位址指令 (Zero Address)",
+                        "values": {
+                            "硬體需求": "簡單 (無太多暫存器)",
+                            "程式長度": "最長 (需多行 PUSH/POP)",
+                            "運作機制": "依賴堆疊 (Stack) 頂端運算",
+                            "適用情境": "簡單計算機、Stack Machine"
+                        },
+                        "pitfall": "以為沒有運算元就不能運算。其實是隱含在 Stack Top。",
+                        "rule_of_thumb": "0 位址 = 疊疊樂 (Stack)。"
+                    },
+                    {
+                        "name": "三位址指令 (Three Address)",
+                        "values": {
+                            "硬體需求": "複雜 (需多個暫存器埠)",
+                            "程式長度": "最短 (一行做完 A=B+C)",
+                            "運作機制": "明確指定 來源1, 來源2, 目的",
+                            "適用情境": "RISC 架構、高效能 CPU"
+                        },
+                        "pitfall": "指令長度過長，導致記憶體佔用變大。",
+                        "rule_of_thumb": "3 位址 = 豪華全配 (源1, 源2, 目的)。"
+                    }
+                ]
+            },
+            "core_concept_lab": {
+                "common_mistakes": [
+                    { "mistake": "PC 指向現在的指令", "why_wrong": "PC 永遠指向「未來 (Next)」。IR 才存「現在」。", "how_to_fix": "PC = Next Step." },
+                    { "mistake": "在 Execute 階段才去抓資料", "why_wrong": "資料可能在 Fetch 階段後、Execute 前 (Operand Fetch) 就需要準備好。", "how_to_fix": "Fetch 是抓指令，Execute 是做動作。" },
+                    { "mistake": "ALU 負責解碼", "why_wrong": "CU (Control Unit) 才是大腦負責解碼，ALU 是四肢負責做苦工。", "how_to_fix": "CU = 老闆, ALU = 勞工。" }
+                ]
+            },
+            "flashcards": [
+                { "front": "Fetch (擷取)", "back": "指令週期的第一步。將指令從記憶體讀入 IR，並更新 PC。" },
+                { "front": "Decode (解碼)", "back": "CU 分析 IR 中的 Opcode，決定要執行什麼動作。" },
+                { "front": "MAR (Memory Address Register)", "back": "存放「欲存取」記憶體位址的暫存器。CPU 的對外窗口。" },
+                { "front": "Stored Program Concept", "back": "程式與資料都以二進位形式，存放在同一個可定址的記憶體中。" },
+                { "front": "Machine Cycle", "back": "電腦執行一個指令所需的完整時間。含 Fetch, Decode, Execute。" }
+            ],
+            "scenario_checks": [
+                {
+                    "statement": "因為 CPU 速度很快，所以它可以一次同時執行 Fetch 和 Execute 同一個指令。",
+                    "answer": "X",
+                    "explanation": "錯。標準馮紐曼架構是序列執行的。Fetch 完才能 Decode。(除非用 Pipelining，但那是進階技術)。"
+                },
+                {
+                    "statement": "程式計數器 (PC) 的值，在 Fetch 階段完成後會自動增加。",
+                    "answer": "O",
+                    "explanation": "對。Fetch 完後 PC 必須指向下一條指令，以便下個週期使用。"
+                },
+                {
+                    "statement": "指令暫存器 (IR) 存放的是下一條要執行的指令位址。",
+                    "answer": "X",
+                    "explanation": "錯。IR 存放的是「正在執行」的指令「內容」(Opcode)，不是位址。位址在 PC。"
+                }
+            ],
+            "original_notes_for_appendix": `在「第三章 CPU 與記憶體概論」的宏觀架構下，來源資料將**「CPU 架構與指令週期」視為電腦硬體運作的生理機制**。
+如果說第二章的邏輯閘是電腦的「細胞」，那麼這一部分就是在解釋電腦的「心臟（CPU）」如何透過規律的跳動（指令週期）來驅動整個系統。來源資料對此抱持著高度**程序化（Procedural）與結構化（Structural）**的看法。
+根據來源資料，我們可以從以下四個核心觀點來深入探討：
+1. 架構觀點：馮·紐曼模型的實體化
+來源資料將 CPU 定義為電腦的**「中樞神經」，其設計完全遵循馮·紐曼 (Von Neumann)** 架構。
+• 功能二分法：教材明確將 CPU 劃分為負責「發號施令」的控制單元 (CU) 與負責「實際勞動」的算術邏輯單元 (ALU)。
+• 運作哲學：這種架構的核心觀點是**「儲存程式 (Stored Program)」**概念，即指令與資料都存放在同一個記憶體中，CPU 必須依照順序去讀取並執行。
+2. 運作核心：指令週期 (Instruction Cycle) 的律動
+這是本節最關鍵的動態觀點。來源資料將 CPU 的運作描述為一個不斷循環的標準作業流程，稱為機器週期 (Machine Cycle) 或指令週期。教材將其拆解為四個標準步驟：
+1. 擷取 (Fetch)：
+    ◦ 看法：這是週期的起點。CPU 必須根據 程式計數器 (PC) 的指示，去記憶體把下一條指令「抓」回來。
+    ◦ 動作細節：將 PC 的位址傳給 MAR，再透過資料匯流排將指令傳給 MBR，最後存入 指令暫存器 (IR)。
+2. 解碼 (Decode)：
+    ◦ 看法：這是「理解」的過程。控制單元 (CU) 分析 IR 中的指令，決定要做什麼動作（例如：是做加法？還是搬移資料？）。
+3. 執行 (Execute)：
+    ◦ 看法：這是「實踐」的過程。ALU 根據解碼結果進行運算，或由 CU 指揮資料傳輸。
+4. 儲存 (Store)：
+    ◦ 看法：將運算結果寫回暫存器或記憶體中。
+教學意義：來源資料透過這個週期告訴學生，電腦並不聰明，它只是極快地重複執行「由記憶體拿指令 → 看懂指令 → 做動作」這三個步驟。
+3. 暫存器 (Registers)：維持「狀態」的關鍵
+在來源資料的觀點中，暫存器不僅僅是儲存空間，它們是CPU 運作當下的「狀態紀錄器」。沒有它們，指令週期無法推進。
+• PC (程式計數器)：被視為最重要的指標，永遠指向**「下一條」**要執行的指令位址。來源特別強調，當指令被 fetch 進 CPU 後，PC 會自動加 1（指向下一條）。
+• IR (指令暫存器)：儲存**「正在執行」**的指令內容，供 CU 解碼使用。
+• MAR & MBR (記憶體位址/緩衝暫存器)：被視為 CPU 與外部記憶體溝通的橋樑。CPU 不能直接伸手進記憶體，必須透過這兩個暫存器作為介面。
+• 累積器 (Accumulator)：被視為運算的中心，ALU 運算後的結果通常暫存在此。
+4. 指令格式：軟硬體的溝通協定
+來源資料將指令 (Instruction) 視為軟體控制硬體的媒介，並分析了指令的結構：運算碼 (Opcode) + 運算元 (Operand)。
+• 長度的權衡：教材比較了不同位址指令的優劣：
+    ◦ 三位址指令：功能強大（A=B+C），但指令長度長，佔空間。
+    ◦ 零位址指令：依賴堆疊 (Stack) 運作，硬體最簡單，但程式碼行數可能較多。
+• 看法：這部分展示了計算機架構設計中的 Trade-off（權衡）——要在「硬體複雜度」與「指令長度/執行效率」之間取得平衡。
+總結
+在來源資料的脈絡中，「CPU 架構與指令週期」不僅是硬體介紹，它是電腦「如何動起來」的解釋模型。 它確立了：
+1. 結構：CU 指揮，ALU 運算。
+2. 流程：Fetch → Decode → Execute。
+3. 工具：PC 負責導航，IR 負責當下，MAR/MBR 負責對外溝通。
+這套邏輯是理解後續「管線化 (Pipelining)」技術（雖然本章節僅簡略提及，但在題庫中有出現）以及「中斷處理」的基礎。`
+        };
+
+        // --- Logic ---
+
+        // Keywords & Weighting (Standard)
+        const kwContainer = document.getElementById('keywords-container');
+        const kwDetail = document.getElementById('keyword-detail');
+        data.keywords.forEach(kw => {
+            const btn = document.createElement('button');
+            btn.className = 'px-3 py-1 bg-slate-700 hover:bg-primary/50 text-slate-200 text-sm rounded-full transition-colors';
+            btn.textContent = kw.term;
+            btn.onclick = () => {
+                kwDetail.classList.remove('hidden');
+                kwDetail.innerHTML = `<strong class="text-secondary">${kw.term}</strong>：${kw.why_important}<br><span class="text-slate-500 text-xs mt-1 block">💡 考點：${kw.common_exam_angle}</span>`;
+            };
+            kwContainer.appendChild(btn);
+        });
+
+        const wContainer = document.getElementById('weighting-container');
+        data.weighting.items.forEach(item => {
+            wContainer.innerHTML += `
+                <div class="flex items-center gap-4">
+                    <div class="w-1/3 text-sm text-slate-300 truncate text-right">${item.topic}</div>
+                    <div class="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-secondary to-primary" style="width: ${item.weight}%"></div>
+                    </div>
+                    <div class="text-xs text-slate-500 w-8">${item.weight}%</div>
+                </div>`;
+        });
+
+        // Matrix
+        const matDims = document.getElementById('matrix-dimensions');
+        const matBody = document.getElementById('matrix-body');
+        const dCols = document.querySelectorAll('.dimension-col');
+
+        data.comparison_matrix.dimensions.forEach((dim, idx) => {
+            const btn = document.createElement('button');
+            btn.className = `dim-btn px-3 py-1 text-xs rounded-full border border-slate-600 hover:border-secondary transition-all ${idx === 0 ? 'bg-secondary text-white' : 'text-slate-400'}`;
+            btn.textContent = dim;
+            btn.onclick = () => highlightDim(idx, btn);
+            matDims.appendChild(btn);
+        });
+
+        function highlightDim(idx, btnClicked) {
+            document.querySelectorAll('.dim-btn').forEach(b => {
+                b.classList.remove('bg-secondary', 'text-white');
+                b.classList.add('text-slate-400');
+            });
+            btnClicked.classList.add('bg-secondary', 'text-white');
+            btnClicked.classList.remove('text-slate-400');
+
+            dCols.forEach(th => {
+                if (parseInt(th.dataset.idx) === idx) th.classList.add('text-secondary', 'bg-white/5');
+                else th.classList.remove('text-secondary', 'bg-white/5');
+            });
+            renderRows(idx);
+        }
+
+        function renderRows(highlightIdx) {
+            matBody.innerHTML = '';
+            data.comparison_matrix.rows.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-slate-700/50 hover:bg-white/5 transition-colors cursor-pointer';
+                let cells = `<td class="p-4 font-bold text-white">${row.name}</td>`;
+                data.comparison_matrix.dimensions.forEach((dim, idx) => {
+                    const isHighlight = idx === highlightIdx;
+                    cells += `<td class="p-4 transition-colors ${isHighlight ? 'text-white bg-white/5 font-medium' : 'text-slate-400'}">${row.values[dim]}</td>`;
+                });
+                tr.innerHTML = cells;
+
+                const detailRow = document.createElement('tr');
+                detailRow.className = 'hidden bg-slate-800/50 text-sm';
+                detailRow.innerHTML = `<td colspan="5" class="p-4"><div class="flex gap-6"><div class="flex-1 text-yellow-500">⚠️ ${row.pitfall}</div><div class="flex-1 text-green-400">💡 ${row.rule_of_thumb}</div></div></td>`;
+
+                tr.onclick = () => detailRow.classList.toggle('hidden');
+                matBody.appendChild(tr);
+                matBody.appendChild(detailRow);
+            });
+        }
+        renderRows(0);
+
+        // Core Lab: Simulator
+        let pc = 0;
+        const steps = ['step-fetch', 'step-decode', 'step-execute', 'step-store'];
+        let currentStepIdx = -1;
+        let isRunning = false;
+
+        async function runCycle() {
+            if (isRunning) return;
+            isRunning = true;
+            currentStepIdx = 0;
+            const msg = document.getElementById('cycle-msg');
+
+            // 1. Fetch
+            msg.textContent = "1. Fetch: 根據 PC 抓取指令...";
+            updateActiveStep(0);
+            await wait(800);
+            document.getElementById('ir-val').textContent = `INST_${pc}`;
+
+            // 2. Decode
+            msg.textContent = "2. Decode: 分析 Opcode...";
+            updateActiveStep(1);
+            await wait(800);
+
+            // 3. Execute
+            msg.textContent = "3. Execute: ALU 進行運算...";
+            updateActiveStep(2);
+            await wait(800);
+
+            // 4. Store
+            msg.textContent = "4. Store: 寫回結果並更新 PC...";
+            updateActiveStep(3);
+            await wait(800);
+
+            // Update PC
+            pc++;
+            document.getElementById('pc-val').textContent = pc.toString().padStart(2, '0');
+            document.getElementById('ir-val').textContent = 'EMPTY';
+            clearSteps();
+            msg.textContent = "指令週期完成。等待下一指令。";
+            isRunning = false;
+        }
+
+        function updateActiveStep(idx) {
+            clearSteps();
+            document.getElementById(steps[idx]).classList.add('active');
+        }
+
+        function clearSteps() {
+            steps.forEach(s => document.getElementById(s).classList.remove('active'));
+        }
+
+        function wait(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+
+
+        // Mistakes
+        const mistContainer = document.getElementById('mistakes-container');
+        data.core_concept_lab.common_mistakes.forEach(m => {
+            mistContainer.innerHTML += `<div class="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm"><strong class="text-red-300 block mb-1">❌ ${m.mistake}</strong><span class="text-slate-400">${m.why_wrong}</span><div class="mt-2 text-green-400 text-xs">✅ ${m.how_to_fix}</div></div>`;
+        });
+
+        // Flashcards
+        const fcContainer = document.getElementById('flashcards-container');
+        data.flashcards.forEach(fc => {
+            const card = document.createElement('div');
+            card.className = 'flip-card h-40';
+            card.innerHTML = `<div class="flip-card-inner bg-surface rounded-lg shadow border border-slate-700"><div class="flip-card-front flex-col"><span class="text-secondary font-bold text-lg">${fc.front}</span><span class="text-xs text-slate-500 mt-2">(點擊翻面)</span></div><div class="flip-card-back bg-gradient-to-br from-primary to-blue-700 rounded-lg text-white text-sm px-2">${fc.back}</div></div>`;
+            card.onclick = () => card.classList.toggle('flipped');
+            fcContainer.appendChild(card);
+        });
+
+        // Scenarios
+        const scContainer = document.getElementById('scenarios-container');
+        data.scenario_checks.forEach((sc, idx) => {
+            const div = document.createElement('div');
+            div.className = 'p-4 bg-slate-800 rounded-lg border border-slate-700';
+            div.innerHTML = `<p class="text-slate-300 mb-4 font-medium"><span class="text-primary mr-2">Q${idx + 1}.</span>${sc.statement}</p><div class="flex gap-3 mb-3"><button class="btn-ans w-12 h-12 rounded-full border-2 border-slate-600 hover:border-green-500 hover:text-green-500 font-bold" data-ans="O">O</button><button class="btn-ans w-12 h-12 rounded-full border-2 border-slate-600 hover:border-red-500 hover:text-red-500 font-bold" data-ans="X">X</button></div><div class="feedback hidden p-3 rounded bg-slate-700 text-sm"></div>`;
+
+            div.querySelectorAll('.btn-ans').forEach(btn => btn.onclick = () => {
+                const fb = div.querySelector('.feedback');
+                fb.classList.remove('hidden', 'bg-green-900/50', 'bg-red-900/50', 'text-green-300', 'text-red-300');
+                if (btn.dataset.ans === sc.answer) {
+                    fb.classList.add('bg-green-900/50', 'text-green-300');
+                    fb.innerHTML = `<strong>正確！</strong> ${sc.explanation}`;
+                } else {
+                    fb.classList.add('bg-red-900/50', 'text-red-300');
+                    fb.innerHTML = `<strong>錯誤。</strong> ${sc.explanation}`;
+                }
+            });
+            scContainer.appendChild(div);
+        });
+
+        // Appendix
+        document.getElementById('accordion-btn').onclick = () => {
+            document.getElementById('accordion-content').classList.toggle('hidden');
+            document.getElementById('accordion-icon').classList.toggle('rotate-180');
+        };
+        document.getElementById('raw-notes-content').textContent = data.original_notes_for_appendix;
+
+    </script>
+</body>
+
+</html>
