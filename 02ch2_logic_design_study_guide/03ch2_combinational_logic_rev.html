@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ch2 組合邏輯電路 - 互動複習指南</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#6366f1', // Indigo-500
+                        secondary: '#10b981', // Emerald-500
+                        dark: '#0f172a', // Slate-900
+                        surface: '#1e293b', // Slate-800
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .flip-card {
+            background-color: transparent;
+            perspective: 1000px;
+            cursor: pointer;
+        }
+
+        .flip-card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+
+        .flip-card.flipped .flip-card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .flip-card-front,
+        .flip-card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            border-radius: 0.5rem;
+        }
+
+        .flip-card-back {
+            transform: rotateY(180deg);
+        }
+
+        .raw-notes::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .raw-notes::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+
+        .raw-notes::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+
+        .flow-step {
+            transition: all 0.3s ease;
+        }
+
+        .flow-step.active {
+            border-color: #10b981;
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
+            transform: scale(1.02);
+        }
+    </style>
+</head>
+
+<body class="bg-dark text-slate-200 font-sans antialiased min-h-screen">
+
+    <div class="max-w-6xl mx-auto p-4 md:p-8 space-y-12">
+
+        <!-- Header -->
+        <header class="space-y-4 text-center border-b border-slate-700 pb-8 animate-fade-in-down">
+            <div
+                class="inline-block px-3 py-1 text-xs font-semibold tracking-wider text-primary uppercase bg-primary/10 rounded-full">
+                Chapter 2: Logic Design (Part 3)
+            </div>
+            <h1
+                class="text-3xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
+                組合邏輯電路：從字母到單字
+            </h1>
+            <p class="text-slate-400 text-lg max-w-2xl mx-auto">
+                邏輯閘的關鍵進化，建構出具備算術 (加法器)、翻譯 (編碼器) 與交通指揮 (多工器) 能力的完整功能模組。
+            </p>
+            <div class="flex justify-center gap-4 text-sm text-slate-500 pt-2">
+                <div class="flex items-center gap-1">
+                    <span class="text-xs border border-slate-600 rounded px-1">前置</span>
+                    <span>邏輯閘 & 布林代數</span>
+                </div>
+                <span>→</span>
+                <div class="flex items-center gap-1">
+                    <span class="text-xs border border-slate-600 rounded px-1">後續</span>
+                    <span>循序邏輯 (有記憶的電路)</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Module A: Strategic Dashboard -->
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-slate-700">
+                <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                    關鍵字雷達
+                </h2>
+                <div class="flex flex-wrap gap-2" id="keywords-container"></div>
+                <div id="keyword-detail"
+                    class="mt-4 p-3 bg-dark/50 rounded-lg text-sm text-slate-300 min-h-[80px] hidden"></div>
+            </div>
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-slate-700">
+                <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path>
+                    </svg>
+                    出題佔比 (預估)
+                </h2>
+                <div class="space-y-3" id="weighting-container"></div>
+            </div>
+        </section>
+
+        <!-- Module D: Comparison Matrix -->
+        <section class="bg-surface rounded-xl shadow-lg border border-slate-700 overflow-hidden">
+            <div class="p-6 border-b border-slate-700">
+                <h2 class="text-2xl font-bold text-white mb-2">三大金剛功能解密</h2>
+                <p class="text-slate-400 text-sm">加法器、編碼器、多工器的天職與特性比較</p>
+                <div class="flex flex-wrap gap-2 mt-4" id="matrix-dimensions"></div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="text-slate-400 text-sm bg-dark/50 border-b border-slate-700">
+                            <th class="p-4 w-1/4">元件名稱</th>
+                            <th class="p-4 dimension-col" data-idx="0">核心職責</th>
+                            <th class="p-4 dimension-col" data-idx="1">主要應用</th>
+                            <th class="p-4 dimension-col" data-idx="2">輸入/輸出關係</th>
+                            <th class="p-4 dimension-col" data-idx="3">現實比喻</th>
+                        </tr>
+                    </thead>
+                    <tbody id="matrix-body" class="text-slate-300"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Module B: Core Concept Lab - Half Adder Flow -->
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div
+                class="lg:col-span-2 bg-gradient-to-br from-surface to-dark rounded-xl p-1 shadow-lg border border-emerald-500/30">
+                <div class="h-full bg-dark/80 rounded-lg p-6 backdrop-blur-sm relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-4 opacity-10">
+                        <svg class="w-32 h-32 text-secondary" fill="currentColor" viewBox="0 0 24 24">
+                            <path
+                                d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 9h-2V7h-2v5H6v2h2v5h2v-5h2v-2z" />
+                        </svg>
+                    </div>
+
+                    <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-2 relative z-10">
+                        <svg class="w-6 h-6 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
+                            </path>
+                        </svg>
+                        Concept Lab: 半加器解剖室
+                    </h2>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
+                        <!-- Controls -->
+                        <div class="space-y-6">
+                            <p class="text-sm text-slate-300">半加器 (Half Adder) 是電腦會算術的起點。請操作輸入開關，觀察 AND 與 XOR 如何分工完成 1
+                                位元加法。</p>
+                            <div class="flex gap-8 justify-center p-4 bg-black/20 rounded-lg">
+                                <div class="text-center">
+                                    <label class="block text-xs uppercase text-slate-500 mb-2">Input A</label>
+                                    <button
+                                        class="w-12 h-12 rounded bg-slate-700 text-white font-bold text-xl border border-slate-600 hover:border-white transition-all ha-input"
+                                        data-target="A">0</button>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-2xl font-bold text-slate-600 mt-4">+</div>
+                                </div>
+                                <div class="text-center">
+                                    <label class="block text-xs uppercase text-slate-500 mb-2">Input B</label>
+                                    <button
+                                        class="w-12 h-12 rounded bg-slate-700 text-white font-bold text-xl border border-slate-600 hover:border-white transition-all ha-input"
+                                        data-target="B">0</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Visualization -->
+                        <div class="space-y-4">
+                            <!-- XOR Path -->
+                            <div class="flow-step p-3 rounded bg-slate-800 border-l-4 border-slate-600" id="xor-step">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="font-bold text-sm text-white">XOR Gate</span>
+                                    <span class="text-xs text-slate-400">邏輯: 互斥或</span>
+                                </div>
+                                <div class="text-xs text-slate-300 mb-2">負責產生 Sum (和)</div>
+                                <div class="flex items-center gap-2">
+                                    <div class="h-1 bg-slate-600 flex-1">
+                                        <div class="h-full bg-secondary transition-all duration-300 w-0" id="xor-bar">
+                                        </div>
+                                    </div>
+                                    <span class="font-mono font-bold text-secondary" id="sum-val">0</span>
+                                </div>
+                            </div>
+
+                            <!-- AND Path -->
+                            <div class="flow-step p-3 rounded bg-slate-800 border-l-4 border-slate-600" id="and-step">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="font-bold text-sm text-white">AND Gate</span>
+                                    <span class="text-xs text-slate-400">邏輯: 且</span>
+                                </div>
+                                <div class="text-xs text-slate-300 mb-2">負責產生 Carry (進位)</div>
+                                <div class="flex items-center gap-2">
+                                    <div class="h-1 bg-slate-600 flex-1">
+                                        <div class="h-full bg-primary transition-all duration-300 w-0" id="and-bar">
+                                        </div>
+                                    </div>
+                                    <span class="font-mono font-bold text-primary" id="carry-val">0</span>
+                                </div>
+                            </div>
+
+                            <div class="mt-4 text-center">
+                                <div class="text-sm font-bold text-slate-400">數學表達</div>
+                                <div class="text-xl text-white font-mono mt-1" id="math-expr">0 + 0 = 00</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mistakes Panel -->
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-slate-700 flex flex-col">
+                <h3 class="text-lg font-bold text-white mb-4 text-red-400">⚠️ 常見誤區</h3>
+                <div class="space-y-4 overflow-y-auto pr-2 custom-scrollbar flex-1" id="mistakes-container"></div>
+            </div>
+        </section>
+
+        <!-- Module C: Exam Drill -->
+        <section class="space-y-8">
+            <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                <svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                實戰演練場
+            </h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4" id="flashcards-container"></div>
+            <div class="bg-surface rounded-xl p-6 border border-slate-700">
+                <h3 class="text-lg font-semibold text-slate-400 mb-6">觀念是非題</h3>
+                <div class="space-y-6" id="scenarios-container"></div>
+            </div>
+        </section>
+
+        <!-- Module E: Appendix -->
+        <section class="border-t border-slate-700 pt-8">
+            <button id="accordion-btn"
+                class="w-full flex justify-between items-center p-4 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors">
+                <span class="font-bold text-slate-300">附錄：我的原始筆記</span>
+                <svg id="accordion-icon" class="w-5 h-5 text-slate-400 transform transition-transform" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+            </button>
+            <div id="accordion-content" class="hidden mt-2 p-4 bg-black/30 rounded-lg border border-slate-800">
+                <pre class="raw-notes text-sm text-slate-400 whitespace-pre-wrap font-mono h-64 overflow-y-auto"
+                    id="raw-notes-content"></pre>
+            </div>
+        </section>
+
+        <footer class="text-center text-slate-600 py-8 text-sm">
+            Based on User Notes • Generated by Agentic AI • 2026
+        </footer>
+    </div>
+
+    <script>
+        const data = {
+            "keywords": [
+                { "term": "Combinational Logic", "why_important": "主要特徵「無記憶性」，輸出只看當下輸入。", "common_exam_angle": "分辨哪些電路屬於組合邏輯 (Adder, MUX vs Flip-Flop)" },
+                { "term": "Half Adder (半加器)", "why_important": "電腦算術的起點。XOR=Sum, AND=Carry。", "common_exam_angle": "畫出電路圖或寫出布林式" },
+                { "term": "Multiplexer (MUX)", "why_important": "資料流的交通警察。多選一。決定 ALU 運算誰。", "common_exam_angle": "多對一電路的識別，或用 MUX 實現邏輯函數" },
+                { "term": "De/Encoder", "why_important": "人機介面翻譯。還原(Decoder)與壓縮(Encoder)訊號。", "common_exam_angle": "輸入輸出線數量的計算 (2^n vs n)" }
+            ],
+            "weighting": {
+                "items": [
+                    { "topic": "Adders (Half/Full)", "weight": 90, "reason": "必考題。需熟記 XOR 與 AND 的角色。" },
+                    { "topic": "Multiplexers (MUX)", "weight": 85, "reason": "硬體層級的 if-else，題庫常客。" },
+                    { "topic": "Encoders/Decoders", "weight": 70, "reason": "記憶體定址的基礎概念。" }
+                ]
+            },
+            "comparison_matrix": {
+                "dimensions": ["核心職責", "主要應用", "輸入/輸出關係", "現實比喻"],
+                "rows": [
+                    {
+                        "name": "Adder (加法器)",
+                        "values": {
+                            "核心職責": "處理運算",
+                            "主要應用": "ALU 算術邏輯單元",
+                            "輸入/輸出關係": "n位元 + n位元 -> Sum + Carry",
+                            "現實比喻": "算盤 / 計算機"
+                        },
+                        "pitfall": "常忘記 Full Adder 有三個輸入 (A, B, Cin)。",
+                        "rule_of_thumb": "半加器 2 進，全加器 3 進 (含進位)。"
+                    },
+                    {
+                        "name": "Encoder (編碼器)",
+                        "values": {
+                            "核心職責": "訊號壓縮",
+                            "主要應用": "鍵盤輸入處理",
+                            "輸入/輸出關係": "2^n 輸入 -> n 輸出",
+                            "現實比喻": "管理員(16住戶) -> 轉 4 條內線"
+                        },
+                        "pitfall": "容易與 Decoder 搞混輸入輸出數量。",
+                        "rule_of_thumb": "Encoder 是「壓縮機」(多變少)。"
+                    },
+                    {
+                        "name": "Multiplexer (MUX)",
+                        "values": {
+                            "核心職責": "路徑選擇 (多選一)",
+                            "主要應用": "CPU 資料流控制",
+                            "輸入/輸出關係": "2^n 資料 + n 選擇線 -> 1 輸出",
+                            "現實比喻": "交通警察 / 鐵軌轉轍器"
+                        },
+                        "pitfall": "忽略 Select Line 的數量與輸入數量的對數關係。",
+                        "rule_of_thumb": "MUX = 多選一 (Many to One)。"
+                    }
+                ]
+            },
+            "core_concept_lab": {
+                "common_mistakes": [
+                    { "mistake": "以為半加器有進位輸入", "why_wrong": "半加器 (Half) 只能處理兩個 bit 相加，不處理前一位的 Cin。", "how_to_fix": "Half = 不完整的加法 (缺 Cin)。" },
+                    { "mistake": "混淆 MUX 與 Decoder", "why_wrong": "MUX 是多進一出(選資料)；Decoder 是多出(選位址/狀態)。", "how_to_fix": "MUX 是匯流排(Bus)的源頭；Decoder 是記憶體的鎖頭。" },
+                    { "mistake": "以為組合邏輯有記憶", "why_wrong": "他們沒有 Clock，也不存狀態。輸出隨輸入即時改變。", "how_to_fix": "組合邏輯是「當下」的反應。" }
+                ]
+            },
+            "flashcards": [
+                { "front": "半加器 (Half Adder)", "back": "2 輸入 (A,B)，2 輸出 (Sum, Carry)。由 XOR (Sum) 和 AND (Carry) 組成。" },
+                { "front": "全加器 (Full Adder)", "back": "3 輸入 (A,B,Cin)。由 2 個半加器 + 1 個 OR 閘組成。可處理進位。" },
+                { "front": "多工器 (MUX)", "back": "多選一開關。有 n 條選擇線，可從 2^n 條輸入中選 1 條輸出。" },
+                { "front": "解碼器 (Decoder)", "back": "定址核心。n 輸入 -> 2^n 輸出。將二進位號碼轉為特定的一條致能線。" },
+                { "front": "組合邏輯特徵", "back": "無記憶性 (Memoryless)。輸出僅取決於當前輸入。無時脈控制。" }
+            ],
+            "scenario_checks": [
+                {
+                    "statement": "因為全加器比較厲害，所以 CPU 裡面只有全加器，沒有半加器。",
+                    "answer": "X",
+                    "explanation": "錯。全加器內部通常是由兩個半加器組成的 (模組化設計)。"
+                },
+                {
+                    "statement": "如果有 32 條輸入線要縮減成 5 條輸出線傳輸，我應該使用 Encoder。",
+                    "answer": "O",
+                    "explanation": "對。這正是 Encoder (2^n -> n) 的用途 (32 -> 5)。"
+                },
+                {
+                    "statement": "多工器 (MUX) 可以用來儲存 1 bit 的資料，因為它有輸出。",
+                    "answer": "X",
+                    "explanation": "錯。MUX 是組合邏輯，沒有記憶能力。儲存資料需要循序邏輯 (Flip-Flop)。"
+                }
+            ],
+            "original_notes_for_appendix": `在「第二章 邏輯設計與布林代數」的宏觀脈絡下，來源資料將**「組合邏輯電路 (Combinational Logic Circuits)」**視為從「基礎元件（邏輯閘）」邁向「完整系統（CPU）」的關鍵進化階段。
+如果說邏輯閘（AND, OR, NOT）是數位世界的「字母」，那麼組合邏輯電路就是由這些字母拼湊而成的「單字」，具備了實際的功能意義。來源資料對加法器、編碼器與多工器的看法，主要集中在它們如何實作算術運算與控制資料流向：
+1. 算術能力的物理實證：加法器 (Adders)
+來源資料將加法器視為**「電腦會算術」的物理證據**。它展示了如何透過邏輯閘的排列組合，讓電流的行為符合人類的數學規則。
+• 半加器 (Half-Adder) 的邏輯解構：
+    ◦ 看法：教材將半加器定義為能處理兩個位元相加的電路。
+    ◦ 實作原理：來源特別強調了XOR 閘與AND 閘的分工——XOR 負責產生「和 (Sum)」（因為 1+1=0 且 1+0=1，符合互斥或的特性），而 AND 負責產生「進位 (Carry)」（只有 1+1 時才進位）。這是將第一章「二進位加法」轉化為第二章「電路設計」的經典案例。
+• 全加器 (Full-Adder) 的進化：
+    ◦ 看法：為了處理多位數運算，必須考慮**「前一位的進位 (Ci-1)」**。來源指出全加器由兩個半加器與一個 OR 閘組成，這確立了複雜電路是由簡單模組堆疊而成的模組化思維。
+2. 人機介面的翻譯官：編碼器與解碼器 (Encoders & Decoders)
+來源資料將這組電路視為**「訊號壓縮」與「訊號還原」**的機制，主要用於處理人類輸入與機器定址之間的轉換。
+• 編碼器 (Encoder)：
+    ◦ 看法：教材將其描述為由多輸入縮減為少輸出的裝置（2^n 條輸入線 → n 條輸出線）。
+    ◦ 生動比喻：來源使用了一個非常具體的**「管理員與住戶」的比喻。若有 16 個住戶（輸入）要跟管理員聯絡，不需要拉 16 條線，只需透過編碼器轉換為 4 條線（2^4 =16）傳輸二進位訊號即可。這展示了編碼器在節省傳輸線路與簡化訊號**上的關鍵作用。
+• 解碼器 (Decoder)：
+    ◦ 看法：作為編碼器的反向操作（n 輸入 → 2^n 輸出），它被視為**「定址 (Addressing)」**的核心。雖然第二章未深入談記憶體，但這為第三章 CPU 如何透過少數幾條位址線選定特定記憶體單元埋下了伏筆。
+3. 資料流的交通警察：多工器 (Multiplexer)
+來源資料對多工器 (MUX) 的看法是將其定義為**「選擇器 (Selector)」**。
+• 運作邏輯：教材強調它是一種**「多選一」的機制。透過控制線（Select lines）的訊號，從眾多輸入資料中挑選出一條**傳送到輸出端。
+• 系統地位：在更廣大的計算機架構中，多工器決定了資料的流向（例如：現在要讓 ALU 運算哪一個暫存器的資料？）。它是硬體層級實現「if-else」或路徑切換的關鍵元件。題庫中也常考「分辨哪個電路是多對一」的概念。
+4. 組合邏輯的本質特徵
+來源資料在介紹這些電路時，隱含了一個重要的共同特徵看法：
+• 無記憶性：這些電路的輸出完全取決於當前的輸入。這與後來提到的「循序邏輯（如暫存器、計數器）」形成對比，後者需要時脈 (Clock) 和記憶能力。組合邏輯電路（加法器、多工器等）是電腦中反應最快、最直接的邏輯層。
+總結
+在第二章的脈絡下，來源資料並非孤立地介紹這些元件，而是將它們串連成一個功能體系：
+1. 加法器負責處理資料（運算）。
+2. 多工器負責搬運資料（路徑選擇）。
+3. 編碼/解碼器負責識別資料（介面與定址）。
+這三者共同構成了 CPU 內部運作（ALU + Control Unit）的基石。`
+        };
+
+        // --- Logic Implementation ---
+
+        // Keywords
+        const kwContainer = document.getElementById('keywords-container');
+        const kwDetail = document.getElementById('keyword-detail');
+        data.keywords.forEach(kw => {
+            const btn = document.createElement('button');
+            btn.className = 'px-3 py-1 bg-slate-700 hover:bg-primary/50 text-slate-200 text-sm rounded-full transition-colors';
+            btn.textContent = kw.term;
+            btn.onclick = () => {
+                kwDetail.classList.remove('hidden');
+                kwDetail.innerHTML = `<strong class="text-secondary">${kw.term}</strong>：${kw.why_important}<br><span class="text-slate-500 text-xs mt-1 block">💡 考點：${kw.common_exam_angle}</span>`;
+            };
+            kwContainer.appendChild(btn);
+        });
+
+        // Weighting
+        const wContainer = document.getElementById('weighting-container');
+        data.weighting.items.forEach(item => {
+            wContainer.innerHTML += `
+                <div class="flex items-center gap-4">
+                    <div class="w-1/3 text-sm text-slate-300 truncate text-right">${item.topic}</div>
+                    <div class="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-secondary to-primary" style="width: ${item.weight}%"></div>
+                    </div>
+                    <div class="text-xs text-slate-500 w-8">${item.weight}%</div>
+                </div>`;
+        });
+
+        // Comparison Matrix
+        const matDims = document.getElementById('matrix-dimensions');
+        const matBody = document.getElementById('matrix-body');
+        const dCols = document.querySelectorAll('.dimension-col'); // Select by class
+
+        data.comparison_matrix.dimensions.forEach((dim, idx) => {
+            const btn = document.createElement('button');
+            btn.className = `dim-btn px-3 py-1 text-xs rounded-full border border-slate-600 hover:border-secondary transition-all ${idx === 0 ? 'bg-secondary text-white' : 'text-slate-400'}`;
+            btn.textContent = dim;
+            btn.onclick = () => highlightDim(idx, btn);
+            matDims.appendChild(btn);
+        });
+
+        function highlightDim(idx, btnClicked) {
+            document.querySelectorAll('.dim-btn').forEach(b => {
+                b.classList.remove('bg-secondary', 'text-white');
+                b.classList.add('text-slate-400');
+            });
+            btnClicked.classList.add('bg-secondary', 'text-white');
+            btnClicked.classList.remove('text-slate-400');
+
+            dCols.forEach(th => {
+                if (parseInt(th.dataset.idx) === idx) th.classList.add('text-secondary', 'bg-white/5');
+                else th.classList.remove('text-secondary', 'bg-white/5');
+            });
+            renderRows(idx);
+        }
+
+        function renderRows(highlightIdx) {
+            matBody.innerHTML = '';
+            data.comparison_matrix.rows.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-slate-700/50 hover:bg-white/5 transition-colors cursor-pointer';
+                let cells = `<td class="p-4 font-bold text-white">${row.name}</td>`;
+                data.comparison_matrix.dimensions.forEach((dim, idx) => {
+                    const isHighlight = idx === highlightIdx;
+                    cells += `<td class="p-4 transition-colors ${isHighlight ? 'text-white bg-white/5 font-medium' : 'text-slate-400'}">${row.values[dim]}</td>`;
+                });
+                tr.innerHTML = cells;
+
+                const detailRow = document.createElement('tr');
+                detailRow.className = 'hidden bg-slate-800/50 text-sm';
+                detailRow.innerHTML = `<td colspan="5" class="p-4"><div class="flex gap-6"><div class="flex-1 text-yellow-500">⚠️ ${row.pitfall}</div><div class="flex-1 text-green-400">💡 ${row.rule_of_thumb}</div></div></td>`;
+
+                tr.onclick = () => detailRow.classList.toggle('hidden');
+                matBody.appendChild(tr);
+                matBody.appendChild(detailRow);
+            });
+        }
+        renderRows(0);
+
+        // Core Concept Lab: Half Adder
+        let haA = 0;
+        let haB = 0;
+        const haInputs = document.querySelectorAll('.ha-input');
+
+        haInputs.forEach(btn => {
+            btn.onclick = () => {
+                const target = btn.dataset.target;
+                const newVal = btn.textContent === '0' ? 1 : 0;
+                btn.textContent = newVal;
+                btn.classList.toggle('bg-slate-700');
+                btn.classList.toggle('bg-emerald-500'); // Input Active color
+
+                if (target === 'A') haA = newVal;
+                else haB = newVal;
+
+                updateHA();
+            };
+        });
+
+        function updateHA() {
+            // Logic
+            const sum = haA ^ haB; // XOR
+            const carry = haA & haB; // AND
+
+            // UI Updates
+            document.getElementById('sum-val').textContent = sum;
+            document.getElementById('carry-val').textContent = carry;
+            document.getElementById('math-expr').textContent = `${haA} + ${haB} = ${carry}${sum} (binary)`;
+
+            // Visual feedback
+            const xorBar = document.getElementById('xor-bar');
+            const andBar = document.getElementById('and-bar');
+
+            xorBar.classList.toggle('w-full', sum === 1);
+            andBar.classList.toggle('w-full', carry === 1);
+
+            // Highlight active path
+            document.getElementById('xor-step').classList.toggle('active', sum === 1);
+            document.getElementById('and-step').classList.toggle('active', carry === 1);
+        }
+
+        // Common Mistakes
+        const mistContainer = document.getElementById('mistakes-container');
+        data.core_concept_lab.common_mistakes.forEach(m => {
+            mistContainer.innerHTML += `<div class="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm"><strong class="text-red-300 block mb-1">❌ ${m.mistake}</strong><span class="text-slate-400">${m.why_wrong}</span><div class="mt-2 text-green-400 text-xs">✅ ${m.how_to_fix}</div></div>`;
+        });
+
+        // Flashcards
+        const fcContainer = document.getElementById('flashcards-container');
+        data.flashcards.forEach(fc => {
+            const card = document.createElement('div');
+            card.className = 'flip-card h-40';
+            card.innerHTML = `<div class="flip-card-inner bg-surface rounded-lg shadow border border-slate-700"><div class="flip-card-front flex-col"><span class="text-secondary font-bold text-lg">${fc.front}</span><span class="text-xs text-slate-500 mt-2">(點擊翻面)</span></div><div class="flip-card-back bg-gradient-to-br from-primary to-emerald-700 rounded-lg text-white text-sm px-2">${fc.back}</div></div>`;
+            card.onclick = () => card.classList.toggle('flipped');
+            fcContainer.appendChild(card);
+        });
+
+        // Scenarios
+        const scContainer = document.getElementById('scenarios-container');
+        data.scenario_checks.forEach((sc, idx) => {
+            const div = document.createElement('div');
+            div.className = 'p-4 bg-slate-800 rounded-lg border border-slate-700';
+            div.innerHTML = `<p class="text-slate-300 mb-4 font-medium"><span class="text-primary mr-2">Q${idx + 1}.</span>${sc.statement}</p><div class="flex gap-3 mb-3"><button class="btn-ans w-12 h-12 rounded-full border-2 border-slate-600 hover:border-green-500 hover:text-green-500 font-bold" data-ans="O">O</button><button class="btn-ans w-12 h-12 rounded-full border-2 border-slate-600 hover:border-red-500 hover:text-red-500 font-bold" data-ans="X">X</button></div><div class="feedback hidden p-3 rounded bg-slate-700 text-sm"></div>`;
+
+            div.querySelectorAll('.btn-ans').forEach(btn => btn.onclick = () => {
+                const fb = div.querySelector('.feedback');
+                fb.classList.remove('hidden', 'bg-green-900/50', 'bg-red-900/50', 'text-green-300', 'text-red-300');
+                if (btn.dataset.ans === sc.answer) {
+                    fb.classList.add('bg-green-900/50', 'text-green-300');
+                    fb.innerHTML = `<strong>正確！</strong> ${sc.explanation}`;
+                } else {
+                    fb.classList.add('bg-red-900/50', 'text-red-300');
+                    fb.innerHTML = `<strong>錯誤。</strong> ${sc.explanation}`;
+                }
+            });
+            scContainer.appendChild(div);
+        });
+
+        // Appendix
+        document.getElementById('accordion-btn').onclick = () => {
+            document.getElementById('accordion-content').classList.toggle('hidden');
+            document.getElementById('accordion-icon').classList.toggle('rotate-180');
+        };
+        document.getElementById('raw-notes-content').textContent = data.original_notes_for_appendix;
+
+    </script>
+</body>
+
+</html>
