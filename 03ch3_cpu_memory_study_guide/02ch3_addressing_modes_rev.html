@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ch3 定址模式 - 互動複習指南</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#8b5cf6', // Violet-500
+                        secondary: '#ec4899', // Pink-500
+                        dark: '#0f172a', // Slate-900
+                        surface: '#1e293b', // Slate-800
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .flip-card {
+            background-color: transparent;
+            perspective: 1000px;
+            cursor: pointer;
+        }
+
+        .flip-card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+
+        .flip-card.flipped .flip-card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .flip-card-front,
+        .flip-card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            border-radius: 0.5rem;
+        }
+
+        .flip-card-back {
+            transform: rotateY(180deg);
+        }
+
+        .raw-notes::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .raw-notes::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+
+        .raw-notes::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+
+        .mode-btn {
+            transition: all 0.3s ease;
+        }
+
+        .mode-btn.active {
+            background-color: #8b5cf6;
+            border-color: #8b5cf6;
+            color: white;
+        }
+    </style>
+</head>
+
+<body class="bg-dark text-slate-200 font-sans antialiased min-h-screen">
+
+    <div class="max-w-6xl mx-auto p-4 md:p-8 space-y-12">
+
+        <!-- Header -->
+        <header class="space-y-4 text-center border-b border-slate-700 pb-8 animate-fade-in-down">
+            <div
+                class="inline-block px-3 py-1 text-xs font-semibold tracking-wider text-primary uppercase bg-primary/10 rounded-full">
+                Chapter 3: Addressing Modes (Part 2)
+            </div>
+            <h1
+                class="text-3xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
+                定址模式：尋找資料的策略
+            </h1>
+            <p class="text-slate-400 text-lg max-w-2xl mx-auto">
+                指令中的運算元只是一個線索。透過不同的地圖（定址模式），CPU 才能找到資料的「有效位址 (Effective Address)」。
+            </p>
+            <div class="flex justify-center gap-4 text-sm text-slate-500 pt-2">
+                <div class="flex items-center gap-1">
+                    <span class="text-xs border border-slate-600 rounded px-1">前置</span>
+                    <span>指令週期 & CPU架構</span>
+                </div>
+                <span>→</span>
+                <div class="flex items-center gap-1">
+                    <span class="text-xs border border-slate-600 rounded px-1">後續</span>
+                    <span>記憶體管理</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Module A: Strategic Dashboard -->
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-slate-700">
+                <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
+                        </path>
+                    </svg>
+                    關鍵字雷達
+                </h2>
+                <div class="flex flex-wrap gap-2" id="keywords-container"></div>
+                <div id="keyword-detail"
+                    class="mt-4 p-3 bg-dark/50 rounded-lg text-sm text-slate-300 min-h-[80px] hidden"></div>
+            </div>
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-slate-700">
+                <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path>
+                    </svg>
+                    出題佔比 (預估)
+                </h2>
+                <div class="space-y-3" id="weighting-container"></div>
+            </div>
+        </section>
+
+        <!-- Module D: Comparison Matrix -->
+        <section class="bg-surface rounded-xl shadow-lg border border-slate-700 overflow-hidden">
+            <div class="p-6 border-b border-slate-700">
+                <h2 class="text-2xl font-bold text-white mb-2">定址模式大亂鬥</h2>
+                <p class="text-slate-400 text-sm">速度、彈性與空間的三角權衡</p>
+                <div class="flex flex-wrap gap-2 mt-4" id="matrix-dimensions"></div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="text-slate-400 text-sm bg-dark/50 border-b border-slate-700">
+                            <th class="p-4 w-1/4">模式名稱</th>
+                            <th class="p-4 dimension-col" data-idx="0">運算速度</th>
+                            <th class="p-4 dimension-col" data-idx="1">記憶體存取次數</th>
+                            <th class="p-4 dimension-col" data-idx="2">運算元欄位內容</th>
+                            <th class="p-4 dimension-col" data-idx="3">主要應用</th>
+                        </tr>
+                    </thead>
+                    <tbody id="matrix-body" class="text-slate-300"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Module B: Core Concept Lab - Addressing Playground -->
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div
+                class="lg:col-span-2 bg-gradient-to-br from-surface to-dark rounded-xl p-1 shadow-lg border border-violet-500/30">
+                <div class="h-full bg-dark/80 rounded-lg p-6 backdrop-blur-sm relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-4 opacity-10">
+                        <svg class="w-32 h-32 text-secondary" fill="currentColor" viewBox="0 0 24 24">
+                            <path
+                                d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
+                        </svg>
+                    </div>
+
+                    <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-2 relative z-10">
+                        <svg class="w-6 h-6 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                        Concept Lab: 尋寶地圖
+                    </h2>
+
+                    <div class="flex flex-col gap-6 relative z-10">
+                        <!-- Mode Selection -->
+                        <div class="flex flex-wrap gap-2 justify-center">
+                            <button
+                                class="mode-btn active px-4 py-2 rounded-full border border-slate-600 text-sm text-slate-300 hover:text-white"
+                                onclick="setMode('immediate')">Immediate (立即)</button>
+                            <button
+                                class="mode-btn px-4 py-2 rounded-full border border-slate-600 text-sm text-slate-300 hover:text-white"
+                                onclick="setMode('direct')">Direct (直接)</button>
+                            <button
+                                class="mode-btn px-4 py-2 rounded-full border border-slate-600 text-sm text-slate-300 hover:text-white"
+                                onclick="setMode('indirect')">Indirect (間接)</button>
+                            <button
+                                class="mode-btn px-4 py-2 rounded-full border border-slate-600 text-sm text-slate-300 hover:text-white"
+                                onclick="setMode('relative')">Relative (相對)</button>
+                        </div>
+
+                        <!-- Visualization Area -->
+                        <div
+                            class="bg-black/30 p-6 rounded-xl border border-slate-600 min-h-[200px] flex items-center justify-center relative">
+                            <!-- Dynamic Content -->
+                            <div id="vis-container" class="w-full"></div>
+                        </div>
+
+                        <!-- Explanation -->
+                        <div class="p-4 bg-surface/50 rounded-lg border-l-4 border-primary">
+                            <div id="vis-title" class="font-bold text-white mb-1">Immediate Mode</div>
+                            <div id="vis-desc" class="text-sm text-slate-300">運算元欄位 = 資料本身。不用查表，直接拿來用。速度最快！</div>
+                            <div class="mt-2 text-xs text-slate-400 font-mono" id="vis-formula">Effective Address = N/A
+                                (Operand is Value)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mistakes Panel -->
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-slate-700 flex flex-col">
+                <h3 class="text-lg font-bold text-white mb-4 text-red-400">⚠️ 常見誤區</h3>
+                <div class="space-y-4 overflow-y-auto pr-2 custom-scrollbar flex-1" id="mistakes-container"></div>
+            </div>
+        </section>
+
+        <!-- Module C: Exam Drill -->
+        <section class="space-y-8">
+            <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                <svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                實戰演練場
+            </h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4" id="flashcards-container"></div>
+            <div class="bg-surface rounded-xl p-6 border border-slate-700">
+                <h3 class="text-lg font-semibold text-slate-400 mb-6">觀念是非題</h3>
+                <div class="space-y-6" id="scenarios-container"></div>
+            </div>
+        </section>
+
+        <!-- Module E: Appendix -->
+        <section class="border-t border-slate-700 pt-8">
+            <button id="accordion-btn"
+                class="w-full flex justify-between items-center p-4 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors">
+                <span class="font-bold text-slate-300">附錄：我的原始筆記</span>
+                <svg id="accordion-icon" class="w-5 h-5 text-slate-400 transform transition-transform" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+            </button>
+            <div id="accordion-content" class="hidden mt-2 p-4 bg-black/30 rounded-lg border border-slate-800">
+                <pre class="raw-notes text-sm text-slate-400 whitespace-pre-wrap font-mono h-64 overflow-y-auto"
+                    id="raw-notes-content"></pre>
+            </div>
+        </section>
+
+        <footer class="text-center text-slate-600 py-8 text-sm">
+            Based on User Notes • Generated by Agentic AI • 2026
+        </footer>
+    </div>
+
+    <script>
+        const data = {
+            "keywords": [
+                { "term": "Effective Address (EA)", "why_important": "所有定址模式的終極目標：找出資料真正的家。", "common_exam_angle": "給定暫存器/記憶體值，計算 EA" },
+                { "term": "Immediate Addressing", "why_important": "速度之王。運算元即資料。", "common_exam_angle": "比較存取速度 (Immediate > Register > Direct > Indirect)" },
+                { "term": "Relative Addressing", "why_important": "程式浮動 (Relocation) 的關鍵。EA = PC + Offset。", "common_exam_angle": "計算題：給 PC 與 Offset，求 EA" },
+                { "term": "Indirect Addressing", "why_important": "指標 (Pointer) 的實作。最慢但最靈活。", "common_exam_angle": "記憶體存取次數 (抓指令+讀指標+讀資料 = 多次)" }
+            ],
+            "weighting": {
+                "items": [
+                    { "topic": "EA Calculation (Relative/Indexed)", "weight": 95, "reason": "必考計算題。需熟記 EA = PC + Offset 公式。" },
+                    { "topic": "Speed/Access Count Comparison", "weight": 85, "reason": "觀念排序題 (Immediate 最快, Indirect 最慢)。" },
+                    { "topic": "Application Context", "weight": 70, "reason": "情境題 (指標用間接，陣列用索引)。" }
+                ]
+            },
+            "comparison_matrix": {
+                "dimensions": ["運算速度", "記憶體存取次數", "運算元欄位內容", "主要應用"],
+                "rows": [
+                    {
+                        "name": "Immediate (立即)",
+                        "values": {
+                            "運算速度": "最快 (★★★★★)",
+                            "記憶體存取次數": "0 (fetch 指令時已讀入)",
+                            "運算元欄位內容": "資料本身 (Value)",
+                            "主要應用": "變數初始化 (i=0)"
+                        },
+                        "pitfall": "誤以為可以處理很大的數字。其實受現於指令長度。",
+                        "rule_of_thumb": "立等可取，不假外求。"
+                    },
+                    {
+                        "name": "Direct (直接)",
+                        "values": {
+                            "運算速度": "中 (★★★)",
+                            "記憶體存取次數": "1 (讀取資料)",
+                            "運算元欄位內容": "資料位址 (Address)",
+                            "主要應用": "全域變數存取"
+                        },
+                        "pitfall": "位址長度受限，無法存取所有記憶體空間。",
+                        "rule_of_thumb": "直球對決，給你地址自己找。"
+                    },
+                    {
+                        "name": "Indirect (間接)",
+                        "values": {
+                            "運算速度": "最慢 (★)",
+                            "記憶體存取次數": "2 (讀指標 + 讀資料)",
+                            "運算元欄位內容": "指標位址 (Pointer)",
+                            "主要應用": "指標、參數傳遞"
+                        },
+                        "pitfall": "忘記要讀兩次記憶體，導致計算時脈數錯誤。",
+                        "rule_of_thumb": "尋寶遊戲，地圖之後還有地圖。"
+                    },
+                    {
+                        "name": "Relative (相對)",
+                        "values": {
+                            "運算速度": "快 (★★★★)",
+                            "記憶體存取次數": "1 (計算 EA 後讀取)",
+                            "運算元欄位內容": "偏移量 (Offset)",
+                            "主要應用": "分支指令 (Jump)、浮動程式"
+                        },
+                        "pitfall": "計算 EA 時忘記 PC 可能已經 +1 (指向下一條)。",
+                        "rule_of_thumb": "以我(PC)為中心，向前向後看。"
+                    }
+                ]
+            },
+            "core_concept_lab": {
+                "common_mistakes": [
+                    { "mistake": "Indirect Addressing 只需要存取一次記憶體", "why_wrong": "錯。第一次讀位址(指標)，第二次才讀真正資料。至少 2 次。", "how_to_fix": "Indirect = Double Access." },
+                    { "mistake": "Immediate Mode 的運算元是位址", "why_wrong": "Immediate 運算元就是「數值」本身，不是位址。", "how_to_fix": "Immediate = Value inside instruction." },
+                    { "mistake": "計算相對定址時直接加 Offset", "why_wrong": "要注意題目是否暗示 PC 已經 increment。通常 PC 指向 Next 指令。", "how_to_fix": "EA = PC_next + Offset." }
+                ]
+            },
+            "flashcards": [
+                { "front": "Effective Address (EA)", "back": "運算元在記憶體中的真實位址。所有定址模式計算的終點。" },
+                { "front": "Immediate Addressing", "back": "運算元直接包含在指令中。速度最快，因為不用額外訪存。" },
+                { "front": "Register Indirect", "back": "運算元是暫存器 ID，該暫存器內容才是記憶體位址。比 Memory Indirect 快。" },
+                { "front": "Relative Addressing", "back": "EA = PC + Offset。支援程式浮動 (Relocation) 與位置無關碼。" },
+                { "front": "Indexed Addressing", "back": "EA = Base + Index。專為陣列 (Array) 存取設計。" }
+            ],
+            "scenario_checks": [
+                {
+                    "statement": "為了讓程式可以在記憶體任意位置執行 (Relocation)，最佳選擇是絕對定址 (Absolute/Direct)。",
+                    "answer": "X",
+                    "explanation": "錯。絕對定址寫死了位址，無法浮動。應使用「相對定址 (Relative)」。"
+                },
+                {
+                    "statement": "立即定址 (Immediate) 雖然快，但無法處理像 3.14159... 這種超長精度的數值。",
+                    "answer": "O",
+                    "explanation": "對。因為指令長度有限 (如 32-bit)，運算元欄位放不下太長的數值。"
+                },
+                {
+                    "statement": "間接定址 (Indirect) 的主要優點是速度快。",
+                    "answer": "X",
+                    "explanation": "錯。間接定址最慢 (多一次訪存)，優點是「靈活」(支援指標)。"
+                }
+            ],
+            "original_notes_for_appendix": `在「第三章 CPU 與記憶體概論」的宏觀架構下，來源資料將**「定址模式 (Addressing Modes) (3-3)」視為 CPU 解讀指令並「尋找資料 (Data Location)」**的策略機制。
+如果說「指令格式 (3-2)」定義了 CPU 的語法（Opcode + Operand），那麼「定址模式」就是解釋如何解讀運算元 (Operand) 的規則。這部分內容在教材中展現了在執行速度、記憶體空間與程式靈活性之間進行權衡（Trade-off）的觀點。
+根據來源資料，我們可以從以下四個層面來探討其看法：
+1. 核心目標：計算「有效位址 (Effective Address)」
+來源資料將所有定址模式的最終目的歸結為一個：找出**「運算元在記憶體或暫存器中的真實位置」，即所謂的有效位址**。
+• 看法：教材認為，指令中的運算元欄位並不總是直接代表數據本身，更多時候它是一個線索或指標。定址模式就是解開這個線索的「地圖」。
+2. 速度與靈活性的光譜：各模式的特性分析
+來源資料 詳細列舉了多種模式，並依據其運作方式展現了不同的硬體觀點：
+• 追求極致速度：立即定址 (Immediate Addressing)
+    ◦ 看法：運算元欄位放的不是位址，而是資料本身（例如 ADD 5）。
+    ◦ 優勢：速度最快，因為不需要額外的記憶體存取（Memory Access）。
+    ◦ 限制：受限於指令長度，無法處理太大的數值。題庫中常考其「速度最快」的特性。
+• 硬體資源的利用：暫存器定址 (Register Addressing)
+    ◦ 看法：運算元指向 CPU 內部的暫存器。
+    ◦ 優勢：因為暫存器在 CPU 內部，速度僅次於立即定址，且指令長度短（暫存器數量少，編碼位元少）。
+    ◦ 變體：暫存器間接定址，將暫存器當作指標（Pointer）使用，存放資料的記憶體位址。
+• 直觀但受限：直接定址 (Direct Addressing)
+    ◦ 看法：指令中直接給出資料在記憶體中的位址。
+    ◦ 限制：指令給出的位址長度有限，難以存取大範圍的記憶體空間。
+• 指標的實作：間接定址 (Indirect Addressing)
+    ◦ 看法：指令給出的是「位址的位址」。這就像尋寶遊戲，先去一個地方拿到地圖，再根據地圖去下一個地方拿寶藏。
+    ◦ 代價：雖然極具彈性（支援指標概念），但因為需要多次存取記憶體，速度最慢。
+3. 程式執行的動態觀點：相對定址 (Relative Addressing)
+來源資料特別強調了相對定址在現代電腦系統中的重要性。
+• 運算邏輯：有效位址 = 程式計數器 (PC) 的內容 + 偏移量 (Offset)。
+• 系統觀點：這對應到「程式浮動 (Relocation)」的概念。教材隱含的看法是，程式在記憶體中的位置可能隨時改變，使用相對定址可以讓程式碼不依賴絕對位址，從而支援多工處理與動態載入。在題庫中，計算相對定址的有效位址是常見考題，例如 PC + Offset 的計算。
+4. 陣列與資料結構的支援：索引定址 (Index Addressing)
+雖然主要介紹在 3-3 節，但題庫中也提及了索引定址。
+• 看法：這是為了支援陣列 (Array) 等連續資料結構而設計的。透過「基底位址 + 變動的索引值」，CPU 可以高效率地遍歷資料結構。
+總結
+在第三章的背景脈絡下，來源資料對「定址模式」的看法不僅是硬體規格的列舉，它是**「軟體需求（變數、指標、陣列）」與「硬體限制（速度、指令長度）」之間的磨合結果**。
+它告訴學生：
+1. 想快？用立即或暫存器定址。
+2. 想靈活？用間接定址。
+3. 想讓程式隨處可跑？用相對定址。
+這部分知識直接支撐了後續章節對於編譯器如何轉譯程式碼，以及作業系統如何管理記憶體的理解。`
+        };
+
+        // --- Logic ---
+
+        // Keywords & Weighting
+        const kwContainer = document.getElementById('keywords-container');
+        const kwDetail = document.getElementById('keyword-detail');
+        data.keywords.forEach(kw => {
+            const btn = document.createElement('button');
+            btn.className = 'px-3 py-1 bg-slate-700 hover:bg-primary/50 text-slate-200 text-sm rounded-full transition-colors';
+            btn.textContent = kw.term;
+            btn.onclick = () => {
+                kwDetail.classList.remove('hidden');
+                kwDetail.innerHTML = `<strong class="text-secondary">${kw.term}</strong>：${kw.why_important}<br><span class="text-slate-500 text-xs mt-1 block">💡 考點：${kw.common_exam_angle}</span>`;
+            };
+            kwContainer.appendChild(btn);
+        });
+
+        const wContainer = document.getElementById('weighting-container');
+        data.weighting.items.forEach(item => {
+            wContainer.innerHTML += `
+                <div class="flex items-center gap-4">
+                    <div class="w-1/3 text-sm text-slate-300 truncate text-right">${item.topic}</div>
+                    <div class="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-secondary to-primary" style="width: ${item.weight}%"></div>
+                    </div>
+                    <div class="text-xs text-slate-500 w-8">${item.weight}%</div>
+                </div>`;
+        });
+
+        // Matrix
+        const matDims = document.getElementById('matrix-dimensions');
+        const matBody = document.getElementById('matrix-body');
+        const dCols = document.querySelectorAll('.dimension-col');
+
+        data.comparison_matrix.dimensions.forEach((dim, idx) => {
+            const btn = document.createElement('button');
+            btn.className = `dim-btn px-3 py-1 text-xs rounded-full border border-slate-600 hover:border-secondary transition-all ${idx === 0 ? 'bg-secondary text-white' : 'text-slate-400'}`;
+            btn.textContent = dim;
+            btn.onclick = () => highlightDim(idx, btn);
+            matDims.appendChild(btn);
+        });
+
+        function highlightDim(idx, btnClicked) {
+            document.querySelectorAll('.dim-btn').forEach(b => {
+                b.classList.remove('bg-secondary', 'text-white');
+                b.classList.add('text-slate-400');
+            });
+            btnClicked.classList.add('bg-secondary', 'text-white');
+            btnClicked.classList.remove('text-slate-400');
+
+            dCols.forEach(th => {
+                if (parseInt(th.dataset.idx) === idx) th.classList.add('text-secondary', 'bg-white/5');
+                else th.classList.remove('text-secondary', 'bg-white/5');
+            });
+            renderRows(idx);
+        }
+
+        function renderRows(highlightIdx) {
+            matBody.innerHTML = '';
+            data.comparison_matrix.rows.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-slate-700/50 hover:bg-white/5 transition-colors cursor-pointer';
+                let cells = `<td class="p-4 font-bold text-white">${row.name}</td>`;
+                data.comparison_matrix.dimensions.forEach((dim, idx) => {
+                    const isHighlight = idx === highlightIdx;
+                    cells += `<td class="p-4 transition-colors ${isHighlight ? 'text-white bg-white/5 font-medium' : 'text-slate-400'}">${row.values[dim]}</td>`;
+                });
+                tr.innerHTML = cells;
+
+                const detailRow = document.createElement('tr');
+                detailRow.className = 'hidden bg-slate-800/50 text-sm';
+                detailRow.innerHTML = `<td colspan="5" class="p-4"><div class="flex gap-6"><div class="flex-1 text-yellow-500">⚠️ ${row.pitfall}</div><div class="flex-1 text-green-400">💡 ${row.rule_of_thumb}</div></div></td>`;
+
+                tr.onclick = () => detailRow.classList.toggle('hidden');
+                matBody.appendChild(tr);
+                matBody.appendChild(detailRow);
+            });
+        }
+        renderRows(0);
+
+        // Core Lab: Logic
+        function setMode(mode) {
+            document.querySelectorAll('.mode-btn').forEach(b => {
+                b.classList.remove('active');
+                if (b.textContent.toLowerCase().includes(mode)) b.classList.add('active');
+            });
+
+            const title = document.getElementById('vis-title');
+            const desc = document.getElementById('vis-desc');
+            const formula = document.getElementById('vis-formula');
+            const container = document.getElementById('vis-container');
+
+            let html = '';
+
+            if (mode === 'immediate') {
+                title.textContent = 'Immediate Mode (立即)';
+                desc.textContent = '指令中直接包含資料。速度最快。';
+                formula.textContent = 'Data = Operand';
+                html = `
+                    <div class="flex items-center justify-center gap-4 animate-fade-in text-white text-sm">
+                         <div class="p-4 bg-slate-700 rounded border border-slate-500">
+                            <div>Instruction</div>
+                            <div class="flex mt-2 border border-slate-600">
+                                <span class="bg-slate-800 px-2 py-1">OP</span>
+                                <span class="bg-primary px-2 py-1">DATA (5)</span>
+                            </div>
+                         </div>
+                         <div class="text-2xl">➔</div>
+                         <div class="p-4 bg-primary/20 rounded border border-primary">
+                            CPU 取得 <span class="text-xl font-bold">5</span>
+                         </div>
+                    </div>`;
+            } else if (mode === 'direct') {
+                title.textContent = 'Direct Mode (直接)';
+                desc.textContent = '指令包含記憶體位址。需一次訪存。';
+                formula.textContent = 'EA = Operand';
+                html = `
+                     <div class="flex items-center justify-center gap-4 animate-fade-in text-white text-sm">
+                         <div class="p-4 bg-slate-700 rounded border border-slate-500">
+                            <div>Instruction</div>
+                            <div class="flex mt-2 border border-slate-600">
+                                <span class="bg-slate-800 px-2 py-1">OP</span>
+                                <span class="bg-secondary px-2 py-1">ADDR (100)</span>
+                            </div>
+                         </div>
+                         <div class="text-xl dashed border-t border-slate-500 w-16 relative">
+                            <span class="absolute -top-3 left-6 text-xs text-slate-400">位址</span>
+                         </div>
+                         <div class="p-4 bg-blue-900/30 rounded border border-blue-500">
+                            <div class="text-xs text-slate-400 mb-1">Memory [100]</div>
+                            <span class="text-xl font-bold text-blue-300">DATA</span>
+                         </div>
+                    </div>`;
+            } else if (mode === 'indirect') {
+                title.textContent = 'Indirect Mode (間接)';
+                desc.textContent = '位址指向另一個位址。像指標 (Pointer) 一樣。最慢。';
+                formula.textContent = 'EA = Mem[Operand]';
+                html = `
+                     <div class="flex items-center justify-center gap-2 animate-fade-in text-white text-sm">
+                         <div class="p-2 bg-slate-700 rounded border border-slate-500">
+                            <div class="text-xs">Inst</div>
+                            <span class="bg-purple-600 px-1">PTR(50)</span>
+                         </div>
+                         <div>➔</div>
+                         <div class="p-2 bg-slate-800 rounded border border-slate-600 opacity-70">
+                            <div class="text-xs">Mem[50]</div>
+                            <span class="text-purple-300">ADDR(200)</span>
+                         </div>
+                         <div>➔</div>
+                         <div class="p-2 bg-blue-900/30 rounded border border-blue-500">
+                            <div class="text-xs text-slate-400">Mem[200]</div>
+                            <span class="font-bold text-blue-300">REAL DATA</span>
+                         </div>
+                    </div>`;
+            } else if (mode === 'relative') {
+                title.textContent = 'Relative Mode (相對)';
+                desc.textContent = '以 PC 為基準加上偏移量。支援浮動程式。';
+                formula.textContent = 'EA = PC + Offset';
+                html = `
+                     <div class="flex items-center justify-center gap-4 animate-fade-in text-white text-sm">
+                         <div class="flex flex-col gap-2">
+                             <div class="p-2 bg-slate-700 rounded border border-slate-500">
+                                <span class="text-xs">PC = </span> <span class="font-bold text-emerald-400">1000</span>
+                             </div>
+                             <div class="p-2 bg-slate-700 rounded border border-slate-500">
+                                <span class="text-xs">Offset = </span> <span class="font-bold text-pink-400">+20</span>
+                             </div>
+                         </div>
+                         <div class="text-2xl">+</div>
+                          <div class="p-4 bg-blue-900/30 rounded border border-blue-500">
+                            <div class="text-xs text-slate-400 mb-1">Target Address</div>
+                            <span class="text-xl font-bold text-blue-300">1020</span>
+                         </div>
+                    </div>`;
+            }
+
+            container.innerHTML = html;
+        }
+
+        setMode('immediate'); // Default
+
+        // Mistakes & Flashcards as usual
+        const mistContainer = document.getElementById('mistakes-container');
+        data.core_concept_lab.common_mistakes.forEach(m => {
+            mistContainer.innerHTML += `<div class="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm"><strong class="text-red-300 block mb-1">❌ ${m.mistake}</strong><span class="text-slate-400">${m.why_wrong}</span><div class="mt-2 text-green-400 text-xs">✅ ${m.how_to_fix}</div></div>`;
+        });
+
+        const fcContainer = document.getElementById('flashcards-container');
+        data.flashcards.forEach(fc => {
+            const card = document.createElement('div');
+            card.className = 'flip-card h-40';
+            card.innerHTML = `<div class="flip-card-inner bg-surface rounded-lg shadow border border-slate-700"><div class="flip-card-front flex-col"><span class="text-secondary font-bold text-lg">${fc.front}</span><span class="text-xs text-slate-500 mt-2">(點擊翻面)</span></div><div class="flip-card-back bg-gradient-to-br from-primary to-purple-700 rounded-lg text-white text-sm px-2">${fc.back}</div></div>`;
+            card.onclick = () => card.classList.toggle('flipped');
+            fcContainer.appendChild(card);
+        });
+
+        const scContainer = document.getElementById('scenarios-container');
+        data.scenario_checks.forEach((sc, idx) => {
+            const div = document.createElement('div');
+            div.className = 'p-4 bg-slate-800 rounded-lg border border-slate-700';
+            div.innerHTML = `<p class="text-slate-300 mb-4 font-medium"><span class="text-primary mr-2">Q${idx + 1}.</span>${sc.statement}</p><div class="flex gap-3 mb-3"><button class="btn-ans w-12 h-12 rounded-full border-2 border-slate-600 hover:border-green-500 hover:text-green-500 font-bold" data-ans="O">O</button><button class="btn-ans w-12 h-12 rounded-full border-2 border-slate-600 hover:border-red-500 hover:text-red-500 font-bold" data-ans="X">X</button></div><div class="feedback hidden p-3 rounded bg-slate-700 text-sm"></div>`;
+
+            div.querySelectorAll('.btn-ans').forEach(btn => btn.onclick = () => {
+                const fb = div.querySelector('.feedback');
+                fb.classList.remove('hidden', 'bg-green-900/50', 'bg-red-900/50', 'text-green-300', 'text-red-300');
+                if (btn.dataset.ans === sc.answer) {
+                    fb.classList.add('bg-green-900/50', 'text-green-300');
+                    fb.innerHTML = `<strong>正確！</strong> ${sc.explanation}`;
+                } else {
+                    fb.classList.add('bg-red-900/50', 'text-red-300');
+                    fb.innerHTML = `<strong>錯誤。</strong> ${sc.explanation}`;
+                }
+            });
+            scContainer.appendChild(div);
+        });
+
+        document.getElementById('accordion-btn').onclick = () => {
+            document.getElementById('accordion-content').classList.toggle('hidden');
+            document.getElementById('accordion-icon').classList.toggle('rotate-180');
+        };
+        document.getElementById('raw-notes-content').textContent = data.original_notes_for_appendix;
+
+    </script>
+</body>
+
+</html>
