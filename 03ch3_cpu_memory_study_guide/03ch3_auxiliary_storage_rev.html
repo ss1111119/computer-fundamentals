@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ch3 輔助儲存裝置 - 互動複習指南</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#14b8a6', // Teal-500
+                        secondary: '#f97316', // Orange-500
+                        dark: '#0f172a', // Slate-900
+                        surface: '#1e293b', // Slate-800
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .flip-card {
+            background-color: transparent;
+            perspective: 1000px;
+            cursor: pointer;
+        }
+
+        .flip-card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+
+        .flip-card.flipped .flip-card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .flip-card-front,
+        .flip-card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            border-radius: 0.5rem;
+        }
+
+        .flip-card-back {
+            transform: rotateY(180deg);
+        }
+
+        .raw-notes::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .raw-notes::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+
+        .raw-notes::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+
+        /* Raid Visuals */
+        .disk {
+            transition: all 0.5s ease;
+        }
+
+        .disk-block {
+            transition: all 0.3s ease;
+        }
+
+        .disk-block.writing {
+            animation: pulse-write 0.5s infinite alternate;
+        }
+
+        @keyframes pulse-write {
+            from {
+                background-color: #14b8a6;
+                box-shadow: 0 0 5px #14b8a6;
+            }
+
+            to {
+                background-color: #f97316;
+                box-shadow: 0 0 15px #f97316;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-dark text-slate-200 font-sans antialiased min-h-screen">
+
+    <div class="max-w-6xl mx-auto p-4 md:p-8 space-y-12">
+
+        <!-- Header -->
+        <header class="space-y-4 text-center border-b border-slate-700 pb-8 animate-fade-in-down">
+            <div
+                class="inline-block px-3 py-1 text-xs font-semibold tracking-wider text-primary uppercase bg-primary/10 rounded-full">
+                Chapter 3: Auxiliary Storage (Part 3)
+            </div>
+            <h1
+                class="text-3xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
+                輔助儲存裝置：資料的永久歸宿
+            </h1>
+            <p class="text-slate-400 text-lg max-w-2xl mx-auto">
+                從機械旋轉的硬碟到電子極速的 SSD，我們如何在「價格」與「效能」的拉鋸中尋找最佳儲存方案？
+            </p>
+            <div class="flex justify-center gap-4 text-sm text-slate-500 pt-2">
+                <div class="flex items-center gap-1">
+                    <span class="text-xs border border-slate-600 rounded px-1">前置</span>
+                    <span>記憶體 & 定址模式</span>
+                </div>
+                <span>→</span>
+                <div class="flex items-center gap-1">
+                    <span class="text-xs border border-slate-600 rounded px-1">後續</span>
+                    <span>作業系統 (檔案系統)</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Module A: Strategic Dashboard -->
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-slate-700">
+                <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
+                        </path>
+                    </svg>
+                    關鍵字雷達
+                </h2>
+                <div class="flex flex-wrap gap-2" id="keywords-container"></div>
+                <div id="keyword-detail"
+                    class="mt-4 p-3 bg-dark/50 rounded-lg text-sm text-slate-300 min-h-[80px] hidden"></div>
+            </div>
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-slate-700">
+                <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path>
+                    </svg>
+                    出題佔比 (預估)
+                </h2>
+                <div class="space-y-3" id="weighting-container"></div>
+            </div>
+        </section>
+
+        <!-- Module D: Comparison Matrix -->
+        <section class="bg-surface rounded-xl shadow-lg border border-slate-700 overflow-hidden">
+            <div class="p-6 border-b border-slate-700">
+                <h2 class="text-2xl font-bold text-white mb-2">儲存裝置大亂鬥</h2>
+                <p class="text-slate-400 text-sm">從機械到電子的演化之路</p>
+                <div class="flex flex-wrap gap-2 mt-4" id="matrix-dimensions"></div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="text-slate-400 text-sm bg-dark/50 border-b border-slate-700">
+                            <th class="p-4 w-1/4">比較對象</th>
+                            <th class="p-4 dimension-col" data-idx="0">存取機制</th>
+                            <th class="p-4 dimension-col" data-idx="1">速度瓶頸</th>
+                            <th class="p-4 dimension-col" data-idx="2">存取模式</th>
+                            <th class="p-4 dimension-col" data-idx="3">主要用途</th>
+                        </tr>
+                    </thead>
+                    <tbody id="matrix-body" class="text-slate-300"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Module B: Core Concept Lab - RAID Visualization -->
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div
+                class="lg:col-span-2 bg-gradient-to-br from-surface to-dark rounded-xl p-1 shadow-lg border border-teal-500/30">
+                <div class="h-full bg-dark/80 rounded-lg p-6 backdrop-blur-sm relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-4 opacity-10">
+                        <svg class="w-32 h-32 text-secondary" fill="currentColor" viewBox="0 0 24 24">
+                            <path
+                                d="M19 12h-2v3h-3v2h5v-5zM7 9h2v3h3v2H7V9zm14-6H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h20c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16.01H3V4.99h18v14.02z" />
+                        </svg>
+                    </div>
+
+                    <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-2 relative z-10">
+                        <svg class="w-6 h-6 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4">
+                            </path>
+                        </svg>
+                        Concept Lab: RAID 策略模擬
+                    </h2>
+
+                    <div class="flex flex-col gap-6 relative z-10">
+                        <!-- Controls -->
+                        <div class="flex gap-2 mb-4">
+                            <button
+                                class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded text-sm text-white transition-colors"
+                                onclick="setRaid('0')">RAID 0 (速度)</button>
+                            <button
+                                class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded text-sm text-white transition-colors"
+                                onclick="setRaid('1')">RAID 1 (安全)</button>
+                            <button
+                                class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded text-sm text-white transition-colors"
+                                onclick="setRaid('5')">RAID 5 (平衡)</button>
+                        </div>
+
+                        <!-- Visualization -->
+                        <div class="bg-black/40 rounded-lg p-6 h-64 flex items-end justify-center gap-4 relative"
+                            id="raid-container">
+                            <!-- Disks generated by JS -->
+                        </div>
+
+                        <!-- Explanation -->
+                        <div class="p-4 bg-surface/50 rounded-lg border-l-4 border-primary">
+                            <div id="raid-title" class="font-bold text-white mb-1">RAID 0 (Striping)</div>
+                            <div id="raid-desc" class="text-sm text-slate-300">將資料切碎 (Data Striping)
+                                分散寫入多顆硬碟。速度最快，但一顆壞掉就全毀。</div>
+                            <div class="mt-2 text-xs text-slate-400 font-mono" id="raid-capacity">可用空間: 100% (無浪費)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mistakes Panel -->
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-slate-700 flex flex-col">
+                <h3 class="text-lg font-bold text-white mb-4 text-red-400">⚠️ 常見誤區</h3>
+                <div class="space-y-4 overflow-y-auto pr-2 custom-scrollbar flex-1" id="mistakes-container"></div>
+            </div>
+        </section>
+
+        <!-- Module C: Exam Drill -->
+        <section class="space-y-8">
+            <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                <svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                實戰演練場
+            </h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4" id="flashcards-container"></div>
+            <div class="bg-surface rounded-xl p-6 border border-slate-700">
+                <h3 class="text-lg font-semibold text-slate-400 mb-6">觀念是非題</h3>
+                <div class="space-y-6" id="scenarios-container"></div>
+            </div>
+        </section>
+
+        <!-- Module E: Appendix -->
+        <section class="border-t border-slate-700 pt-8">
+            <button id="accordion-btn"
+                class="w-full flex justify-between items-center p-4 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors">
+                <span class="font-bold text-slate-300">附錄：我的原始筆記</span>
+                <svg id="accordion-icon" class="w-5 h-5 text-slate-400 transform transition-transform" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+            </button>
+            <div id="accordion-content" class="hidden mt-2 p-4 bg-black/30 rounded-lg border border-slate-800">
+                <pre class="raw-notes text-sm text-slate-400 whitespace-pre-wrap font-mono h-64 overflow-y-auto"
+                    id="raw-notes-content"></pre>
+            </div>
+        </section>
+
+        <footer class="text-center text-slate-600 py-8 text-sm">
+            Based on User Notes • Generated by Agentic AI • 2026
+        </footer>
+    </div>
+
+    <script>
+        const data = {
+            "keywords": [
+                { "term": "Seek Time (搜尋時間)", "why_important": "HDD 效能最大殺手。機械手臂移動的時間。", "common_exam_angle": "計算 Access Time = Seek + Rotation + Transfer" },
+                { "term": "SSD (Solid State Drive)", "why_important": "無機械結構，利用 Flash Memory。解決了 Seek Time 瓶頸。", "common_exam_angle": "比較 HDD 與 SSD 的優缺點" },
+                { "term": "RAID (磁碟陣列)", "why_important": "用多顆便宜硬碟組合成高效能或高安全系統。", "common_exam_angle": "RAID 0, 1, 5 的特性比較 (Striping vs Mirroring)" },
+                { "term": "Sequential Access", "why_important": "磁帶 (Tape) 的特性。適合備份，不適合隨機讀寫。", "common_exam_angle": "哪種裝置無法直接跳到第 N 筆資料？" }
+            ],
+            "weighting": {
+                "items": [
+                    { "topic": "HDD Performance Formula", "weight": 90, "reason": "計算題常客 (Seek Time + Rotation...)。" },
+                    { "topic": "RAID Levels", "weight": 85, "reason": "系統架構必考。RAID 5 的同位檢查是重點。" },
+                    { "topic": "Storage Hierarchy Comparison", "weight": 70, "reason": "SSD vs HDD vs Tape 的特性比較。" }
+                ]
+            },
+            "comparison_matrix": {
+                "dimensions": ["存取機制", "速度瓶頸", "存取模式", "主要用途"],
+                "rows": [
+                    {
+                        "name": "HDD (傳統硬碟)",
+                        "values": {
+                            "存取機制": "機械旋轉 (磁盤+讀寫頭)",
+                            "速度瓶頸": "Seek Time (搜尋時間)",
+                            "存取模式": "直接存取 (Direct / Random)",
+                            "主要用途": "大容量資料儲存"
+                        },
+                        "pitfall": "常忘記存取時間包含三個部分，只算傳輸時間。",
+                        "rule_of_thumb": "HDD = 機械手臂找唱片。"
+                    },
+                    {
+                        "name": "SSD (固態硬碟)",
+                        "values": {
+                            "存取機制": "電子訊號 (Flash Memory)",
+                            "速度瓶頸": "介面頻寬 (SATA/PCIe)",
+                            "存取模式": "隨機存取 (Random Access)",
+                            "主要用途": "系統碟、高效能應用"
+                        },
+                        "pitfall": "誤以為 SSD 完全掛不壞。其實 Flash 有寫入次數壽命。",
+                        "rule_of_thumb": "SSD = 隨身碟放大版 (極速)。"
+                    },
+                    {
+                        "name": "Magnetic Tape (磁帶)",
+                        "values": {
+                            "存取機制": "磁性捲動",
+                            "速度瓶頸": "捲帶時間",
+                            "存取模式": "循序存取 (Sequential)",
+                            "主要用途": "冷資料備份 (Cold Storage)"
+                        },
+                        "pitfall": "以為磁帶已經沒人在用了。其實是企業長期備份首選。",
+                        "rule_of_thumb": "Tape = 錄音帶，只能快轉倒帶。"
+                    }
+                ]
+            },
+            "core_concept_lab": {
+                "common_mistakes": [
+                    { "mistake": "RAID 0 有容錯功能", "why_wrong": "RAID 0 是 Striping，壞一顆資料全毀。只有效能，沒有安全。", "how_to_fix": "0 = 容錯率 0。" },
+                    { "mistake": "HDD 轉速越高傳輸越快", "why_wrong": "轉速只影響 Rotation Latency，對 Seek Time (搜尋) 幫助有限。", "how_to_fix": "轉速救不了「尋軌」的慢。" },
+                    { "mistake": "SSD 是因為轉速很快所以快", "why_wrong": "SSD 根本不會轉！它是電子式的。", "how_to_fix": "SSD = No Motor." }
+                ]
+            },
+            "flashcards": [
+                { "front": "Seek Time (搜尋時間)", "back": "HDD 讀寫頭移動到正確磁軌 (Cylinder) 所需的時間。最耗時。" },
+                { "front": "Rotation Latency (旋轉延遲)", "back": "磁碟旋轉讓目標磁區 (Sector) 轉到讀寫頭下的時間。平均為轉一圈的一半。" },
+                { "front": "RAID 1 (Mirroring)", "back": "資料完全複製一份到另一顆硬碟。安全性最高，空間利用率 50%。" },
+                { "front": "RAID 5", "back": "分散儲存資料與同位檢查碼 (Parity)。容許壞一顆硬碟。兼顧速度與安全。" },
+                { "front": "Non-volatile (非揮發性)", "back": "斷電後資料不會消失的特性。HDD, SSD, Tape 皆屬之。" }
+            ],
+            "scenario_checks": [
+                {
+                    "statement": "為了讓電腦跑得快一點，我應該先進行「磁碟重組」來降低 Seek Time。",
+                    "answer": "O",
+                    "explanation": "對。重組將檔案連續排列，減少讀寫頭跳來跳去的時間。"
+                },
+                {
+                    "statement": "RAID 0 使用兩顆 1TB 硬碟，總容量只有 1TB。",
+                    "answer": "X",
+                    "explanation": "錯。RAID 0 空間相加，是 2TB。RAID 1 才是 1TB。"
+                },
+                {
+                    "statement": "SSD 雖然快，但因為是電子式的，所以斷電資料會不見。",
+                    "answer": "X",
+                    "explanation": "錯。SSD 使用 Flash Memory，是非揮發性的，斷電資料還在。"
+                }
+            ],
+            "original_notes_for_appendix": `在「第三章 CPU 與記憶體概論」的宏觀背景下，來源資料將**「輔助儲存裝置 (Auxiliary Storage)」（如磁碟、光碟、SSD）視為解決主記憶體（RAM）「揮發性」與「容量成本」**問題的必要手段。
+如果說 CPU 是工廠的「加工機台」，主記憶體 (RAM) 是「暫存工作桌」，那麼輔助儲存裝置就是龐大的「原料倉庫」。來源資料對此抱持著從「機械物理限制」邁向「電子高速存取」的演進看法。
+根據來源資料，我們可以從以下四個核心層面來探討其觀點：
+1. 速度與結構的物理定義：HDD 的機械本質
+來源資料對傳統硬碟 (HDD) 的看法非常強調其物理機械結構，並以此解釋為何它會是電腦效能的瓶頸。
+• 幾何結構的規範：教材將硬碟資料儲存位置定義為磁面 (Surface/Head)、磁軌 (Track)、磁區 (Sector) 與 磁柱 (Cylinder) 的組合。
+    ◦ 看法：這不僅是名詞解釋，更是計算儲存容量的數學公式基礎（容量 = 磁面數 × 磁軌數 × 磁區數 × 磁區大小）。
+• 時間的物理拆解：來源資料將硬碟讀寫資料的時間（Access Time）拆解為三個物理動作的總和：
+    1. 搜尋時間 (Seek Time)：讀寫頭移動到正確磁軌的時間（機械動作，最慢）。
+    2. 旋轉時間 (Rotation Latency)：磁碟旋轉到正確磁區的時間。
+    3. 傳輸時間 (Transfer Time)：資料讀取的時間。
+    ◦ 觀點：這解釋了為何硬碟需要「磁碟重組」以及為何其速度遠慢於電子式的 RAM。
+2. 進化的轉折點：SSD 的電子革命
+來源資料將 固態硬碟 (SSD) 視為儲存技術的典範轉移 (Paradigm Shift)。
+• 從「旋轉」到「電子」：教材明確指出 SSD 使用 Flash Memory (快閃記憶體)，完全沒有機械馬達與讀寫頭。
+• 看法與優勢：
+    ◦ 速度：因為沒有 Seek Time（不需要移動讀寫頭），存取速度極快。
+    ◦ 物理特性：耐震、安靜、省電（因為沒有馬達）。
+    ◦ 介面演進：來源在題庫中也提及了 SSD 從 SATA 介面演進到更快的 PCIe/NVMe 介面，這是為了釋放 Flash Memory 的速度潛力。
+3. 存取模式的權衡：隨機 vs. 循序
+來源資料透過對比不同裝置，建立了存取模式 (Access Methods) 的觀念：
+• 磁帶 (Magnetic Tape)：被定義為循序存取 (Sequential Access)。
+    ◦ 看法：就像錄音帶一樣，要找第 10 首歌必須先捲過前 9 首。雖然速度慢，但適合用於備份 (Backup) 大量且不常使用的資料。
+• 磁碟與光碟：被定義為直接存取 (Direct Access) 或隨機存取。
+    ◦ 看法：可以直接跳到資料所在位置，支援現代作業系統與應用程式的需求。
+4. 效能與安全的平衡：RAID 技術
+在輔助儲存的高階應用中，來源資料引入了 RAID (磁碟陣列) 的概念，視其為**「用數量換取效能或安全」**的策略。
+• RAID 0 (Striping)：將資料分散寫入多顆硬碟。看法：追求極致速度，但風險高（一顆壞全部壞）。
+• RAID 1 (Mirroring)：將資料完全複製一份。看法：追求最高安全性，但成本高（空間減半）。
+• RAID 5：透過同位檢查碼 (Parity) 取得平衡。看法：兼顧了容錯能力與空間利用率，是伺服器常見的選擇。
+總結
+在第三章的脈絡下，輔助儲存裝置的討論重點在於**「階層 (Hierarchy)」的概念。來源資料告訴學生：雖然 CPU (3-1) 與 Cache/RAM (3-6) 很快，但它們斷電後資料會消失且造價昂貴。因此，我們需要磁碟與 SSD 這些「非揮發性 (Non-volatile)」裝置來擔任資料的永久歸宿**。而從 HDD 到 SSD 的演進，正是為了縮小這個「永久歸宿」與 CPU 之間巨大的速度鴻溝。`
+        };
+
+        // --- Logic ---
+
+        // Keywords & Weighting
+        const kwContainer = document.getElementById('keywords-container');
+        const kwDetail = document.getElementById('keyword-detail');
+        data.keywords.forEach(kw => {
+            const btn = document.createElement('button');
+            btn.className = 'px-3 py-1 bg-slate-700 hover:bg-primary/50 text-slate-200 text-sm rounded-full transition-colors';
+            btn.textContent = kw.term;
+            btn.onclick = () => {
+                kwDetail.classList.remove('hidden');
+                kwDetail.innerHTML = `<strong class="text-secondary">${kw.term}</strong>：${kw.why_important}<br><span class="text-slate-500 text-xs mt-1 block">💡 考點：${kw.common_exam_angle}</span>`;
+            };
+            kwContainer.appendChild(btn);
+        });
+
+        const wContainer = document.getElementById('weighting-container');
+        data.weighting.items.forEach(item => {
+            wContainer.innerHTML += `
+                <div class="flex items-center gap-4">
+                    <div class="w-1/3 text-sm text-slate-300 truncate text-right">${item.topic}</div>
+                    <div class="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-secondary to-primary" style="width: ${item.weight}%"></div>
+                    </div>
+                    <div class="text-xs text-slate-500 w-8">${item.weight}%</div>
+                </div>`;
+        });
+
+        // Matrix
+        const matDims = document.getElementById('matrix-dimensions');
+        const matBody = document.getElementById('matrix-body');
+        const dCols = document.querySelectorAll('.dimension-col');
+
+        data.comparison_matrix.dimensions.forEach((dim, idx) => {
+            const btn = document.createElement('button');
+            btn.className = `dim-btn px-3 py-1 text-xs rounded-full border border-slate-600 hover:border-secondary transition-all ${idx === 0 ? 'bg-secondary text-white' : 'text-slate-400'}`;
+            btn.textContent = dim;
+            btn.onclick = () => highlightDim(idx, btn);
+            matDims.appendChild(btn);
+        });
+
+        function highlightDim(idx, btnClicked) {
+            document.querySelectorAll('.dim-btn').forEach(b => {
+                b.classList.remove('bg-secondary', 'text-white');
+                b.classList.add('text-slate-400');
+            });
+            btnClicked.classList.add('bg-secondary', 'text-white');
+            btnClicked.classList.remove('text-slate-400');
+
+            dCols.forEach(th => {
+                if (parseInt(th.dataset.idx) === idx) th.classList.add('text-secondary', 'bg-white/5');
+                else th.classList.remove('text-secondary', 'bg-white/5');
+            });
+            renderRows(idx);
+        }
+
+        function renderRows(highlightIdx) {
+            matBody.innerHTML = '';
+            data.comparison_matrix.rows.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-slate-700/50 hover:bg-white/5 transition-colors cursor-pointer';
+                let cells = `<td class="p-4 font-bold text-white">${row.name}</td>`;
+                data.comparison_matrix.dimensions.forEach((dim, idx) => {
+                    const isHighlight = idx === highlightIdx;
+                    cells += `<td class="p-4 transition-colors ${isHighlight ? 'text-white bg-white/5 font-medium' : 'text-slate-400'}">${row.values[dim]}</td>`;
+                });
+                tr.innerHTML = cells;
+
+                const detailRow = document.createElement('tr');
+                detailRow.className = 'hidden bg-slate-800/50 text-sm';
+                detailRow.innerHTML = `<td colspan="5" class="p-4"><div class="flex gap-6"><div class="flex-1 text-yellow-500">⚠️ ${row.pitfall}</div><div class="flex-1 text-green-400">💡 ${row.rule_of_thumb}</div></div></td>`;
+
+                tr.onclick = () => detailRow.classList.toggle('hidden');
+                matBody.appendChild(tr);
+                matBody.appendChild(detailRow);
+            });
+        }
+        renderRows(0);
+
+        // Core Lab: RAID Logic
+        function setRaid(level) {
+            const container = document.getElementById('raid-container');
+            const title = document.getElementById('raid-title');
+            const desc = document.getElementById('raid-desc');
+            const cap = document.getElementById('raid-capacity');
+
+            let html = '';
+
+            if (level === '0') {
+                title.textContent = 'RAID 0 (Striping)';
+                desc.textContent = '資料被切碎 (A1, A2, A3) 分散寫入多顆硬碟。速度 x N，但只要一顆壞掉，整個檔案 (A) 就拼不回來。';
+                cap.textContent = '容量: 100% (無浪費)';
+
+                html = `
+                   <div class="disk w-20 h-32 bg-slate-600 rounded p-2 flex flex-col gap-1 border-b-4 border-slate-500">
+                      <div class="text-xs text-center mb-1">Disk 1</div>
+                      <div class="disk-block writing h-6 w-full rounded bg-primary/20 text-xs flex items-center justify-center">A1</div>
+                      <div class="disk-block writing h-6 w-full rounded bg-primary/20 text-xs flex items-center justify-center delay-75">A3</div>
+                   </div>
+                   <div class="disk w-20 h-32 bg-slate-600 rounded p-2 flex flex-col gap-1 border-b-4 border-slate-500">
+                      <div class="text-xs text-center mb-1">Disk 2</div>
+                      <div class="disk-block writing h-6 w-full rounded bg-primary/20 text-xs flex items-center justify-center delay-150">A2</div>
+                      <div class="disk-block writing h-6 w-full rounded bg-primary/20 text-xs flex items-center justify-center delay-200">A4</div>
+                   </div>
+               `;
+            } else if (level === '1') {
+                title.textContent = 'RAID 1 (Mirroring)';
+                desc.textContent = '資料會同時寫入兩顆硬碟 (A, A)。完全備份，壞一顆也沒事。寫入速度不變，讀取可變快。';
+                cap.textContent = '容量: 50% (一半浪費)';
+
+                html = `
+                   <div class="disk w-20 h-32 bg-slate-600 rounded p-2 flex flex-col gap-1 border-b-4 border-slate-500">
+                      <div class="text-xs text-center mb-1">Disk 1</div>
+                      <div class="disk-block writing h-6 w-full rounded bg-primary/20 text-xs flex items-center justify-center">A1</div>
+                      <div class="disk-block writing h-6 w-full rounded bg-primary/20 text-xs flex items-center justify-center">A2</div>
+                   </div>
+                   <div class="disk w-20 h-32 bg-slate-600 rounded p-2 flex flex-col gap-1 border-b-4 border-slate-500 relative">
+                      <div class="absolute -top-6 left-1/2 transform -translate-x-1/2 text-xs text-secondary">MIRROR</div>
+                      <div class="text-xs text-center mb-1">Disk 2</div>
+                      <div class="disk-block writing h-6 w-full rounded bg-secondary/20 text-xs flex items-center justify-center">A1</div>
+                      <div class="disk-block writing h-6 w-full rounded bg-secondary/20 text-xs flex items-center justify-center">A2</div>
+                   </div>
+               `;
+            } else if (level === '5') {
+                title.textContent = 'RAID 5 (Parity)';
+                desc.textContent = '分散資料 + 同位檢查碼 (P)。若 Disk 2 壞了，可用 Disk 1(A1) 和 Disk 3(P1) 算出 A2。';
+                cap.textContent = '容量: N-1 (浪費一顆的量)';
+
+                html = `
+                   <div class="disk w-16 h-32 bg-slate-600 rounded p-1 flex flex-col gap-1 border-b-4 border-slate-500">
+                       <div class="text-[10px] text-center mb-1">Disk 1</div>
+                       <div class="disk-block writing h-5 w-full rounded bg-primary/20 text-[10px] flex items-center justify-center">A1</div>
+                       <div class="disk-block writing h-5 w-full rounded bg-primary/20 text-[10px] flex items-center justify-center">B1</div>
+                       <div class="disk-block writing h-5 w-full rounded bg-purple-500/50 text-[10px] flex items-center justify-center">CP</div>
+                   </div>
+                   <div class="disk w-16 h-32 bg-slate-600 rounded p-1 flex flex-col gap-1 border-b-4 border-slate-500">
+                       <div class="text-[10px] text-center mb-1">Disk 2</div>
+                       <div class="disk-block writing h-5 w-full rounded bg-primary/20 text-[10px] flex items-center justify-center">A2</div>
+                       <div class="disk-block writing h-5 w-full rounded bg-purple-500/50 text-[10px] flex items-center justify-center">BP</div>
+                       <div class="disk-block writing h-5 w-full rounded bg-primary/20 text-[10px] flex items-center justify-center">C1</div>
+                   </div>
+                   <div class="disk w-16 h-32 bg-slate-600 rounded p-1 flex flex-col gap-1 border-b-4 border-slate-500">
+                       <div class="text-[10px] text-center mb-1">Disk 3</div>
+                       <div class="disk-block writing h-5 w-full rounded bg-purple-500/50 text-[10px] flex items-center justify-center">AP</div>
+                       <div class="disk-block writing h-5 w-full rounded bg-primary/20 text-[10px] flex items-center justify-center">B2</div>
+                       <div class="disk-block writing h-5 w-full rounded bg-primary/20 text-[10px] flex items-center justify-center">C2</div>
+                   </div>
+               `;
+            }
+            container.innerHTML = html;
+        }
+
+        setRaid('0');
+
+        // Mistakes & Flashcards as usual
+        const mistContainer = document.getElementById('mistakes-container');
+        data.core_concept_lab.common_mistakes.forEach(m => {
+            mistContainer.innerHTML += `<div class="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm"><strong class="text-red-300 block mb-1">❌ ${m.mistake}</strong><span class="text-slate-400">${m.why_wrong}</span><div class="mt-2 text-green-400 text-xs">✅ ${m.how_to_fix}</div></div>`;
+        });
+
+        const fcContainer = document.getElementById('flashcards-container');
+        data.flashcards.forEach(fc => {
+            const card = document.createElement('div');
+            card.className = 'flip-card h-40';
+            card.innerHTML = `<div class="flip-card-inner bg-surface rounded-lg shadow border border-slate-700"><div class="flip-card-front flex-col"><span class="text-secondary font-bold text-lg">${fc.front}</span><span class="text-xs text-slate-500 mt-2">(點擊翻面)</span></div><div class="flip-card-back bg-gradient-to-br from-primary to-orange-700 rounded-lg text-white text-sm px-2">${fc.back}</div></div>`;
+            card.onclick = () => card.classList.toggle('flipped');
+            fcContainer.appendChild(card);
+        });
+
+        const scContainer = document.getElementById('scenarios-container');
+        data.scenario_checks.forEach((sc, idx) => {
+            const div = document.createElement('div');
+            div.className = 'p-4 bg-slate-800 rounded-lg border border-slate-700';
+            div.innerHTML = `<p class="text-slate-300 mb-4 font-medium"><span class="text-primary mr-2">Q${idx + 1}.</span>${sc.statement}</p><div class="flex gap-3 mb-3"><button class="btn-ans w-12 h-12 rounded-full border-2 border-slate-600 hover:border-green-500 hover:text-green-500 font-bold" data-ans="O">O</button><button class="btn-ans w-12 h-12 rounded-full border-2 border-slate-600 hover:border-red-500 hover:text-red-500 font-bold" data-ans="X">X</button></div><div class="feedback hidden p-3 rounded bg-slate-700 text-sm"></div>`;
+
+            div.querySelectorAll('.btn-ans').forEach(btn => btn.onclick = () => {
+                const fb = div.querySelector('.feedback');
+                fb.classList.remove('hidden', 'bg-green-900/50', 'bg-red-900/50', 'text-green-300', 'text-red-300');
+                if (btn.dataset.ans === sc.answer) {
+                    fb.classList.add('bg-green-900/50', 'text-green-300');
+                    fb.innerHTML = `<strong>正確！</strong> ${sc.explanation}`;
+                } else {
+                    fb.classList.add('bg-red-900/50', 'text-red-300');
+                    fb.innerHTML = `<strong>錯誤。</strong> ${sc.explanation}`;
+                }
+            });
+            scContainer.appendChild(div);
+        });
+
+        document.getElementById('accordion-btn').onclick = () => {
+            document.getElementById('accordion-content').classList.toggle('hidden');
+            document.getElementById('accordion-icon').classList.toggle('rotate-180');
+        };
+        document.getElementById('raw-notes-content').textContent = data.original_notes_for_appendix;
+
+    </script>
+</body>
+
+</html>
