@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ch3 虛擬與快取記憶體 - 互動複習指南</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6', // Blue-500
+                        secondary: '#f43f5e', // Rose-500
+                        dark: '#0f172a', // Slate-900
+                        surface: '#1e293b', // Slate-800
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .flip-card {
+            background-color: transparent;
+            perspective: 1000px;
+            cursor: pointer;
+        }
+
+        .flip-card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+
+        .flip-card.flipped .flip-card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .flip-card-front,
+        .flip-card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 0.75rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+        }
+
+        .flip-card-back {
+            transform: rotateY(180deg);
+        }
+
+        .memory-stack-item {
+            transition: all 0.3s ease;
+        }
+
+        .memory-stack-item:hover {
+            transform: scale(1.02);
+            filter: brightness(1.2);
+        }
+
+        .hit {
+            animation: pulse-green 0.5s ease-out;
+        }
+
+        .miss {
+            animation: pulse-red 0.5s ease-out;
+        }
+
+        @keyframes pulse-green {
+            0% {
+                box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+            }
+
+            70% {
+                box-shadow: 0 0 0 15px rgba(34, 197, 94, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+            }
+        }
+
+        @keyframes pulse-red {
+            0% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            }
+
+            70% {
+                box-shadow: 0 0 0 15px rgba(239, 68, 68, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-dark text-slate-200 font-sans antialiased min-h-screen">
+
+    <div class="max-w-6xl mx-auto p-4 md:p-8 space-y-12">
+
+        <!-- Header -->
+        <header class="space-y-4 text-center border-b border-slate-700 pb-8 animate-fade-in-down">
+            <div
+                class="inline-block px-3 py-1 text-xs font-semibold tracking-wider text-primary uppercase bg-primary/10 rounded-full">
+                Chapter 3: Virtual & Cache Memory (Part 4)
+            </div>
+            <h1
+                class="text-3xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
+                空間的魔術師與時間的加速器
+            </h1>
+            <p class="text-slate-400 text-lg max-w-2xl mx-auto">
+                虛擬記憶體打破了「容量」限制，快取記憶體消弭了「速度」鴻溝。兩者共同支撐了馮·紐曼架構的極限。
+            </p>
+            <div class="flex justify-center gap-4 text-sm text-slate-500 pt-2">
+                <div class="flex items-center gap-1">
+                    <span class="text-xs border border-slate-600 rounded px-1">前置</span>
+                    <span>輔助儲存裝置</span>
+                </div>
+                <span>→</span>
+                <div class="flex items-center gap-1">
+                    <span class="text-xs border border-slate-600 rounded px-1">後續</span>
+                    <span>中斷處理與 I/O</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Module A: Strategic Dashboard -->
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-slate-700">
+                <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
+                        </path>
+                    </svg>
+                    關鍵字雷達
+                </h2>
+                <div class="flex flex-wrap gap-2" id="keywords-container"></div>
+                <div id="keyword-detail"
+                    class="mt-4 p-3 bg-dark/50 rounded-lg text-sm text-slate-300 min-h-[80px] hidden"></div>
+            </div>
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-slate-700">
+                <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path>
+                    </svg>
+                    出題佔比 (預估)
+                </h2>
+                <div class="space-y-3" id="weighting-container"></div>
+            </div>
+        </section>
+
+        <!-- Module D: Comparison Matrix -->
+        <section class="bg-surface rounded-xl shadow-lg border border-slate-700 overflow-hidden">
+            <div class="p-6 border-b border-slate-700">
+                <h2 class="text-2xl font-bold text-white mb-2">虛擬 vs 快取</h2>
+                <p class="text-slate-400 text-sm">從階層觀點透視記憶體策略</p>
+                <div class="flex flex-wrap gap-2 mt-4" id="matrix-dimensions"></div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="text-slate-400 text-sm bg-dark/50 border-b border-slate-700">
+                            <th class="p-4 w-1/4">比較維度</th>
+                            <th class="p-4 dimension-col" data-idx="0">核心目標</th>
+                            <th class="p-4 dimension-col" data-idx="1">硬體基礎</th>
+                            <th class="p-4 dimension-col" data-idx="2">關聯失敗現象</th>
+                            <th class="p-4 dimension-col" data-idx="3">解決對象</th>
+                        </tr>
+                    </thead>
+                    <tbody id="matrix-body" class="text-slate-300"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Module B: Core Concept Lab -->
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Part 1: Hierarchical visualization -->
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-primary/30 relative overflow-hidden">
+                <h3 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                        </path>
+                    </svg>
+                    階層加速模擬器
+                </h3>
+                <div class="flex flex-col items-center space-y-4">
+                    <div id="stack-display" class="w-full max-w-xs space-y-2">
+                        <!-- Items generated by JS -->
+                    </div>
+                    <div class="flex gap-4">
+                        <button onclick="requestData('cpu')"
+                            class="px-4 py-2 bg-primary hover:bg-primary/80 text-white rounded-lg text-sm transition-all transform active:scale-95">CPU
+                            讀取指令</button>
+                        <button onclick="resetSim()"
+                            class="px-4 py-1 border border-slate-600 hover:border-slate-400 text-slate-400 rounded-lg text-sm">重置</button>
+                    </div>
+                    <div id="sim-feedback"
+                        class="text-sm text-slate-400 mt-4 text-center h-12 flex items-center justify-center">
+                        點擊按鈕觀察資料如何從硬碟層層搬運上來</div>
+                </div>
+            </div>
+
+            <!-- Part 2: Locality & Formula -->
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-secondary/30">
+                <h3 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                    區域性原理與平均時間
+                </h3>
+                <div class="space-y-6">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="p-4 bg-dark/50 rounded-lg border-l-4 border-emerald-500">
+                            <div class="text-xs text-slate-500 mb-1">Temporal Locality</div>
+                            <div class="text-sm">剛用過的位址，短時間內會<span class="text-emerald-400">重複存取</span>。</div>
+                        </div>
+                        <div class="p-4 bg-dark/50 rounded-lg border-l-4 border-blue-500">
+                            <div class="text-xs text-slate-500 mb-1">Spatial Locality</div>
+                            <div class="text-sm">存取完某位址，其<span class="text-blue-400">相鄰位址</span>即將被存取。</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-black/30 p-4 rounded-xl border border-slate-700">
+                        <div class="text-xs text-slate-500 uppercase tracking-widest mb-3">平均存取時間公式 (T_avg)</div>
+                        <div class="text-center py-4 text-xl font-mono text-white bg-dark/50 rounded-lg">
+                            T<sub>avg</sub> = H &times; T<sub>c</sub> + (1 - H) &times; T<sub>m</sub>
+                        </div>
+                        <div class="mt-4 grid grid-cols-3 gap-2 text-[10px] text-slate-500 text-center">
+                            <div>H = Hit Ratio</div>
+                            <div>T<sub>c</sub> = Cache Access</div>
+                            <div>T<sub>m</sub> = Main Memory</div>
+                        </div>
+                    </div>
+
+                    <div class="p-3 bg-secondary/10 border border-secondary/20 rounded-lg">
+                        <div class="flex items-start gap-3">
+                            <span class="text-xl">⚠️</span>
+                            <div>
+                                <strong class="text-secondary block">Thrashing (震盪)</strong>
+                                <span class="text-xs text-slate-400 leading-tight">虛擬記憶體分頁過度頻繁 Swap。解決方法：<strong
+                                        class="text-white">增加實體 RAM</strong> 或減少執行程式。</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Module C: Exam Drill -->
+        <section class="space-y-8">
+            <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                <svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                實戰演練場
+            </h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6" id="flashcards-container"></div>
+            <div class="bg-surface rounded-xl p-8 border border-slate-700">
+                <h3 class="text-lg font-semibold text-slate-400 mb-8 border-l-4 border-primary pl-4">情境判斷考驗</h3>
+                <div class="space-y-8" id="scenarios-container"></div>
+            </div>
+        </section>
+
+        <!-- Module E: Appendix -->
+        <section class="border-t border-slate-700 pt-8">
+            <button id="accordion-btn"
+                class="w-full flex justify-between items-center p-4 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors group">
+                <span class="font-bold text-slate-300 group-hover:text-white">附錄：我的原始筆記</span>
+                <svg id="accordion-icon" class="w-5 h-5 text-slate-400 transform transition-transform" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+            </button>
+            <div id="accordion-content" class="hidden mt-2 p-6 bg-black/30 rounded-lg border border-slate-800">
+                <pre class="raw-notes text-sm text-slate-400 whitespace-pre-wrap font-mono h-64 overflow-y-auto leading-relaxed"
+                    id="raw-notes-content"></pre>
+            </div>
+        </section>
+
+        <footer class="text-center text-slate-600 py-8 text-sm">
+            Based on User Notes • Generated by Agentic AI • 2026
+        </footer>
+    </div>
+
+    <script>
+        const data = {
+            "keywords": [
+                { "term": "Memory Hierarchy", "why_important": "將速度與容量完美結合的層次結構。", "common_exam_angle": "由快到慢排序 (Reg > Cache > RAM > Disk)" },
+                { "term": "Page Fault (分頁失誤)", "why_important": "需要的資料不在實體 RAM 中，需從硬碟取回。", "common_exam_angle": "觸發分頁失誤後的操作順序" },
+                { "term": "Locality (區域性)", "why_important": "快取記憶體會成功的核心物理基礎。", "common_exam_angle": "時間區域性 vs 空間區域性的區分" },
+                { "term": "Hit Ratio (命中率)", "why_important": "衡量快取記憶體效能的最直接數據。", "common_exam_angle": "計算平均存取時間 T_avg" }
+            ],
+            "weighting": {
+                "items": [
+                    { "topic": "T_avg Calculation", "weight": 95, "reason": "計算題必考。通常結合 Hit Ratio 給出。" },
+                    { "topic": "Thrashing & Solutions", "weight": 85, "reason": "觀念題熱點。需理解如何透過增加 RAM 解決。" },
+                    { "topic": "Hierarchy Comparison", "weight": 70, "reason": "DRAM (RAM) vs SRAM (Cache) 的物理特性對比。" }
+                ]
+            },
+            "comparison_matrix": {
+                "dimensions": ["核心目標", "硬體基礎", "關聯失敗現象", "解決對象"],
+                "rows": [
+                    {
+                        "name": "Virtual Memory",
+                        "values": {
+                            "核心目標": "空間擴張 (幻覺)",
+                            "硬體基礎": "HDD / SSD (輔助儲存)",
+                            "關聯失敗現象": "Thrashing (震盪)",
+                            "解決對象": "容量不足、實體限制"
+                        },
+                        "pitfall": "誤以為虛擬記憶體會變快。實際上它依賴慢速碟。",
+                        "rule_of_thumb": "空間魔術師：以慢換大。"
+                    },
+                    {
+                        "name": "Cache Memory",
+                        "values": {
+                            "核心目標": "時間縮減 (加速)",
+                            "硬體基礎": "SRAM (高速暫存)",
+                            "關聯失敗現象": "Miss (未命中)",
+                            "解決對象": "速度不匹配 (Bottleneck)"
+                        },
+                        "pitfall": "誤以為 Cache 容量越大越好。實際上會增加成本與搜尋延遲。",
+                        "rule_of_thumb": "時間加速器：以貴換快。"
+                    }
+                ]
+            },
+            "flashcards": [
+                { "front": "SRAM vs DRAM", "back": "SRAM (Cache) 速度快、貴、容量小、免刷新；DRAM (RAM) 慢、便宜、需刷新。" },
+                { "front": "Demand Paging", "back": "只有在指令執行需要該頁時才載入實體記憶體，節省空間。" },
+                { "front": "Temporal Locality", "back": "時間區域性。例子：迴圈中的變數會在短時間內頻繁被讀寫。" },
+                { "front": "Spatial Locality", "back": "空間區域性。例子：走訪陣列，存取 index i 之後通常存取 i+1。" },
+                { "front": "Addressing Space", "back": "虛擬記憶體提供更大的位址空間，讓程式可以寫得比實際 RAM 還大。" }
+            ],
+            "scenarios": [
+                {
+                    "statement": "如果系統發生了 Thrashing，最根本且有效的硬體升級方案是更換更快的 CPU。",
+                    "answer": "X",
+                    "explanation": "錯。Thrashing 是因為記憶體不足導致頻繁換頁，應「增加實體記憶體 (RAM)」。"
+                },
+                {
+                    "statement": "快取記憶體的 Hit Ratio 越高，整體的有效存取時間會越接近快取自身的存取時間。",
+                    "answer": "O",
+                    "explanation": "對。當 H 接近 1，公式 T_avg = H*Tc + (1-H)*Tm 會收斂於 Tc。"
+                },
+                {
+                    "statement": "虛擬記憶體的分頁 (Paging) 機制是將程式切割成大小不一的部分來節省空間。",
+                    "answer": "X",
+                    "explanation": "錯。Paging 是切割成「固定大小」的頁；大小不一的是 Segment (分段)。"
+                }
+            ],
+            "notes": `在「第三章 CPU 與記憶體概論」的宏觀架構下，來源資料將**「虛擬記憶體 (Virtual Memory)」與「快取記憶體 (Cache Memory)」視為解決馮·紐曼架構**中「CPU 運算速度」與「儲存裝置存取速度/容量」之間巨大落差的兩大關鍵策略。
+這兩者在教材中分別扮演了**「空間的魔術師」與「時間的加速器」**，共同構建了現代電腦的記憶體階層（Memory Hierarchy）。
+1. 虛擬記憶體：以「硬碟」換取「無限空間」的幻覺
+來源資料將虛擬記憶體視為一種讓程式設計師誤以為有近乎無限記憶體空間的機制。它的核心看法在於打破實體記憶體（RAM）的物理限制。
+• 欺敵戰術：教材指出，虛擬記憶體利用硬碟（Auxiliary Storage）的空間來模擬主記憶體。這使得「邏輯位址空間（程式以為有的）」可以遠大於「實體位址空間（真正插在主機板上的 RAM）」。
+• 運作機制——分頁 (Paging)：
+    ◦ 切割與對應：來源詳細描述了系統將程式切割成固定大小的頁 (Page)，並將記憶體切割成同樣大小的頁框 (Page Frame)。透過分頁對照表 (Page Map Table)，系統可以動態地將程式的某些部分載入 RAM，而將暫時不用的部分留在硬碟中。
+    ◦ 需求分頁 (Demand Paging)：教材強調了「用到了才載入」的概念。當 CPU 需要的資料不在 RAM 時，會發生分頁失誤 (Page Fault)，觸發中斷通知作業系統去硬碟把資料搬進來。
+• 系統風險——震盪 (Thrashing)：來源資料提出了一個嚴肅的觀點：虛擬記憶體並非沒有代價。若記憶體太小，導致 CPU 大部分時間都在忙著把資料在硬碟與 RAM 之間搬來搬去（Swap-in/Swap-out），而非執行指令，這種現象稱為「震盪」，會導致系統效能崩潰。這也是為什麼題庫常考「增加 RAM 可以解決 Thrashing」的概念。
+2. 快取記憶體：以「SRAM」換取「速度」的緩衝
+如果虛擬記憶體是為了解決「容量」不足，那麼快取記憶體在教材中就是為了解決**「速度」不匹配**的問題。
+• 速度的橋樑：來源資料將 Cache 定位為放置在 CPU 與主記憶體 (DRAM) 之間的高速緩衝區。由於 CPU 速度極快，而 DRAM 相對較慢，Cache（由昂貴但快速的 SRAM 組成）用來暫存 CPU 最常用的資料，避免 CPU 因為等待資料而空轉。
+• 成功的關鍵——區域性 (Locality)：
+    ◦ 看法：教材解釋 Cache 之所以有效，是基於程式執行的區域性原理 (Locality of Reference)。這包含時間區域性（剛用過的資料很可能馬上再被用到，如迴圈）與空間區域性（正在使用的資料附近的資料很可能即將被用到，如陣列）。
+    ◦ 命中率 (Hit Ratio)：這是評估 Cache 效能的核心指標。教材認為，只要 Cache 能「猜中（Hit）」CPU 要的資料，電腦整體的平均存取時間就會大幅下降。題庫中常見利用 Hit Ratio 計算平均存取時間的題目。
+• 階層設計：來源提到 Cache 本身也有分級（L1, L2, L3），越靠近 CPU 的越快但容量越小。
+3. 兩者的比較與階層觀點
+在第三章的總結中，來源資料透過記憶體階層將這兩者串聯起來，形成一個由快到慢、由貴到便宜的體系：
+1. 暫存器 (Registers)：在 CPU 內部，最快。
+2. 快取記憶體 (Cache)：使用 SRAM，負責加速。
+3. 主記憶體 (Main Memory)：使用 DRAM，是資料的主要工作區。
+4. 輔助記憶體 (Disk/SSD)：作為虛擬記憶體的後盾，負責提供容量。
+總結觀點： 來源資料認為，快取記憶體是為了讓電腦「跑得快」（減少 Access Time），而虛擬記憶體是為了讓電腦「跑得動」大型程式（增加 Addressing Space）。兩者都是利用**軟硬體協同（作業系統管理 + 硬體支援）**來突破單一硬體元件物理限制的經典計算機科學解決方案。`
+        };
+
+        // --- Logic Implementation ---
+
+        // Keywords
+        const kwContainer = document.getElementById('keywords-container');
+        const kwDetail = document.getElementById('keyword-detail');
+        data.keywords.forEach(kw => {
+            const btn = document.createElement('button');
+            btn.className = 'px-3 py-1 bg-slate-700 hover:bg-primary/50 text-slate-200 text-sm rounded-full transition-colors';
+            btn.textContent = kw.term;
+            btn.onclick = () => {
+                kwDetail.classList.remove('hidden');
+                kwDetail.innerHTML = `<strong class="text-secondary">${kw.term}</strong>：${kw.why_important}<br><span class="text-slate-500 text-xs mt-1 block">💡 考道：${kw.common_exam_angle}</span>`;
+            };
+            kwContainer.appendChild(btn);
+        });
+
+        // Weighting
+        const wContainer = document.getElementById('weighting-container');
+        data.weighting.items.forEach(item => {
+            wContainer.innerHTML += `
+                <div class="flex items-center gap-4">
+                    <div class="w-1/3 text-sm text-slate-300 truncate text-right">${item.topic}</div>
+                    <div class="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-primary to-secondary" style="width: ${item.weight}%"></div>
+                    </div>
+                    <div class="text-xs text-slate-500 w-8">${item.weight}%</div>
+                </div>`;
+        });
+
+        // Matrix
+        const matDims = document.getElementById('matrix-dimensions');
+        const matBody = document.getElementById('matrix-body');
+        data.comparison_matrix.dimensions.forEach((dim, idx) => {
+            const btn = document.createElement('button');
+            btn.className = `dim-btn px-3 py-1 text-xs rounded-full border border-slate-600 hover:border-secondary transition-all ${idx === 0 ? 'bg-primary text-white' : 'text-slate-400'}`;
+            btn.textContent = dim;
+            btn.onclick = () => highlightDim(idx, btn);
+            matDims.appendChild(btn);
+        });
+
+        function highlightDim(idx, btnClicked) {
+            document.querySelectorAll('.dim-btn').forEach(b => {
+                b.classList.remove('bg-primary', 'text-white');
+                b.classList.add('text-slate-400');
+            });
+            btnClicked.classList.add('bg-primary', 'text-white');
+            btnClicked.classList.remove('text-slate-400');
+            renderRows(idx);
+        }
+
+        function renderRows(highlightIdx) {
+            matBody.innerHTML = '';
+            data.comparison_matrix.rows.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-slate-700/50 hover:bg-white/5 transition-colors cursor-pointer group';
+                let cells = `<td class="p-4 font-bold text-white">${row.name}</td>`;
+                data.comparison_matrix.dimensions.forEach((dim, idx) => {
+                    const isHighlight = idx === highlightIdx;
+                    cells += `<td class="p-4 transition-colors ${isHighlight ? 'text-primary bg-primary/5 font-medium' : 'text-slate-400'}">${row.values[dim]}</td>`;
+                });
+                tr.innerHTML = cells;
+
+                const detailRow = document.createElement('tr');
+                detailRow.className = 'hidden bg-slate-800/50 text-xs';
+                detailRow.innerHTML = `<td colspan="5" class="p-4"><div class="flex gap-12"><div class="flex-1"><span class="text-secondary font-bold mr-2">⚠️ Pitfall:</span>${row.pitfall}</div><div class="flex-1"><span class="text-emerald-400 font-bold mr-2">💡 Rule:</span>${row.rule_of_thumb}</div></div></td>`;
+
+                tr.onclick = () => detailRow.classList.toggle('hidden');
+                matBody.appendChild(tr);
+                matBody.appendChild(detailRow);
+            });
+        }
+        renderRows(0);
+
+        // Core Lab: Logic
+        const stackItems = [
+            { id: 'disk', label: 'Disk (容量)', color: 'bg-slate-700', speed: 'ms級' },
+            { id: 'ram', label: 'RAM (主要儲存)', color: 'bg-indigo-700', speed: 'ns級' },
+            { id: 'cache', label: 'Cache (SRAM)', color: 'bg-primary', speed: '極速' },
+            { id: 'cpu', label: 'CPU (暫存器)', color: 'bg-secondary', speed: '同步運算' }
+        ];
+
+        function resetSim() {
+            const container = document.getElementById('stack-display');
+            container.innerHTML = '';
+            stackItems.forEach((item, idx) => {
+                const div = document.createElement('div');
+                div.id = `stack-${item.id}`;
+                div.className = `memory-stack-item p-3 ${item.color} rounded flex justify-between items-center text-xs font-bold border border-white/10 shadow-lg`;
+                div.innerHTML = `<span>${item.label}</span><span class="opacity-50">${item.speed}</span>`;
+                container.prepend(div);
+            });
+            document.getElementById('sim-feedback').textContent = "點擊按鈕觀察資料搬運過程";
+        }
+
+        async function requestData() {
+            const feedback = document.getElementById('sim-feedback');
+            resetSim();
+            const sequence = ['cpu', 'cache', 'ram', 'disk'];
+
+            feedback.textContent = "1. CPU 發出請求...";
+            await wait(600);
+
+            feedback.textContent = "2. 檢查 Cache... [MISS!]";
+            document.getElementById('stack-cache').classList.add('miss');
+            await wait(800);
+
+            feedback.textContent = "3. 檢查 RAM... [MISS!]";
+            document.getElementById('stack-ram').classList.add('miss');
+            await wait(800);
+
+            feedback.textContent = "4. 從 Disk 讀取分頁 (Page Fault)";
+            document.getElementById('stack-disk').classList.add('hit');
+            await wait(1000);
+
+            feedback.textContent = "5. 將資料載入 RAM -> Cache -> CPU [完成]";
+            ['ram', 'cache', 'cpu'].forEach((id, i) => {
+                setTimeout(() => {
+                    document.getElementById(`stack-${id}`).classList.add('hit');
+                }, i * 300);
+            });
+        }
+        function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+        resetSim();
+
+        // Flashcards
+        const fcContainer = document.getElementById('flashcards-container');
+        data.flashcards.forEach(fc => {
+            const card = document.createElement('div');
+            card.className = 'flip-card h-48';
+            card.innerHTML = `
+                <div class="flip-card-inner border border-slate-700 shadow-xl">
+                    <div class="flip-card-front bg-surface">
+                        <span class="text-primary font-black text-xl mb-2">${fc.front}</span>
+                        <span class="text-[10px] text-slate-500 uppercase tracking-widest">Click to Flip</span>
+                    </div>
+                    <div class="flip-card-back bg-gradient-to-br from-primary to-indigo-800 text-white">
+                        <p class="text-sm font-medium leading-relaxed">${fc.back}</p>
+                    </div>
+                </div>`;
+            card.onclick = () => card.classList.toggle('flipped');
+            fcContainer.appendChild(card);
+        });
+
+        // Scenarios
+        const scContainer = document.getElementById('scenarios-container');
+        data.scenarios.forEach((sc, idx) => {
+            const div = document.createElement('div');
+            div.className = 'p-6 bg-dark/40 rounded-xl border border-slate-700/50 hover:border-slate-600 transition-colors bg-gradient-to-r from-transparent to-surface/20';
+            div.innerHTML = `
+                <div class="flex items-start gap-4">
+                    <div class="flex-shrink-0 w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-400">Q${idx + 1}</div>
+                    <div class="flex-1">
+                        <p class="text-slate-200 mb-6 font-medium text-lg leading-relaxed">${sc.statement}</p>
+                        <div class="flex gap-4 mb-4">
+                            <button class="btn-ans px-8 py-3 rounded-lg border-2 border-slate-700 hover:border-emerald-500 hover:text-emerald-500 font-black transition-all" data-ans="O">O</button>
+                            <button class="btn-ans px-8 py-3 rounded-lg border-2 border-slate-700 hover:border-rose-500 hover:text-rose-500 font-black transition-all" data-ans="X">X</button>
+                        </div>
+                        <div class="feedback hidden p-4 rounded-lg text-sm border-l-4"></div>
+                    </div>
+                </div>`;
+
+            div.querySelectorAll('.btn-ans').forEach(btn => btn.onclick = () => {
+                const fb = div.querySelector('.feedback');
+                fb.classList.remove('hidden', 'bg-emerald-900/40', 'bg-rose-900/40', 'text-emerald-300', 'text-rose-300', 'border-emerald-500', 'border-rose-500');
+                if (btn.dataset.ans === sc.answer) {
+                    fb.classList.add('bg-emerald-900/40', 'text-emerald-300', 'border-emerald-500');
+                    fb.innerHTML = `<strong>正確！</strong> ${sc.explanation}`;
+                } else {
+                    fb.classList.add('bg-rose-900/40', 'text-rose-300', 'border-rose-500');
+                    fb.innerHTML = `<strong>不正確。</strong> ${sc.explanation}`;
+                }
+            });
+            scContainer.appendChild(div);
+        });
+
+        // Appendix
+        document.getElementById('accordion-btn').onclick = () => {
+            document.getElementById('accordion-content').classList.toggle('hidden');
+            document.getElementById('accordion-icon').classList.toggle('rotate-180');
+        };
+        document.getElementById('raw-notes-content').textContent = data.notes;
+
+    </script>
+</body>
+
+</html>
