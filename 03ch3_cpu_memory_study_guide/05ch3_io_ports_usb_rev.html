@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ch3 I/O 連接埠與 USB - 互動複習指南</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#f59e0b', // Amber-500
+                        secondary: '#3b82f6', // Blue-500
+                        dark: '#0f172a', // Slate-900
+                        surface: '#1e293b', // Slate-800
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .flip-card {
+            background-color: transparent;
+            perspective: 1000px;
+            cursor: pointer;
+        }
+
+        .flip-card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+
+        .flip-card.flipped .flip-card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .flip-card-front,
+        .flip-card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .flip-card-back {
+            transform: rotateY(180deg);
+        }
+
+        .usb-port {
+            width: 60px;
+            height: 30px;
+            border-radius: 4px;
+            position: relative;
+            transition: all 0.3s;
+        }
+
+        .usb-port::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 5px;
+            right: 5px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+        }
+    </style>
+</head>
+
+<body class="bg-dark text-slate-200 font-sans antialiased min-h-screen">
+
+    <div class="max-w-6xl mx-auto p-4 md:p-8 space-y-12">
+
+        <!-- Header -->
+        <header class="space-y-4 text-center border-b border-slate-700 pb-8 animate-fade-in-down">
+            <div
+                class="inline-block px-3 py-1 text-xs font-semibold tracking-wider text-primary uppercase bg-primary/10 rounded-full">
+                Chapter 3: I/O Ports & USB (Part 5)
+            </div>
+            <h1
+                class="text-3xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
+                感官與手腳：介面的演進
+            </h1>
+            <p class="text-slate-400 text-lg max-w-2xl mx-auto">
+                從 PS/2 到 USB4，從類比 VGA 到數位 HDMI。探討電腦介面如何走向「通用、高速、智慧」的趨勢。
+            </p>
+            <div class="flex justify-center gap-4 text-sm text-slate-500 pt-2">
+                <div class="flex items-center gap-1">
+                    <span class="text-xs border border-slate-600 rounded px-1">前置</span>
+                    <span>虛擬與快取記憶體</span>
+                </div>
+                <span>→</span>
+                <div class="flex items-center gap-1">
+                    <span class="text-xs border border-slate-600 rounded px-1">後續</span>
+                    <span>作業系統 (I/O 管理)</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Module A: Strategic Dashboard -->
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-slate-700">
+                <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
+                        </path>
+                    </svg>
+                    關鍵字雷達
+                </h2>
+                <div class="flex flex-wrap gap-2" id="keywords-container"></div>
+                <div id="keyword-detail"
+                    class="mt-4 p-3 bg-dark/50 rounded-lg text-sm text-slate-300 min-h-[80px] hidden"></div>
+            </div>
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-slate-700">
+                <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path>
+                    </svg>
+                    出題佔比 (預估)
+                </h2>
+                <div class="space-y-3" id="weighting-container"></div>
+            </div>
+        </section>
+
+        <!-- Module D: Comparison Matrix -->
+        <section class="bg-surface rounded-xl shadow-lg border border-slate-700 overflow-hidden">
+            <div class="p-6 border-b border-slate-700">
+                <h2 class="text-2xl font-bold text-white mb-2">介面轉型大亂鬥</h2>
+                <p class="text-slate-400 text-sm">從「專款專用」邁向「大一統」的數位趨勢</p>
+                <div class="flex flex-wrap gap-2 mt-4" id="matrix-dimensions"></div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="text-slate-400 text-sm bg-dark/50 border-b border-slate-700">
+                            <th class="p-4 w-1/4">比較類別</th>
+                            <th class="p-4 dimension-col" data-idx="0">代表介面 (舊)</th>
+                            <th class="p-4 dimension-col" data-idx="1">主要缺陷</th>
+                            <th class="p-4 dimension-col" data-idx="2">取代介面 (新)</th>
+                            <th class="p-4 dimension-col" data-idx="3">核心優勢</th>
+                        </tr>
+                    </thead>
+                    <tbody id="matrix-body" class="text-slate-300"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Module B: Core Concept Lab - USB Generation Lab -->
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-primary/30">
+                <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4">
+                        </path>
+                    </svg>
+                    USB 規格實驗室
+                </h2>
+
+                <div class="space-y-8">
+                    <div class="flex flex-col gap-4">
+                        <label class="text-xs text-slate-500 uppercase tracking-widest">選擇 USB 版本</label>
+                        <div class="flex flex-wrap gap-2" id="usb-selectors">
+                            <!-- JS Generated -->
+                        </div>
+                    </div>
+
+                    <div
+                        class="bg-dark/50 p-8 rounded-2xl flex flex-col items-center justify-center border border-slate-700 relative overflow-hidden group">
+                        <div id="usb-port-visual" class="usb-port mb-4 shadow-lg scale-150"></div>
+                        <div id="usb-speed-display" class="text-4xl font-black text-white mb-2">480 Mbps</div>
+                        <div id="usb-gen-name" class="text-sm text-slate-400 font-mono">USB 2.0 (High Speed)</div>
+
+                        <!-- Transfer Simulation -->
+                        <div class="w-full mt-6 h-1 bg-slate-800 rounded-full overflow-hidden">
+                            <div id="transfer-bar" class="h-full bg-primary transition-all duration-1000 ease-linear"
+                                style="width: 0%"></div>
+                        </div>
+                        <button onclick="simulateTransfer()"
+                            class="mt-4 text-[10px] text-primary hover:text-white uppercase tracking-tighter">模擬 1GB
+                            資料傳輸速度</button>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-2">
+                        <div class="p-3 bg-dark/30 rounded border border-slate-700 text-center">
+                            <div class="text-[10px] text-slate-500 uppercase">支援熱插拔</div>
+                            <div class="text-emerald-400 font-bold">YES</div>
+                        </div>
+                        <div class="p-3 bg-dark/30 rounded border border-slate-700 text-center">
+                            <div class="text-[10px] text-slate-500 uppercase">最大電力 (PD)</div>
+                            <div id="usb-wattage" class="text-white font-bold">2.5W</div>
+                        </div>
+                        <div class="p-3 bg-dark/30 rounded border border-slate-700 text-center">
+                            <div class="text-[10px] text-slate-500 uppercase">常見顏色</div>
+                            <div id="usb-color-text" class="text-white font-bold">白/黑</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Interface Timeline -->
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-secondary/30 flex flex-col">
+                <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    介面演進時光軸
+                </h2>
+                <div class="space-y-4 flex-1 overflow-y-auto pr-2" id="evolution-timeline">
+                    <!-- JS Generated -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Module C: Exam Drill -->
+        <section class="space-y-8">
+            <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                <svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                實戰演練場
+            </h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="flashcards-container"></div>
+            <div class="bg-surface rounded-xl p-8 border border-slate-700">
+                <h3 class="text-lg font-semibold text-slate-400 mb-8 border-l-4 border-primary pl-4">考場情境模擬</h3>
+                <div class="space-y-6" id="scenarios-container"></div>
+            </div>
+        </section>
+
+        <!-- Module E: Appendix -->
+        <section class="border-t border-slate-700 pt-8">
+            <button id="accordion-btn"
+                class="w-full flex justify-between items-center p-4 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors group">
+                <span class="font-bold text-slate-300 group-hover:text-white">附錄：我的原始筆記</span>
+                <svg id="accordion-icon" class="w-5 h-5 text-slate-400 transform transition-transform" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+            </button>
+            <div id="accordion-content" class="hidden mt-2 p-6 bg-black/30 rounded-lg border border-slate-800">
+                <pre class="raw-notes text-sm text-slate-400 whitespace-pre-wrap font-mono h-64 overflow-y-auto leading-relaxed"
+                    id="raw-notes-content"></pre>
+            </div>
+        </section>
+
+        <footer class="text-center text-slate-600 py-8 text-sm">
+            Based on User Notes • Generated by Agentic AI (Skills-compliant) • 2026
+        </footer>
+    </div>
+
+    <script>
+        const data = {
+            "keywords": [
+                { "term": "Plug and Play", "why_important": "電腦自動偵測與設定，不需手動調整硬體開關。", "common_exam_angle": "與隨插即用 (PnP) 關聯的介面" },
+                { "term": "Hot Swapping (熱插拔)", "why_important": "不需關閉電源即可安裝或拆卸設備。", "common_exam_angle": "比較早期 PS/2 (不支援) 與 USB (支援)" },
+                { "term": "Bandwidth (頻寬)", "why_important": "介面每秒能傳輸的最大資料量 (bps)。", "common_exam_angle": "USB 2.0 vs 3.0 的速度差異" },
+                { "term": "Thunderbolt", "why_important": "頂級介面，融合 PCIe 與 DisplayPort。", "common_exam_angle": "介面功能大一統的代表" }
+            ],
+            "weighting": {
+                "items": [
+                    { "topic": "USB Speeds & Colors", "weight": 95, "reason": "必考題！3.0 (藍), 3.1 (紅) 的速度需熟記。" },
+                    { "topic": "Interface Transition", "weight": 80, "reason": "認清哪種舊介面 (COM/LPT) 被 USB 取代。" },
+                    { "topic": "Video Standards", "weight": 75, "reason": "HDMI (影音同步) 與 VGA (類比淘汰) 的差異。" }
+                ]
+            },
+            "comparison_matrix": {
+                "dimensions": ["代表介面 (舊)", "主要缺陷", "取代介面 (新)", "核心優勢"],
+                "rows": [
+                    {
+                        "name": "滑鼠/數據機",
+                        "values": {
+                            "代表介面 (舊)": "串列埠 (Serial / COM)",
+                            "主要缺陷": "速度慢、不支援熱插拔",
+                            "取代介面 (新)": "USB",
+                            "核心優勢": "隨插即用、速度極快"
+                        },
+                        "pitfall": "容易與並列埠搞混；串列是一次傳 1 bit。",
+                        "rule_of_thumb": "串列口慢吞吞，USB 救星到。"
+                    },
+                    {
+                        "name": "印表機",
+                        "values": {
+                            "代表介面 (舊)": "並列埠 (Parallel / LPT)",
+                            "主要缺陷": "線材粗大、傳送距離短",
+                            "取代介面 (新)": "USB",
+                            "核心優勢": "廣泛相容、供電能力"
+                        },
+                        "pitfall": "誤以為現在印表機還在用 LPT。現代全是 USB/Wi-Fi。",
+                        "rule_of_thumb": "粗重介面已成灰，改用 USB 最省事。"
+                    },
+                    {
+                        "name": "顯示器",
+                        "values": {
+                            "代表介面 (舊)": "D-Sub (VGA)",
+                            "主要缺陷": "類比訊號、易受干擾",
+                            "取代介面 (新)": "HDMI / DP",
+                            "核心優勢": "全數位、影音同步傳輸"
+                        },
+                        "pitfall": "要注意 HDMI 支援聲音傳輸，而 VGA 不支援。",
+                        "rule_of_thumb": "類比畫面糊，數位傳輸清。"
+                    }
+                ]
+            },
+            "usb_specs": [
+                { version: "2.0", speed: "480 Mbps", color: "#FFFFFF", colorName: "白 / 黑", wattage: "2.5W", desc: "High Speed", timeNeeded: 21 },
+                { version: "3.0", speed: "5 Gbps", color: "#3b82f6", colorName: "藍色", wattage: "4.5W", desc: "Super Speed", timeNeeded: 2 },
+                { version: "3.1", speed: "10 Gbps", color: "#f43f5e", colorName: "紅色 / 藍綠", wattage: "15-100W", desc: "SuperSpeed+", timeNeeded: 1 },
+                { version: "4.0", speed: "40 Gbps", color: "#10b981", colorName: "Type-C (無色標)", wattage: "100W+", desc: "Gen 3x2 (TB3)", timeNeeded: 0.25 }
+            ],
+            "timeline": [
+                { year: "1980s", event: "COM / LPT 稱霸時代", type: "Analog/Legacy", icon: "🔌" },
+                { year: "1996", event: "USB 1.0 問世", type: "Digital", icon: "✨" },
+                { year: "2000", event: "USB 2.0 (High Speed) 普及", type: "Digital", icon: "🚀" },
+                { year: "2008", event: "USB 3.0 (Super Speed) 邁向 Gbps", type: "Digital", icon: "🔥" },
+                { year: "2014", event: "USB-C & PD 快充標準化", type: "Power/Data", icon: "⚡" },
+                { year: "Modern", event: "USB4 / Thunderbolt 4 大一統", type: "Universal", icon: "🌍" }
+            ],
+            "flashcards": [
+                { "front": "熱插拔 (Hot Swap)", "back": "電源在開啟狀態下即可更換硬體，不需關機重啟。" },
+                { "front": "HDMI 傳輸特點", "back": "數位訊號，具備影像與聲音同步傳輸的能力。" },
+                { "front": "USB 3.0 顏色識別", "back": "通常使用「藍色」塑膠板作為明顯標示。" },
+                { "front": "PD (Power Delivery)", "back": "USB 供電協議，最高可支援 100W 以上電力傳輸。" }
+            ],
+            "scenarios": [
+                {
+                    "statement": "我的舊款印表機使用 PS/2 介面連接電腦。",
+                    "answer": "X",
+                    "explanation": "錯。PS/2 是用於鍵盤和滑鼠；舊款印表機使用的是「並列埠 (LPT)」。"
+                },
+                {
+                    "statement": "USB4 介面因為基於 Thunderbolt 技術，傳輸速度最高可達 40 Gbps。",
+                    "answer": "O",
+                    "explanation": "對。這比 USB 2.0 快了將近 80 倍。"
+                },
+                {
+                    "statement": "VGA (D-Sub) 介面可以輕鬆傳輸 4K 極高畫質，是現代電腦的主流。",
+                    "answer": "X",
+                    "explanation": "錯。VGA 是類比介面，正被 HDMI/DP 數位介面取代。"
+                }
+            ],
+            "notes": `在「第三章 CPU 與記憶體概論」的宏觀架構下，來源資料將**「I/O 連接埠與通用序列匯流排 (USB)」視為電腦主機與外部世界溝通的物理介面**。
+如果說 CPU 是大腦，記憶體是工作區，那麼 I/O 連接埠就是電腦的感官與手腳。這一節的觀點在於展示電腦介面如何從**「專用與低速」演進為「通用與高速」**。
+根據來源資料，我們可以從以下四個核心層面來解讀其看法：
+1. 演進的觀點：從「專款專用」到「大一統」
+來源資料透過對比舊式與新式介面，強烈暗示了整合 (Integration) 的趨勢。
+• 舊時代的混亂：教材列舉了早期的 串列埠 (COM1/COM2) 用於滑鼠數據機、並列埠 (LPT1) 用於印表機、PS/2 用於鍵盤滑鼠。這些介面各司其職，互不相容且不支援熱插拔。
+• USB 的取代性：來源明確指出，USB (Universal Serial Bus) 的出現是為了取代上述這些舊式介面。這反映了硬體設計追求標準化與簡化的哲學。
+2. USB 的核心價值：速度、電力與便利性
+來源資料對 USB (通用序列匯流排) 的看法極為重視，將其視為當代最重要的介面標準，並強調了三個關鍵特徵：
+• 使用體驗的革命：教材特別定義了 「支援隨插即用 (Plug and Play)」 與 「熱插拔 (Hot Swapping)」。這意代表使用者不再需要像舊時代那樣關機才能安裝硬體，降低了使用門檻。
+• 速度的階層化標示：來源資料非常詳細地列出了 USB 各世代的傳輸速度與外觀顏色對應，視其為考試重點：
+    ◦ USB 2.0：白色或黑色，速度約 480Mbps (60MB/s)。
+    ◦ USB 3.0 (3.2 Gen1)：藍色，速度躍升至 5Gbps。
+    ◦ USB 3.1/3.2 Gen2：紅色或藍綠色，速度達 10Gbps。
+    ◦ USB4：基於 Thunderbolt 3 協定，速度達 40Gbps。
+• 供電能力：來源特別提到 USB Type-C 介面支援 PD (Power Delivery) 快充，這顯示了介面功能的轉變——從單純傳輸資料變成資料與能源的雙重管道。
+3. 影音介面的數位化轉型
+針對顯示介面，來源資料展現了從類比 (Analog) 轉向 數位 (Digital) 的演進觀點：
+• D-Sub (VGA)：被描述為傳統的類比訊號介面，正逐漸被淘汰。
+• DVI、HDMI、DisplayPort：被視為數位訊號的主流。其中 HDMI 被特別強調為影像與聲音同步傳輸的介面，廣泛應用於家電與電腦。
+• 觀點：這部分的討論反映了多媒體資料量（如 4K/8K 影片）爆炸性增長，迫使硬體介面必須不斷提升頻寬。
+4. 極致效能的追求：Thunderbolt 與 PCIe
+在談論高速傳輸時，來源資料引入了 Thunderbolt (雷電) 介面。
+• 看法：教材將其描述為 Intel 與 Apple 合作的產物，融合了 PCI Express (資料傳輸) 與 DisplayPort (影像傳輸) 技術。
+• 意義：這代表了 I/O 介面的頂點——直接將 CPU 內部的高速匯流排 (PCIe) 拉到外部使用，模糊了「內部元件」與「外部週邊」的界線。
+總結
+在第三章的背景脈絡下，來源資料認為「I/O 連接埠」不僅是插槽，它是消除 CPU 高速運算與外部設備低速運作之間瓶頸 (Bottleneck) 的關鍵技術。 從 PS/2 到 USB4，從 VGA 到 HDMI，所有的演進都指向同一個目標：更快的速度、更通用的規格、更便利的使用體驗。`
+        };
+
+        // --- Logic Implementation ---
+
+        // Dashboard Keywords
+        const kwContainer = document.getElementById('keywords-container');
+        const kwDetail = document.getElementById('keyword-detail');
+        data.keywords.forEach(kw => {
+            const btn = document.createElement('button');
+            btn.className = 'px-3 py-1 bg-slate-700 hover:bg-primary/50 text-slate-200 text-xs rounded-full transition-colors';
+            btn.textContent = kw.term;
+            btn.onclick = () => {
+                kwDetail.classList.remove('hidden');
+                kwDetail.innerHTML = `<strong class="text-primary">${kw.term}</strong>：${kw.why_important}<br><span class="text-slate-500 text-[10px] mt-1 block uppercase">Exam Angle: ${kw.common_exam_angle}</span>`;
+            };
+            kwContainer.appendChild(btn);
+        });
+
+        // Dashboard Weighting
+        const wContainer = document.getElementById('weighting-container');
+        data.weighting.items.forEach(item => {
+            wContainer.innerHTML += `
+                <div class="flex items-center gap-4">
+                    <div class="w-1/3 text-[10px] text-slate-400 truncate text-right font-bold">${item.topic}</div>
+                    <div class="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-primary to-secondary" style="width: ${item.weight}%"></div>
+                    </div>
+                    <div class="text-[10px] text-slate-500 w-8">★${(item.weight / 20).toFixed(1)}</div>
+                </div>`;
+        });
+
+        // Matrix render
+        function renderRows(highlightIdx) {
+            const body = document.getElementById('matrix-body');
+            body.innerHTML = '';
+            data.comparison_matrix.rows.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-slate-700/50 hover:bg-white/5 transition-colors cursor-pointer group';
+                let cells = `<td class="p-4 font-bold text-white text-sm">${row.name}</td>`;
+                data.comparison_matrix.dimensions.forEach((dim, idx) => {
+                    const isHighlight = idx === highlightIdx;
+                    cells += `<td class="p-4 text-xs transition-colors ${isHighlight ? 'text-primary bg-primary/5 font-medium' : 'text-slate-500'}">${row.values[dim]}</td>`;
+                });
+                tr.innerHTML = cells;
+                tr.onclick = () => {
+                    const details = document.getElementById(`detail-${row.name}`);
+                    details.classList.toggle('hidden');
+                };
+                body.appendChild(tr);
+
+                const detailTr = document.createElement('tr');
+                detailTr.id = `detail-${row.name}`;
+                detailTr.className = 'hidden bg-slate-800/50';
+                detailTr.innerHTML = `<td colspan="5" class="p-4"><div class="flex gap-12 text-xs"><div class="flex-1"><span class="text-secondary font-bold mr-2">⚠️ Pitfall:</span>${row.pitfall}</div><div class="flex-1"><span class="text-emerald-400 font-bold mr-2">💡 Rule:</span>${row.rule_of_thumb}</div></div></td>`;
+                body.appendChild(detailTr);
+            });
+        }
+        renderRows(0);
+
+        // Matrix dimension toggle
+        const matDims = document.getElementById('matrix-dimensions');
+        data.comparison_matrix.dimensions.forEach((dim, idx) => {
+            const btn = document.createElement('button');
+            btn.className = `dim-btn px-3 py-1 text-[10px] rounded-full border border-slate-600 hover:border-primary transition-all ${idx === 0 ? 'bg-primary text-slate-900 font-bold' : 'text-slate-500'}`;
+            btn.textContent = dim;
+            btn.onclick = () => {
+                document.querySelectorAll('.dim-btn').forEach(b => { b.classList.remove('bg-primary', 'text-slate-900', 'font-bold'); b.classList.add('text-slate-500'); });
+                btn.classList.add('bg-primary', 'text-slate-900', 'font-bold');
+                btn.classList.remove('text-slate-500');
+                renderRows(idx);
+            };
+            matDims.appendChild(btn);
+        });
+
+        // USB Lab Logic
+        const usbSelectors = document.getElementById('usb-selectors');
+        data.usb_specs.forEach((spec, idx) => {
+            const btn = document.createElement('button');
+            btn.className = `px-3 py-1 rounded-md text-[10px] border border-slate-700 hover:bg-slate-700 transition-all ${idx === 0 ? 'ring-2 ring-primary bg-slate-800' : ''}`;
+            btn.textContent = spec.version;
+            btn.onclick = () => updateUsbLab(idx, btn);
+            usbSelectors.appendChild(btn);
+        });
+
+        function updateUsbLab(idx, btnClicked) {
+            document.querySelectorAll('#usb-selectors button').forEach(b => b.classList.remove('ring-2', 'ring-primary', 'bg-slate-800'));
+            btnClicked.classList.add('ring-2', 'ring-primary', 'bg-slate-800');
+
+            const spec = data.usb_specs[idx];
+            document.getElementById('usb-port-visual').style.backgroundColor = spec.color;
+            document.getElementById('usb-speed-display').textContent = spec.speed;
+            document.getElementById('usb-gen-name').textContent = `USB ${spec.version} (${spec.desc})`;
+            document.getElementById('usb-wattage').textContent = spec.wattage;
+            document.getElementById('usb-color-text').textContent = spec.colorName;
+            document.getElementById('transfer-bar').style.width = '0%';
+            currentUsbIdx = idx;
+        }
+
+        let currentUsbIdx = 0;
+        function simulateTransfer() {
+            const bar = document.getElementById('transfer-bar');
+            const time = data.usb_specs[currentUsbIdx].timeNeeded * 1000;
+            bar.style.transitionDuration = '0s';
+            bar.style.width = '0%';
+            setTimeout(() => {
+                bar.style.transitionDuration = `${time}ms`;
+                bar.style.width = '100%';
+            }, 50);
+        }
+
+        // Timeline
+        const timeline = document.getElementById('evolution-timeline');
+        data.timeline.forEach(item => {
+            timeline.innerHTML += `
+                <div class="flex gap-4 group">
+                    <div class="flex flex-col items-center">
+                        <div class="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center group-hover:bg-primary/20 transition-colors">${item.icon}</div>
+                        <div class="w-0.5 h-full bg-slate-800"></div>
+                    </div>
+                    <div class="pb-6">
+                        <div class="text-[10px] text-primary font-black opacity-50 uppercase tracking-widest">${item.year}</div>
+                        <div class="text-sm font-bold text-white">${item.event}</div>
+                        <div class="text-[10px] text-slate-500">${item.type}</div>
+                    </div>
+                </div>`;
+        });
+
+        // Flashcards
+        const fcContainer = document.getElementById('flashcards-container');
+        data.flashcards.forEach(fc => {
+            const card = document.createElement('div');
+            card.className = 'flip-card h-40';
+            card.innerHTML = `
+                <div class="flip-card-inner border border-slate-700 shadow-xl">
+                    <div class="flip-card-front bg-surface">
+                        <span class="text-primary font-black text-center text-sm leading-tight">${fc.front}</span>
+                         <span class="text-[8px] text-slate-600 mt-4 uppercase">Flip me</span>
+                    </div>
+                    <div class="flip-card-back bg-gradient-to-br from-primary/80 to-secondary/80 text-white">
+                        <p class="text-[11px] font-bold text-center leading-tight">${fc.back}</p>
+                    </div>
+                </div>`;
+            card.onclick = () => card.classList.toggle('flipped');
+            fcContainer.appendChild(card);
+        });
+
+        // Scenarios
+        const scContainer = document.getElementById('scenarios-container');
+        data.scenarios.forEach((sc, idx) => {
+            const div = document.createElement('div');
+            div.className = 'p-6 bg-dark/40 rounded-xl border border-slate-800 hover:border-slate-700 transition-all';
+            div.innerHTML = `
+                <div class="flex items-start gap-4">
+                    <div class="w-8 h-8 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-xs font-black text-slate-500">Q${idx + 1}</div>
+                    <div class="flex-1">
+                        <p class="text-slate-200 mb-6 font-bold leading-relaxed text-sm">${sc.statement}</p>
+                        <div class="flex gap-4">
+                            <button class="btn-ans px-8 py-2 rounded border border-slate-700 hover:border-emerald-500 hover:text-emerald-500 font-black text-xs transition-all" data-ans="O">O</button>
+                            <button class="btn-ans px-8 py-2 rounded border border-slate-700 hover:border-rose-500 hover:text-rose-500 font-black text-xs transition-all" data-ans="X">X</button>
+                        </div>
+                        <div class="feedback hidden mt-4 p-4 rounded bg-slate-800/50 text-[11px] border-l-2"></div>
+                    </div>
+                </div>`;
+
+            div.querySelectorAll('.btn-ans').forEach(btn => btn.onclick = () => {
+                const fb = div.querySelector('.feedback');
+                fb.classList.remove('hidden', 'text-emerald-400', 'text-rose-400', 'border-emerald-500', 'border-rose-500');
+                if (btn.dataset.ans === sc.answer) {
+                    fb.classList.add('text-emerald-400', 'border-emerald-500');
+                    fb.innerHTML = `<strong>正確！</strong> ${sc.explanation}`;
+                } else {
+                    fb.classList.add('text-rose-400', 'border-rose-500');
+                    fb.innerHTML = `<strong>不正確。</strong> ${sc.explanation}`;
+                }
+                fb.classList.remove('hidden');
+            });
+            scContainer.appendChild(div);
+        });
+
+        // Appendix
+        document.getElementById('accordion-btn').onclick = () => {
+            document.getElementById('accordion-content').classList.toggle('hidden');
+            document.getElementById('accordion-icon').classList.toggle('rotate-180');
+        };
+        document.getElementById('raw-notes-content').textContent = data.notes;
+
+        // Initialize Lab
+        updateUsbLab(0, document.querySelector('#usb-selectors button'));
+
+    </script>
+</body>
+
+</html>
