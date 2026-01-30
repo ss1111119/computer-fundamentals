@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ch4 作業系統與系統程式 - 互動複習指南</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#10b981', // Emerald-500
+                        secondary: '#8b5cf6', // Violet-500
+                        dark: '#0f172a', // Slate-900
+                        surface: '#1e293b', // Slate-800
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .flip-card {
+            perspective: 1000px;
+            cursor: pointer;
+        }
+
+        .flip-card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+
+        .flip-card.flipped .flip-card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .flip-card-front,
+        .flip-card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .flip-card-back {
+            transform: rotateY(180deg);
+        }
+
+        /* Flow Animation */
+        .flow-node {
+            transition: all 0.5s ease;
+        }
+
+        .flow-node.active {
+            background-color: rgba(16, 185, 129, 0.2);
+            border-color: #10b981;
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+            transform: scale(1.05);
+        }
+
+        .flow-arrow {
+            transition: opacity 0.5s ease;
+            opacity: 0.2;
+        }
+
+        .flow-arrow.active {
+            opacity: 1;
+            color: #10b981;
+        }
+
+        /* Deadlock Visual */
+        .resource-node {
+            width: 40px;
+            height: 40px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .process-node {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body class="bg-dark text-slate-200 font-sans antialiased min-h-screen">
+
+    <div class="max-w-6xl mx-auto p-4 md:p-8 space-y-12">
+
+        <!-- Header -->
+        <header class="space-y-4 text-center border-b border-slate-700 pb-8 animate-fade-in-down">
+            <div
+                class="inline-block px-3 py-1 text-xs font-semibold tracking-wider text-primary uppercase bg-primary/10 rounded-full">
+                Chapter 4: Operating Systems & System Programs (Part 1)
+            </div>
+            <h1
+                class="text-3xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
+                大管家與翻譯官：系統軟體之魂
+            </h1>
+            <p class="text-slate-400 text-lg max-w-2xl mx-auto">
+                作業系統是硬體資源的仲裁者，系統程式則是人類與機器之間的溝通橋樑。
+            </p>
+            <div class="flex justify-center gap-4 text-sm text-slate-500 pt-2">
+                <div class="flex items-center gap-1">
+                    <span class="text-xs border border-slate-600 rounded px-1">前置</span>
+                    <span>CPU 與記憶體概論</span>
+                </div>
+                <span>→</span>
+                <div class="flex items-center gap-1">
+                    <span class="text-xs border border-slate-600 rounded px-1">後續</span>
+                    <span>行程管理與排程</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Module A: Strategic Dashboard -->
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-slate-700">
+                <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
+                        </path>
+                    </svg>
+                    關鍵字雷達
+                </h2>
+                <div class="flex flex-wrap gap-2" id="keywords-container"></div>
+                <div id="keyword-detail"
+                    class="mt-4 p-3 bg-dark/50 rounded-lg text-sm text-slate-300 min-h-[80px] hidden"></div>
+            </div>
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-slate-700">
+                <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path>
+                    </svg>
+                    出題佔比 (預估)
+                </h2>
+                <div class="space-y-3" id="weighting-container"></div>
+            </div>
+        </section>
+
+        <!-- Module D: Comparison Matrix -->
+        <section class="bg-surface rounded-xl shadow-lg border border-slate-700 overflow-hidden">
+            <div class="p-6 border-b border-slate-700">
+                <h2 class="text-2xl font-bold text-white mb-2">系統軟體大對抗</h2>
+                <p class="text-slate-400 text-sm">理解作業系統 (OS) 如何在後台掌控一切</p>
+                <div class="flex flex-wrap gap-2 mt-4" id="matrix-dimensions"></div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="text-slate-400 text-sm bg-dark/50 border-b border-slate-700">
+                            <th class="p-4 w-1/4">比較類別</th>
+                            <th class="p-4 dimension-col" data-idx="0">核心職責</th>
+                            <th class="p-4 dimension-col" data-idx="1">主要代表</th>
+                            <th class="p-4 dimension-col" data-idx="2">運作層次</th>
+                            <th class="p-4 dimension-col" data-idx="3">對使用者的意義</th>
+                        </tr>
+                    </thead>
+                    <tbody id="matrix-body" class="text-slate-300"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Module B: Core Concept Lab - Translation & OS Roles -->
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Part 1: Translation Pipeline Simulator -->
+            <div
+                class="bg-surface rounded-xl p-6 shadow-lg border border-primary/30 relative overflow-hidden flex flex-col">
+                <h3 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                        </path>
+                    </svg>
+                    程式翻譯流水線 (Pipeline)
+                </h3>
+
+                <div class="flex-1 flex flex-col items-center justify-center space-y-4">
+                    <div class="flex items-center gap-2 w-full max-w-md">
+                        <div id="node-source"
+                            class="flow-node flex-1 p-2 border border-slate-700 rounded text-[10px] text-center bg-dark/50">
+                            原始碼<br>(Source)</div>
+                        <div id="arrow-1" class="flow-arrow text-primary text-xl">→</div>
+                        <div id="node-compiler"
+                            class="flow-node flex-1 p-2 border border-slate-700 rounded text-[10px] text-center bg-dark/50">
+                            編譯器<br>(Compiler)</div>
+                        <div id="arrow-2" class="flow-arrow text-primary text-xl">→</div>
+                        <div id="node-object"
+                            class="flow-node flex-1 p-2 border border-slate-700 rounded text-[10px] text-center bg-dark/50">
+                            目的碼<br>(Object)</div>
+                    </div>
+                    <div class="flex items-center gap-2 w-full max-w-md">
+                        <div class="flex-1"></div>
+                        <div id="arrow-3" class="flow-arrow text-primary text-xl rotate-90">→</div>
+                        <div class="flex-1"></div>
+                    </div>
+                    <div class="flex items-center gap-2 w-full max-w-md">
+                        <div id="node-loader"
+                            class="flow-node flex-1 p-2 border border-slate-700 rounded text-[10px] text-center bg-dark/50">
+                            載入器<br>(Loader)</div>
+                        <div id="arrow-5" class="flow-arrow text-primary text-xl rotate-180">→</div>
+                        <div id="node-linker"
+                            class="flow-node flex-1 p-2 border border-slate-700 rounded text-[10px] text-center bg-dark/50">
+                            連結器<br>(Linker)</div>
+                        <div id="arrow-4" class="flow-arrow text-primary text-xl rotate-180">→</div>
+                        <div id="node-lib"
+                            class="flow-node flex-1 p-2 border border-slate-700 rounded text-[10px] text-center bg-dark/50">
+                            函式庫<br>(Library)</div>
+                    </div>
+
+                    <button onclick="runPipeline()"
+                        class="px-6 py-2 bg-primary hover:bg-primary/80 text-dark font-black rounded-lg transition-all active:scale-95 text-xs">開始翻譯與載入</button>
+                    <div id="pipeline-status" class="text-xs text-slate-500 italic h-4">點擊按鈕觀察程式如何從原始碼變成可執行狀態</div>
+                </div>
+            </div>
+
+            <!-- Part 2: Deadlock Simulator (The Circular Wait) -->
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-secondary/30 flex flex-col">
+                <h3 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636">
+                        </path>
+                    </svg>
+                    死結 (Deadlock) 病態模擬
+                </h3>
+
+                <div class="flex-1 relative flex items-center justify-center min-h-[200px]">
+                    <!-- Process A -->
+                    <div class="absolute top-0 left-1/2 -translate-x-1/2 flex flex-col items-center">
+                        <div class="process-node bg-indigo-600 border-2 border-indigo-400 text-white shadow-lg text-xs">
+                            P1</div>
+                        <div class="text-[8px] text-slate-500 mt-1">等 R2 / 有 R1</div>
+                    </div>
+                    <!-- Process B -->
+                    <div class="absolute bottom-0 left-1/2 -translate-x-1/2 flex flex-col items-center">
+                        <div class="process-node bg-purple-600 border-2 border-purple-400 text-white shadow-lg text-xs">
+                            P2</div>
+                        <div class="text-[8px] text-slate-500 mt-1">等 R1 / 有 R2</div>
+                    </div>
+                    <!-- Resource 1 -->
+                    <div class="absolute left-0 top-1/2 -translate-y-1/2 flex flex-col items-center">
+                        <div class="resource-node bg-slate-700 border border-slate-500 text-xs">R1</div>
+                        <div class="text-[8px] text-slate-500 mt-1">印表機</div>
+                    </div>
+                    <!-- Resource 2 -->
+                    <div class="absolute right-0 top-1/2 -translate-y-1/2 flex flex-col items-center">
+                        <div class="resource-node bg-slate-700 border border-slate-500 text-xs">R2</div>
+                        <div class="text-[8px] text-slate-500 mt-1">掃描器</div>
+                    </div>
+
+                    <!-- SVG Arrows for loop -->
+                    <svg class="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 200 200">
+                        <defs>
+                            <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6"
+                                orient="auto-start-reverse">
+                                <path d="M 0 0 L 10 5 L 0 10 z" fill="#8b5cf6" />
+                            </marker>
+                        </defs>
+                        <!-- P1 holds R1 -->
+                        <line x1="100" y1="50" x2="30" y2="100" stroke="#10b981" stroke-width="1" stroke-dasharray="2"
+                            marker-end="url(#arrow)" />
+                        <!-- P1 waits R2 -->
+                        <line x1="100" y1="50" x2="170" y2="100" stroke="#f43f5e" stroke-width="1"
+                            marker-end="url(#arrow)" />
+                        <!-- P2 holds R2 -->
+                        <line x1="100" y1="150" x2="170" y2="100" stroke="#10b981" stroke-width="1" stroke-dasharray="2"
+                            marker-end="url(#arrow)" />
+                        <!-- P2 waits R1 -->
+                        <line x1="100" y1="150" x2="30" y2="100" stroke="#f43f5e" stroke-width="1"
+                            marker-end="url(#arrow)" />
+                    </svg>
+                </div>
+
+                <div class="mt-4 p-3 bg-red-900/20 border border-red-500/30 rounded text-[10px]">
+                    <span class="text-red-400 font-bold block mb-1">死結 4 要素：缺一不可</span>
+                    <ul class="grid grid-cols-2 gap-1 text-slate-400">
+                        <li>1. 互相排斥 (互斥)</li>
+                        <li>2. 佔有並等待</li>
+                        <li>3. 不可強佔 (剝奪)</li>
+                        <li>4. 循環等待 (如圖)</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Module C: Exam Drill -->
+        <section class="space-y-8">
+            <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                <svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                實戰演練場
+            </h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="flashcards-container"></div>
+            <div class="bg-surface rounded-xl p-8 border border-slate-700">
+                <h3 class="text-lg font-semibold text-slate-400 mb-8 border-l-4 border-primary pl-4">大管家的管理智慧：是非判斷</h3>
+                <div class="space-y-6" id="scenarios-container"></div>
+            </div>
+        </section>
+
+        <!-- Module E: Appendix -->
+        <section class="border-t border-slate-700 pt-8">
+            <button id="accordion-btn"
+                class="w-full flex justify-between items-center p-4 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors group">
+                <span class="font-bold text-slate-300 group-hover:text-white">附錄：我的原始筆記</span>
+                <svg id="accordion-icon" class="w-5 h-5 text-slate-400 transform transition-transform" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+            </button>
+            <div id="accordion-content" class="hidden mt-2 p-6 bg-black/30 rounded-lg border border-slate-800">
+                <pre class="raw-notes text-sm text-slate-400 whitespace-pre-wrap font-mono h-64 overflow-y-auto leading-relaxed"
+                    id="raw-notes-content"></pre>
+            </div>
+        </section>
+
+        <footer class="text-center text-slate-600 py-8 text-sm">
+            Based on User Notes • Generated by Agentic AI • 2026
+        </footer>
+    </div>
+
+    <script>
+        const data = {
+            "keywords": [
+                { "term": "Operating System (OS)", "why_important": "硬體資源的仲裁者，負責四大管理職能。", "common_exam_angle": "定義 OS 為使用者與硬碟之間的介面" },
+                { "term": "Compiler (編譯器)", "why_important": "一次翻譯整份原始碼為目的碼。", "common_exam_angle": "編譯階段的順序 (詞彙 -> 語法 -> 最佳化...)" },
+                { "term": "Linker (連結器)", "why_important": "將各個 Object 檔與函式庫結合。", "common_exam_angle": "目的碼與函式庫的整合時機" },
+                { "term": "Deadlock (死結)", "why_important": "系統因資源競爭陷入停滯的病態。", "common_exam_angle": "死結發生的四個必要條件" },
+                { "term": "Loader (載入器)", "why_important": "將程式放入記憶體並重定位位址。", "common_exam_angle": "程式執行的最後一哩路" }
+            ],
+            "weighting": {
+                "items": [
+                    { "topic": "Deadlock 4 Conditions", "weight": 95, "reason": "必考觀念題，需死背四個條件名稱。" },
+                    { "topic": "Software Translation Flow", "weight": 90, "reason": "考 Source -> Object -> Execution 的順序與工具。" },
+                    { "topic": "OS Management Roles", "weight": 75, "reason": "四大管理 (CPU/RAM/IO/File) 的具體對象。" }
+                ]
+            },
+            "comparison_matrix": {
+                "dimensions": ["核心職責", "主要代表", "運作層次", "對使用者的意義"],
+                "rows": [
+                    {
+                        "name": "系統程式 (System)",
+                        "values": {
+                            "核心職責": "維護系統、開發支援、翻譯行程",
+                            "主要代表": "OS、Compiler、Linker",
+                            "運作層次": "核心 / 硬體上方底層",
+                            "對使用者的意義": "讓硬體「活過來」的基礎"
+                        },
+                        "pitfall": "誤以為 Word 或 遊戲是系統程式。它們是應用程式。",
+                        "rule_of_thumb": "系統程式是「大管家」兼「翻譯官」。"
+                    },
+                    {
+                        "name": "應用程式 (App)",
+                        "values": {
+                            "核心職責": "解決使用者特定需求",
+                            "主要代表": "Browser, Office, 遊戲",
+                            "運作層次": "使用者層次 (User Level)",
+                            "對使用者的意義": "達成目的的工具 (生產力/娛樂)"
+                        },
+                        "pitfall": "忽略了 App 必須透過 OS 才能呼叫硬體資源。",
+                        "rule_of_thumb": "應用程式是「工具、玩具、家具」。"
+                    }
+                ]
+            },
+            "flashcards": [
+                { "front": "組譯器 (Assembler)", "back": "將「組合語言 (Assembly)」翻譯成「機器語言 (Machine Code)」的工具。" },
+                { "front": "詞彙分析 (Lexical Analysis)", "back": "編譯的第一階段，將字元流解析為有意義的標記 (Tokens)。" },
+                { "front": "重定位 (Relocation)", "back": "載入程式負責將程式中的邏輯位址轉換為實際載入 RAM 的實體位址。" },
+                { "front": "相互排斥 (Mutual Exclusion)", "back": "資源一次只能被一個 Process 使用，是死結發生的條件之一。" },
+                { "front": "互操作系統歷史", "back": "從 DOS (文字介面) 演進到 Windows (GUI 介面)。" }
+            ],
+            "scenarios": [
+                {
+                    "statement": "如果我的電腦發生了「死結」，我只要把被佔用的資源之一（如印表機）強制拔掉，作業系統就能自動恢復。",
+                    "answer": "X",
+                    "explanation": "錯。強行移除硬體並非 OS 管理死結的正規方法。OS 需透過「死結偵測與復原」或預先「預防」來解決。"
+                },
+                {
+                    "statement": "編譯器 (Compiler) 的執行順序是：編譯 -> 連結 -> 載入。",
+                    "answer": "O",
+                    "explanation": "對。這是軟體從原始碼到執行態的標準流程 (Translator Pipeline)。"
+                },
+                {
+                    "statement": "Windows 11 是屬於「應用軟體」，因為它上面有很多應用程式。",
+                    "answer": "X",
+                    "explanation": "錯。Windows 是「作業系統 (OS)」，屬於「系統軟體 (System Software)」。"
+                }
+            ],
+            "notes": `在「計算機概論」的宏觀架構下，來源資料將第四章「作業系統與系統程式」「大管家」與「翻譯官」。
+如果說第三章介紹了電腦的「硬體驅殼（CPU、記憶體）」，那麼第四章就是在介紹賦予這個驅殼生命的**「系統軟體」。這一章的觀點在於解釋軟體如何管理硬體資源**，以及如何將人類的邏輯（程式碼）轉換為機器能執行的指令。
+根據來源資料，我們可以從以下四個核心層面來探討其看法：
+1. 軟體階層的定義：系統程式 vs. 應用程式
+來源資料首先確立了軟體的分類觀點，將軟體劃分為系統程式 (System Programs) 與 應用程式 (Application Programs)。
+• 系統程式的角色：被視為「為了讓電腦運作或開發程式不可或缺的軟體」。教材特別強調了編譯器 (Compiler)、組譯器 (Assembler)、連結器 (Linker) 與 載入程式 (Loader) 的功能。
+• 翻譯的流水線：來源將程式執行的過程視為一個嚴謹的工業流程：
+    1. 編譯/組譯：將原始碼 (Source Code) 轉為目的碼 (Object Code)。教材詳細拆解了編譯的七個階段（如詞彙分析、語法分析、最佳化等）。
+    2. 連結 (Linking)：將多個目的檔與函式庫結合。
+    3. 載入 (Loading)：將程式放入記憶體並進行重定位 (Relocation)，這是程式能被執行的最後一哩路。
+2. 資源的仲裁者：作業系統 (OS)
+來源資料將作業系統定義為**「硬體與使用者之間的介面」，其核心職責是資源管理 (Resource Management)**。
+• 四大管理職能：教材將 OS 的工作具體化為：
+    1. 記憶體管理：決定誰可以用 RAM（呼應第三章的虛擬記憶體概念）。
+    2. 處理器管理：決定誰可以使用 CPU。
+    3. 設備管理：控制 I/O。
+    4. 檔案管理：保護與存取資料。
+• 觀點：OS 不僅是軟體，它是電腦資源的獨裁分配者。沒有它，硬體只是一堆無法協調的電子元件。
+3. 系統崩潰的邏輯：死結 (Deadlock)
+在討論多工處理時，來源資料引入了**「死結」的概念，視其為資源競爭下的病態現象**。
+• 哲學觀點：當兩個以上的運作單元（Process）互不相讓，都在等待對方釋放資源時，系統就會陷入永久的停滯。
+• 四個必要條件：教材明確列出了死結發生的四個前提，缺一不可：
+    1. 相互排斥 (Mutual Exclusion)。
+    2. 等待 (Hold and Wait)。
+    3. 不能搶先 (No Preemption)。
+    4. 循環等待 (Circular Wait)。
+• 解決之道：這部分內容教導學生從邏輯上理解如何透過破壞上述任一條件來預防系統當機，是作業系統理論中最具邏輯性的部分。
+4. 演進的歷史觀：從 DOS 到 Windows
+來源資料透過列舉 OS 的發展史，展現了人機介面 (HCI) 的演進觀點。
+• 從文字到圖形：從早期的 MS-DOS（文字介面、單人單工）演進到 Windows 3.1/95/XP/10/11（圖形介面、多工、隨插即用）。
+• 開放與封閉的對比：教材並列了 Windows（商業軟體）與 Linux/Unix（開放原始碼、穩定、多原本用於伺服器）。這反映了計算機概論中對於軟體生態系多樣性的重視。
+總結
+在整本書的脈絡中，第四章扮演著**「轉譯與控制」**的角色：
+• 它承接了第三章的硬體限制（如記憶體有限），透過 OS 的排程與管理來優化效能。
+• 它開啟了第十一章「程式設計」的大門，解釋了我們寫的程式碼（Source Code）是如何透過編譯與連結變成 CPU 能懂的機器碼。
+來源資料透過這一章告訴學生：電腦的效能不只取決於 CPU 跑多快（硬體），更取決於 OS 如何聰明地調度這些資源（軟體）。`
+        };
+
+        // --- Implementation ---
+
+        // Keywords
+        const kwContainer = document.getElementById('keywords-container');
+        const kwDetail = document.getElementById('keyword-detail');
+        data.keywords.forEach(kw => {
+            const btn = document.createElement('button');
+            btn.className = 'px-3 py-1 bg-slate-700 hover:bg-primary/50 text-slate-200 text-xs rounded-full transition-colors';
+            btn.textContent = kw.term;
+            btn.onclick = () => {
+                kwDetail.classList.remove('hidden');
+                kwDetail.innerHTML = `<strong class="text-primary">${kw.term}</strong>：${kw.why_important}<br><span class="text-slate-500 text-[10px] mt-1 block uppercase">考點：${kw.common_exam_angle}</span>`;
+            };
+            kwContainer.appendChild(btn);
+        });
+
+        // Weighting
+        const wContainer = document.getElementById('weighting-container');
+        data.weighting.items.forEach(item => {
+            wContainer.innerHTML += `
+                <div class="flex items-center gap-4">
+                    <div class="w-1/3 text-[10px] text-slate-400 truncate text-right font-bold uppercase">${item.topic}</div>
+                    <div class="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-primary to-secondary" style="width: ${item.weight}%"></div>
+                    </div>
+                    <div class="text-[10px] text-slate-500 w-8">${item.weight}%</div>
+                </div>`;
+        });
+
+        // Matrix
+        const matDims = document.getElementById('matrix-dimensions');
+        const body = document.getElementById('matrix-body');
+        function renderRows(highlightIdx) {
+            body.innerHTML = '';
+            data.comparison_matrix.rows.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-slate-700/50 hover:bg-white/5 transition-colors cursor-pointer group';
+                let cells = `<td class="p-4 font-bold text-white text-sm">${row.name}</td>`;
+                data.comparison_matrix.dimensions.forEach((dim, idx) => {
+                    const isHighlight = idx === highlightIdx;
+                    cells += `<td class="p-4 text-xs transition-colors ${isHighlight ? 'text-primary bg-primary/5 font-medium' : 'text-slate-500'}">${row.values[dim]}</td>`;
+                });
+                tr.innerHTML = cells;
+                tr.onclick = () => {
+                    const details = document.getElementById(`detail-${row.name}`);
+                    details.classList.toggle('hidden');
+                };
+                body.appendChild(tr);
+
+                const detailTr = document.createElement('tr');
+                detailTr.id = `detail-${row.name}`;
+                detailTr.className = 'hidden bg-slate-800/50';
+                detailTr.innerHTML = `<td colspan="5" class="p-4"><div class="flex gap-12 text-xs"><div class="flex-1"><span class="text-secondary font-bold mr-2">⚠️ Pitfall:</span>${row.pitfall}</div><div class="flex-1"><span class="text-emerald-400 font-bold mr-2">💡 Rule:</span>${row.rule_of_thumb}</div></div></td>`;
+                body.appendChild(detailTr);
+            });
+        }
+        renderRows(0);
+
+        data.comparison_matrix.dimensions.forEach((dim, idx) => {
+            const btn = document.createElement('button');
+            btn.className = `dim-btn px-3 py-1 text-[10px] rounded-full border border-slate-600 hover:border-primary transition-all ${idx === 0 ? 'bg-primary text-dark font-black' : 'text-slate-500'}`;
+            btn.textContent = dim;
+            btn.onclick = () => {
+                document.querySelectorAll('.dim-btn').forEach(b => { b.classList.remove('bg-primary', 'text-dark', 'font-black'); b.classList.add('text-slate-500'); });
+                btn.classList.add('bg-primary', 'text-dark', 'font-black');
+                btn.classList.remove('text-slate-500');
+                renderRows(idx);
+            };
+            matDims.appendChild(btn);
+        });
+
+        // Pipeline Logic
+        async function runPipeline() {
+            const nodes = ['source', 'compiler', 'object', 'linker', 'loader'];
+            const arrows = ['arrow-1', 'arrow-2', 'arrow-3', 'arrow-4', 'arrow-5'];
+            const status = document.getElementById('pipeline-status');
+
+            // Clear
+            nodes.forEach(n => document.getElementById(`node-${n}`).classList.remove('active'));
+            arrows.forEach(a => document.getElementById(a).classList.remove('active'));
+            document.getElementById('node-lib').classList.remove('active');
+
+            status.textContent = "1. 原始碼 (Source Code) 寫好了...";
+            document.getElementById('node-source').classList.add('active');
+            await wait(1000);
+
+            status.textContent = "2. 編譯器 (Compiler) 進行 7 大階段翻譯...";
+            document.getElementById('arrow-1').classList.add('active');
+            document.getElementById('node-compiler').classList.add('active');
+            await wait(1500);
+
+            status.textContent = "3. 產出機器可讀的目的碼 (Object Code)...";
+            document.getElementById('arrow-2').classList.add('active');
+            document.getElementById('node-object').classList.add('active');
+            await wait(1000);
+
+            status.textContent = "4. 連結者 (Linker) 將眾多目的檔與【函式庫】整合...";
+            document.getElementById('arrow-3').classList.add('active');
+            document.getElementById('node-lib').classList.add('active');
+            document.getElementById('arrow-4').classList.add('active');
+            document.getElementById('node-linker').classList.add('active');
+            await wait(1500);
+
+            status.textContent = "5. 載入者 (Loader) 將程式搬進記憶體並進行位址重定位...";
+            document.getElementById('arrow-5').classList.add('active');
+            document.getElementById('node-loader').classList.add('active');
+            await wait(1000);
+
+            status.textContent = "作業完成！程式已在記憶體中準備執行。";
+        }
+        function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+        // Flashcards
+        const fcContainer = document.getElementById('flashcards-container');
+        data.flashcards.forEach(fc => {
+            const card = document.createElement('div');
+            card.className = 'flip-card h-40';
+            card.innerHTML = `
+                <div class="flip-card-inner border border-slate-700 shadow-xl">
+                    <div class="flip-card-front bg-surface">
+                        <span class="text-primary font-black text-center text-[11px] uppercase tracking-tighter">${fc.front}</span>
+                         <span class="text-[8px] text-slate-600 mt-4 italic">TAB TO FLIP</span>
+                    </div>
+                    <div class="flip-card-back bg-gradient-to-br from-primary/80 to-secondary/80 text-white">
+                        <p class="text-[10px] font-bold text-center leading-normal px-2">${fc.back}</p>
+                    </div>
+                </div>`;
+            card.onclick = () => card.classList.toggle('flipped');
+            fcContainer.appendChild(card);
+        });
+
+        // Scenarios
+        const scContainer = document.getElementById('scenarios-container');
+        data.scenarios.forEach((sc, idx) => {
+            const div = document.createElement('div');
+            div.className = 'p-6 bg-dark/40 rounded-xl border border-slate-800 hover:border-slate-700 transition-all group';
+            div.innerHTML = `
+                <div class="flex items-start gap-4">
+                    <div class="w-8 h-8 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-xs font-black text-slate-500 group-hover:text-primary transition-colors">Q${idx + 1}</div>
+                    <div class="flex-1">
+                        <p class="text-slate-200 mb-6 font-bold leading-relaxed text-sm">${sc.statement}</p>
+                        <div class="flex gap-4">
+                            <button class="btn-ans px-8 py-2 rounded-full border border-slate-700 hover:border-primary hover:text-primary font-black text-xs transition-all" data-ans="O">正確 O</button>
+                            <button class="btn-ans px-8 py-2 rounded-full border border-slate-700 hover:border-secondary hover:text-secondary font-black text-xs transition-all" data-ans="X">錯誤 X</button>
+                        </div>
+                        <div class="feedback hidden mt-4 p-4 rounded-lg text-[11px] border-l-2"></div>
+                    </div>
+                </div>`;
+
+            div.querySelectorAll('.btn-ans').forEach(btn => btn.onclick = () => {
+                const fb = div.querySelector('.feedback');
+                fb.classList.remove('hidden', 'text-emerald-400', 'text-secondary', 'border-primary', 'border-secondary', 'bg-primary/5', 'bg-secondary/5');
+                if (btn.dataset.ans === sc.answer) {
+                    fb.classList.add('text-emerald-400', 'border-primary', 'bg-primary/5');
+                    fb.innerHTML = `<strong>太棒了！</strong> ${sc.explanation}`;
+                } else {
+                    fb.classList.add('text-secondary', 'border-secondary', 'bg-secondary/5');
+                    fb.innerHTML = `<strong>再想想喔。</strong> ${sc.explanation}`;
+                }
+                fb.classList.remove('hidden');
+            });
+            scContainer.appendChild(div);
+        });
+
+        // Appendix
+        document.getElementById('accordion-btn').onclick = () => {
+            document.getElementById('accordion-content').classList.toggle('hidden');
+            document.getElementById('accordion-icon').classList.toggle('rotate-180');
+        };
+        document.getElementById('raw-notes-content').textContent = data.notes;
+
+    </script>
+</body>
+
+</html>
