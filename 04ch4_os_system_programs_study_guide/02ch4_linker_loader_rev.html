@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ch4 連結程式與載入程式 - 互動複習指南</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#f43f5e', // Rose-500
+                        secondary: '#0ea5e9', // Sky-500
+                        dark: '#0f172a', // Slate-900
+                        surface: '#1e293b', // Slate-800
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .flip-card {
+            perspective: 1000px;
+            cursor: pointer;
+        }
+
+        .flip-card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+
+        .flip-card.flipped .flip-card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .flip-card-front,
+        .flip-card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .flip-card-back {
+            transform: rotateY(180deg);
+        }
+
+        /* Logistics Animation */
+        .logistics-box {
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .logistics-box.active {
+            transform: scale(1.1);
+            filter: brightness(1.2);
+            border-color: #f43f5e;
+            box-shadow: 0 0 20px rgba(244, 63, 94, 0.3);
+        }
+
+        /* RAM Visual */
+        .ram-cell {
+            height: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: background 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-family: monospace;
+        }
+
+        .ram-cell.allocated {
+            background-color: rgba(14, 165, 233, 0.2);
+            border-color: rgba(14, 165, 233, 0.5);
+        }
+
+        .ram-cell.loading {
+            background-color: rgba(244, 63, 94, 0.4);
+        }
+    </style>
+</head>
+
+<body class="bg-dark text-slate-200 font-sans antialiased min-h-screen">
+
+    <div class="max-w-6xl mx-auto p-4 md:p-8 space-y-12">
+
+        <!-- Header -->
+        <header class="space-y-4 text-center border-b border-slate-700 pb-8 animate-fade-in-down">
+            <div
+                class="inline-block px-3 py-1 text-xs font-semibold tracking-wider text-primary uppercase bg-primary/10 rounded-full">
+                Chapter 4: System Programs (Part 2)
+            </div>
+            <h1
+                class="text-3xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
+                物流與後勤：組裝、安置、啟動
+            </h1>
+            <p class="text-slate-400 text-lg max-w-2xl mx-auto">
+                連結器 (Linker) 將零散的模組組裝，載入程式 (Loader) 則負責在記憶體中為程式找到歸宿。
+            </p>
+        </header>
+
+        <!-- Module A: Strategic Dashboard -->
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-slate-700 text-sm">
+                <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                    關鍵字雷達
+                </h2>
+                <div class="flex flex-wrap gap-2" id="keywords-container"></div>
+                <div id="keyword-detail"
+                    class="mt-4 p-4 bg-dark/50 rounded-lg text-slate-300 min-h-[90px] hidden leading-relaxed"></div>
+            </div>
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-slate-700">
+                <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 19V6l-2 2M9 19l2-2M9 19H4a2 2 0 00-2 2v1H2V2h1v1h1a2 2 0 012 2v14z"></path>
+                    </svg>
+                    出題佔比 (預估)
+                </h2>
+                <div class="space-y-3" id="weighting-container"></div>
+            </div>
+        </section>
+
+        <!-- Module D: Comparison Matrix -->
+        <section class="bg-surface rounded-xl shadow-lg border border-slate-700 overflow-hidden">
+            <div class="p-6 border-b border-slate-700">
+                <h2 class="text-2xl font-bold text-white mb-2">載入技術大解析</h2>
+                <p class="text-slate-400 text-sm italic">從絕對剛性到動態靈活的演進</p>
+                <div class="flex flex-wrap gap-2 mt-4" id="matrix-dimensions"></div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr
+                            class="text-slate-400 text-xs bg-dark/50 border-b border-slate-700 uppercase tracking-widest font-black">
+                            <th class="p-4 w-1/4">種類</th>
+                            <th class="p-4 dimension-col" data-idx="0">核心觀點</th>
+                            <th class="p-4 dimension-col" data-idx="1">主要優勢</th>
+                            <th class="p-4 dimension-col" data-idx="2">限制/代價</th>
+                            <th class="p-4 dimension-col" data-idx="3">適用情境</th>
+                        </tr>
+                    </thead>
+                    <tbody id="matrix-body" class="text-slate-300"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Module B: Core Concept Labs -->
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Lab 1: Relocation Visualizer -->
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-secondary/30 flex flex-col">
+                <h3 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+                    </svg>
+                    重定位 (Relocation) 實驗室
+                </h3>
+
+                <div class="flex-1 space-y-6">
+                    <div class="space-y-2">
+                        <label class="text-[10px] text-slate-500 uppercase font-black tracking-widest">載入起始位址 (Base
+                            Address)</label>
+                        <input type="range" id="base-addr-range" min="0" max="800" step="100" value="0"
+                            class="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-secondary">
+                        <div class="flex justify-between text-[10px] font-mono text-secondary">
+                            <span>0000</span>
+                            <span id="base-addr-val" class="text-white font-bold">Base: 0000</span>
+                            <span>0800</span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-dark/50 p-4 rounded-xl border border-slate-700">
+                            <div class="text-[10px] text-slate-500 mb-2 uppercase font-bold">原始邏輯位址</div>
+                            <div class="space-y-1 font-mono text-[11px]">
+                                <div class="flex justify-between"><span>MAIN:</span><span
+                                        class="text-slate-400">0000</span></div>
+                                <div class="flex justify-between"><span>JMP:</span><span
+                                        class="text-slate-400">0020</span></div>
+                                <div class="flex justify-between"><span>DATA:</span><span
+                                        class="text-slate-400">0040</span></div>
+                            </div>
+                        </div>
+                        <div class="bg-secondary/10 p-4 rounded-xl border border-secondary/30">
+                            <div class="text-[10px] text-secondary mb-2 uppercase font-bold">實體載入位址</div>
+                            <div class="space-y-1 font-mono text-[11px]">
+                                <div class="flex justify-between"><span>MAIN:</span><span id="real-main"
+                                        class="text-white">0000</span></div>
+                                <div class="flex justify-between"><span>JMP:</span><span id="real-jmp"
+                                        class="text-white">0020</span></div>
+                                <div class="flex justify-between"><span>DATA:</span><span id="real-data"
+                                        class="text-white">0040</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div
+                    class="mt-6 p-3 bg-indigo-900/20 rounded-lg border border-indigo-500/30 text-[10px] text-slate-400 leading-relaxed">
+                    <span class="text-indigo-400 font-bold block mb-1">邏輯：實體位址 = 邏輯位址 + Base </span>
+                    載入程式在程式搬入 RAM 的瞬間，必須修正所有位址指標，確保 JMP 指令能跳到「正確的新家」。
+                </div>
+            </div>
+
+            <!-- Lab 2: Loader 4-Function Flow -->
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-primary/30 flex flex-col">
+                <h3 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4">
+                        </path>
+                    </svg>
+                    載入器四大功能演示
+                </h3>
+
+                <div class="flex gap-4 flex-1">
+                    <div id="ram-visual" class="w-20 bg-dark rounded overflow-hidden flex flex-col">
+                        <!-- Row of RAM cells -->
+                    </div>
+
+                    <div class="flex-1 space-y-4">
+                        <div id="func-1"
+                            class="logistics-box p-3 border border-slate-700 rounded-lg bg-dark/30 text-[10px] flex items-center gap-3">
+                            <span
+                                class="w-6 h-6 rounded bg-slate-800 flex items-center justify-center font-bold">1</span>
+                            <div><strong>分配 (Allocation)</strong><br><span class="text-slate-500">規劃空閒記憶體區塊</span></div>
+                        </div>
+                        <div id="func-2"
+                            class="logistics-box p-3 border border-slate-700 rounded-lg bg-dark/30 text-[10px] flex items-center gap-3">
+                            <span
+                                class="w-6 h-6 rounded bg-slate-800 flex items-center justify-center font-bold">2</span>
+                            <div><strong>連結 (Linking)</strong><br><span class="text-slate-500">解決各模組間外部參照</span></div>
+                        </div>
+                        <div id="func-3"
+                            class="logistics-box p-3 border border-slate-700 rounded-lg bg-dark/30 text-[10px] flex items-center gap-3">
+                            <span
+                                class="w-6 h-6 rounded bg-slate-800 flex items-center justify-center font-bold">3</span>
+                            <div><strong>重定位 (Relocation)</strong><br><span class="text-slate-500">修正位址偏移常數</span></div>
+                        </div>
+                        <div id="func-4"
+                            class="logistics-box p-3 border border-slate-700 rounded-lg bg-dark/30 text-[10px] flex items-center gap-3">
+                            <span
+                                class="w-6 h-6 rounded bg-slate-800 flex items-center justify-center font-bold">4</span>
+                            <div><strong>載入 (Loading)</strong><br><span class="text-slate-500">將碼搬入 RAM 之動作</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="runLoaderDemo()" id="run-loader-btn"
+                    class="mt-6 py-2 bg-gradient-to-r from-primary to-rose-600 text-white font-black rounded-lg transition-all active:scale-95 text-xs shadow-lg shadow-primary/20">啟動載入程序
+                    (Flash Loading)</button>
+            </div>
+        </section>
+
+        <!-- Module C: Exam Drill -->
+        <section class="space-y-8">
+            <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                <svg class="w-6 h-6 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4">
+                    </path>
+                </svg>
+                實戰演練場
+            </h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="flashcards-container"></div>
+            <div class="bg-surface rounded-xl p-8 border border-slate-700">
+                <h3 class="text-lg font-semibold text-slate-400 mb-8 border-l-4 border-primary pl-4">物流官的情境判斷：是非對錯</h3>
+                <div class="space-y-6" id="scenarios-container"></div>
+            </div>
+        </section>
+
+        <!-- Module E: Appendix -->
+        <section class="border-t border-slate-700 pt-8">
+            <button id="accordion-btn"
+                class="w-full flex justify-between items-center p-4 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors group">
+                <span class="font-bold text-slate-300 group-hover:text-white">附錄：我的原始筆記</span>
+                <svg id="accordion-icon" class="w-5 h-5 text-slate-400 transform transition-transform" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+            </button>
+            <div id="accordion-content" class="hidden mt-2 p-6 bg-black/30 rounded-lg border border-slate-800">
+                <pre class="raw-notes text-sm text-slate-400 whitespace-pre-wrap font-mono h-64 overflow-y-auto leading-relaxed"
+                    id="raw-notes-content"></pre>
+            </div>
+        </section>
+
+        <footer class="text-center text-slate-600 py-8 text-sm">
+            Based on User Notes • Generated by Agentic AI • 2026
+        </footer>
+    </div>
+
+    <script>
+        const data = {
+            "keywords": [
+                { "term": "Allocation (分配)", "why_important": "決定程式在 RAM 的棲身之處並預留空間。", "common_exam_angle": "載入器的第一個步驟" },
+                { "term": "Relocation (重定位)", "why_important": "修正程式中因起始位址改變而失效的參照。", "common_exam_angle": "支援多工與動態位址的關鍵" },
+                { "term": "Absolute Loader", "why_important": "最簡單的載入器，程式位址寫死，不具靈活性。", "common_exam_angle": "缺點在於無法同時執行多個同位址程式" },
+                { "term": "Dynamic Loading", "why_important": "執行中才將需要的模組載入記憶體。", "common_exam_angle": "優點是節省記憶體空間" },
+                { "term": "Linking (連結)", "why_important": "解決外部符號參考 (External Reference) 的組裝動作。", "common_exam_angle": "將多個目的檔結合成一體" }
+            ],
+            "weighting": {
+                "items": [
+                    { "topic": "4 Functions of a Loader", "weight": 95, "reason": "必考核心！順序與功能定義是選擇題常客。" },
+                    { "topic": "Relocation Logic", "weight": 90, "reason": "考點在於如何計算實體位址 (Base + Offset)。" },
+                    { "topic": "Absolute vs. Direct-linking", "weight": 80, "reason": "考不同載入器種類的演進與特徵差異。" }
+                ]
+            },
+            "comparison_matrix": {
+                "dimensions": ["核心觀點", "主要優勢", "限制/代價", "適用情境"],
+                "rows": [
+                    {
+                        "name": "絕對載入器 (Absolute)",
+                        "values": {
+                            "核心觀點": "程式位址在組譯時就決定了",
+                            "主要優勢": "結構最簡單、執行極速",
+                            "限制/代價": "不具彈性，多程式易衝突",
+                            "適用情境": "小型嵌入式系統、開機引導"
+                        },
+                        "pitfall": "誤以為它能做 Relocation。它完完全全不做重定位。",
+                        "rule_of_thumb": "絕對載入：我的地址我做主。"
+                    },
+                    {
+                        "name": "直接連結載入器 (Direct-linking)",
+                        "values": {
+                            "核心觀點": "具備四大完整功能 (含重定位)",
+                            "主要優勢": "高度靈活、支援模組開發",
+                            "限制/代價": "載入耗時較長、複雜度高",
+                            "適用情境": "現代多工作業系統 (常用版)"
+                        },
+                        "pitfall": "注意它同時兼具連結與重定位的能力。",
+                        "rule_of_thumb": "直接連結：搬家時會自動修改通訊錄。"
+                    }
+                ]
+            },
+            "flashcards": [
+                { "front": "Loader 的四功能順序？", "back": "1. 分配 (A) -> 2. 連結 (L) -> 3. 重定位 (R) -> 4. 載入 (L)。" },
+                { "front": "何謂外部參照？", "back": "一個模組呼叫另一個模組內的函式或變數時產生的依賴。" },
+                { "front": "Relocation 修正什麼？", "back": "修正程式中的「位址常數 (Address Constant)」。" },
+                { "front": "為何需要連結器？", "back": "因為編譯器通常只翻譯單一模組，無法獨立運行。" }
+            ],
+            "scenarios": [
+                {
+                    "statement": "只要我增加電腦的 RAM 容量，所有程式就都不需要使用「重定位 (Relocation)」技術了。",
+                    "answer": "X",
+                    "explanation": "錯。不論記憶體多大，多工環境下程式每次載入的位置仍不固定，故重定位是必要的。"
+                },
+                {
+                    "statement": "絕對載入程式 (Absolute Loader) 負責將程式從高階語言載入到機器碼。",
+                    "answer": "X",
+                    "explanation": "錯。載入程式處理的是「機器碼」到「記憶體」的過程。語言翻譯是編譯器的責任。"
+                },
+                {
+                    "statement": "「動態載入 (Dynamic Loading)」在程式真正執行到該段內容前，是不會將碼放入 RAM 的。",
+                    "answer": "O",
+                    "explanation": "對。這正是其節省記憶體的關鍵機制。"
+                }
+            ],
+            "notes": `(Inherited from User Request...)`
+        };
+
+        // --- Logic ---
+
+        // Keywords
+        const kwContainer = document.getElementById('keywords-container');
+        const kwDetail = document.getElementById('keyword-detail');
+        data.keywords.forEach(kw => {
+            const btn = document.createElement('button');
+            btn.className = 'px-3 py-1 bg-slate-700 hover:bg-primary/50 text-slate-200 text-[11px] rounded transition-all';
+            btn.textContent = kw.term;
+            btn.onclick = () => {
+                kwDetail.classList.remove('hidden');
+                kwDetail.innerHTML = `<strong class="text-primary">${kw.term}</strong>：${kw.why_important}<br><span class="text-slate-500 text-[10px] uppercase font-bold mt-2 block">重點筆記：${kw.common_exam_angle}</span>`;
+            };
+            kwContainer.appendChild(btn);
+        });
+
+        // Weighting
+        const wContainer = document.getElementById('weighting-container');
+        data.weighting.items.forEach(item => {
+            wContainer.innerHTML += `
+                <div class="flex items-center gap-4">
+                    <div class="w-1/3 text-[10px] text-slate-400 font-bold uppercase tracking-tighter">${item.topic}</div>
+                    <div class="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-primary to-secondary" style="width: ${item.weight}%"></div>
+                    </div>
+                    <div class="text-[10px] text-slate-500 w-8">${item.weight / 20}★</div>
+                </div>`;
+        });
+
+        // Matrix
+        const body = document.getElementById('matrix-body');
+        function renderRows(highlightIdx) {
+            body.innerHTML = '';
+            data.comparison_matrix.rows.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-slate-700/50 hover:bg-white/5 transition-colors cursor-pointer group';
+                let cells = `<td class="p-4 font-bold text-white text-sm">${row.name}</td>`;
+                data.comparison_matrix.dimensions.forEach((dim, idx) => {
+                    const isHighlight = idx === highlightIdx;
+                    cells += `<td class="p-4 text-xs transition-colors ${isHighlight ? 'text-primary bg-primary/5' : 'text-slate-500'}">${row.values[dim]}</td>`;
+                });
+                tr.innerHTML = cells;
+                tr.onclick = () => document.getElementById(`detail-${row.name}`).classList.toggle('hidden');
+                body.appendChild(tr);
+
+                const dtr = document.createElement('tr');
+                dtr.id = `detail-${row.name}`;
+                dtr.className = 'hidden bg-slate-800/50';
+                dtr.innerHTML = `<td colspan="5" class="p-4"><div class="flex gap-12 text-[10px]"><div class="flex-1 text-primary"><span class="font-black mr-2">⚠️ PITFALL:</span>${row.pitfall}</div><div class="flex-1 text-emerald-400"><span class="font-black mr-2">💡 RULE:</span>${row.rule_of_thumb}</div></div></td>`;
+                body.appendChild(dtr);
+            });
+        }
+        renderRows(0);
+
+        const matDims = document.getElementById('matrix-dimensions');
+        data.comparison_matrix.dimensions.forEach((dim, idx) => {
+            const btn = document.createElement('button');
+            btn.className = `dim-btn px-3 py-1 text-[10px] rounded border border-slate-600 hover:border-primary transition-all ${idx === 0 ? 'bg-primary text-white' : 'text-slate-500'}`;
+            btn.textContent = dim;
+            btn.onclick = () => {
+                document.querySelectorAll('.dim-btn').forEach(b => b.classList.remove('bg-primary', 'text-white'));
+                btn.classList.add('bg-primary', 'text-white');
+                renderRows(idx);
+            };
+            matDims.appendChild(btn);
+        });
+
+        // Relocation Slider
+        const slider = document.getElementById('base-addr-range');
+        const labels = { main: 0, jmp: 32, data: 64 };
+        slider.oninput = function () {
+            const base = parseInt(this.value);
+            document.getElementById('base-addr-val').textContent = `Base: ${base.toString(16).padStart(4, '0')}`;
+            document.getElementById('real-main').textContent = (base + labels.main).toString(16).padStart(4, '0');
+            document.getElementById('real-jmp').textContent = (base + labels.jmp).toString(16).padStart(4, '0');
+            document.getElementById('real-data').textContent = (base + labels.data).toString(16).padStart(4, '0');
+        };
+
+        // RAM Visual Init
+        const ram = document.getElementById('ram-visual');
+        for (let i = 0; i < 12; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'ram-cell';
+            cell.id = `ram-${i}`;
+            cell.textContent = (i * 100).toString(16).padStart(4, '0');
+            ram.appendChild(cell);
+        }
+
+        // Loader Demo
+        async function runLoaderDemo() {
+            const btn = document.getElementById('run-loader-btn');
+            btn.disabled = true;
+
+            // Clear
+            document.querySelectorAll('.logistics-box').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.ram-cell').forEach(c => c.classList.remove('allocated', 'loading'));
+
+            // Step 1: Allocation
+            document.getElementById('func-1').classList.add('active');
+            for (let i = 4; i < 9; i++) document.getElementById(`ram-${i}`).classList.add('allocated');
+            await wait(1000);
+
+            // Step 2: Linking
+            document.getElementById('func-1').classList.remove('active');
+            document.getElementById('func-2').classList.add('active');
+            await wait(1000);
+
+            // Step 3: Relocation
+            document.getElementById('func-2').classList.remove('active');
+            document.getElementById('func-3').classList.add('active');
+            await wait(1000);
+
+            // Step 4: Loading
+            document.getElementById('func-3').classList.remove('active');
+            document.getElementById('func-4').classList.add('active');
+            for (let i = 4; i < 9; i++) document.getElementById(`ram-${i}`).classList.add('loading');
+            await wait(1000);
+
+            document.getElementById('func-4').classList.remove('active');
+            btn.disabled = false;
+        }
+        function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+        // Flashcards
+        const fcContainer = document.getElementById('flashcards-container');
+        data.flashcards.forEach(fc => {
+            const card = document.createElement('div');
+            card.className = 'flip-card h-40';
+            card.innerHTML = `
+                <div class="flip-card-inner border border-slate-700 shadow-xl">
+                    <div class="flip-card-front bg-surface">
+                        <span class="text-primary font-black text-center text-xs px-4 leading-tight">${fc.front}</span>
+                         <span class="text-[8px] text-slate-600 mt-6 italic">CLICK TO REVEAL</span>
+                    </div>
+                    <div class="flip-card-back bg-gradient-to-br from-primary/80 to-secondary/80 text-white p-6">
+                        <p class="text-[10px] font-bold text-center leading-normal">${fc.back}</p>
+                    </div>
+                </div>`;
+            card.onclick = () => card.classList.toggle('flipped');
+            fcContainer.appendChild(card);
+        });
+
+        // Scenarios
+        const scContainer = document.getElementById('scenarios-container');
+        data.scenarios.forEach((sc, idx) => {
+            const div = document.createElement('div');
+            div.className = 'p-6 bg-dark/40 rounded-xl border border-slate-800 hover:border-slate-700 transition-all group';
+            div.innerHTML = `
+                <div class="flex items-start gap-4">
+                    <div class="w-8 h-8 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-xs font-black text-slate-500 group-hover:text-primary transition-colors">S${idx + 1}</div>
+                    <div class="flex-1">
+                        <p class="text-slate-300 mb-6 font-medium leading-relaxed text-sm">${sc.statement}</p>
+                        <div class="flex gap-4">
+                            <button class="btn-ans px-8 py-2 rounded border border-slate-700 hover:border-emerald-500/50 hover:bg-emerald-500/10 font-black text-xs transition-all" data-ans="O">O 正確</button>
+                            <button class="btn-ans px-8 py-2 rounded border border-slate-700 hover:border-primary/50 hover:bg-primary/10 font-black text-xs transition-all" data-ans="X">X 錯誤</button>
+                        </div>
+                        <div class="feedback hidden mt-4 p-4 rounded-lg bg-slate-800/50 text-[11px] border-l-2"></div>
+                    </div>
+                </div>`;
+
+            div.querySelectorAll('.btn-ans').forEach(btn => btn.onclick = () => {
+                const fb = div.querySelector('.feedback');
+                fb.classList.remove('hidden', 'text-emerald-400', 'text-primary', 'border-emerald-500', 'border-primary');
+                if (btn.dataset.ans === sc.answer) {
+                    fb.classList.add('text-emerald-400', 'border-emerald-500');
+                    fb.innerHTML = `<strong>正解！</strong> ${sc.explanation}`;
+                } else {
+                    fb.classList.add('text-primary', 'border-primary');
+                    fb.innerHTML = `<strong>不匹配。</strong> ${sc.explanation}`;
+                }
+                fb.classList.remove('hidden');
+            });
+            scContainer.appendChild(div);
+        });
+
+        // Appendix
+        document.getElementById('accordion-btn').onclick = () => {
+            document.getElementById('accordion-content').classList.toggle('hidden');
+            document.getElementById('accordion-icon').classList.toggle('rotate-180');
+        };
+        document.getElementById('raw-notes-content').textContent = `
+在「第四章 作業系統與系統程式」的宏觀架構下，來源資料將**「載入程式 (Loader)」與「連結程式 (Linker)」視為程式生命週期中，從「靜態檔案」轉化為「動態執行程序 (Process)」**的最後一哩路。
+如果說編譯器是將人類語言翻譯成機器碼的「翻譯官」，那麼連結器與載入程式就是**「物流與後勤部隊」**，負責將這些零散的機器碼組裝打包，並正確地安置到記憶體中供 CPU 執行。
+根據來源資料（特別是 4-1 系統程式），我們可以從以下四個核心觀點來深入探討其看法：
+1. 程式執行的流水線觀點：從 Object Code 到 Execution
+原始程式 (Source Code) → 編譯/組譯 → 目的碼 (Object Code) → 連結 (Linking) → 可執行檔 → 載入 (Loading) → 執行。
+2. 載入程式的四大職能：
+1. 分配 (Allocation)：規劃記憶體空間。
+2. 連結 (Linking)：解決模組間外部參照。
+3. 重定位 (Relocation)：修正位址常數。
+4. 載入 (Loading)：搬碼入 RAM。
+3. 位址的動態觀點：重定位 (Relocation)
+實體位址 = 邏輯位址 + Base。這與第三章提到的相對定址互相呼應。
+4. 載入器的類型演進：
+• 絕對載入程式 (Absolute loader)：固定位置。
+• 直接連結式載入程式 (Direct-linking loader)：最常見。
+• 動態載入 (Dynamic loading)：用到了才載入，省 RAM。`;
+
+    </script>
+</body>
+
+</html>
