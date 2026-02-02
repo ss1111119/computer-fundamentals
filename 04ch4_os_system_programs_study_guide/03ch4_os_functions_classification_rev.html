@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ch4 作業系統功能與分類 - 互動複習指南</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#6366f1', // Indigo-500
+                        secondary: '#ec4899', // Pink-500
+                        dark: '#0f172a', // Slate-900
+                        surface: '#1e293b', // Slate-800
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .flip-card {
+            perspective: 1000px;
+            cursor: pointer;
+        }
+
+        .flip-card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+
+        .flip-card.flipped .flip-card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .flip-card-front,
+        .flip-card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .flip-card-back {
+            transform: rotateY(180deg);
+        }
+
+        /* Time Sharing Visualizer */
+        .user-node {
+            transition: all 0.3s ease;
+        }
+
+        .user-node.active {
+            transform: scale(1.1);
+            filter: drop-shadow(0 0 10px rgba(99, 102, 241, 0.5));
+            border-color: #6366f1;
+            background: rgba(99, 102, 241, 0.2);
+        }
+
+        .cpu-core {
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Deadlock Breaker */
+        .deadlock-loop {
+            transition: stroke-dashoffset 2s linear;
+        }
+
+        .condition-checkbox:checked+label {
+            color: #f43f5e;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body class="bg-dark text-slate-200 font-sans antialiased min-h-screen">
+
+    <div class="max-w-6xl mx-auto p-4 md:p-8 space-y-12">
+
+        <!-- Header -->
+        <header class="space-y-4 text-center border-b border-slate-700 pb-8 animate-fade-in-down">
+            <div
+                class="inline-block px-3 py-1 text-xs font-semibold tracking-wider text-primary uppercase bg-primary/10 rounded-full">
+                Chapter 4: Operating Systems (Part 3)
+            </div>
+            <h1
+                class="text-3xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
+                權威管理者：職能與演進
+            </h1>
+            <p class="text-slate-400 text-lg max-w-2xl mx-auto">
+                作業系統是硬體與使用者之間的絕對介面，統籌五大職能，並在效率與穩定間取得完美平衡。
+            </p>
+        </header>
+
+        <!-- Module A: Strategic Dashboard -->
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-slate-700">
+                <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z">
+                        </path>
+                    </svg>
+                    關鍵字雷達
+                </h2>
+                <div class="flex flex-wrap gap-2" id="keywords-container"></div>
+                <div id="keyword-detail"
+                    class="mt-4 p-4 bg-dark/50 rounded-lg text-sm text-slate-300 min-h-[90px] hidden leading-relaxed">
+                </div>
+            </div>
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-slate-700">
+                <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                    </svg>
+                    考場熱度預測
+                </h2>
+                <div class="space-y-4" id="weighting-container"></div>
+            </div>
+        </section>
+
+        <!-- Module D: Comparison Matrix -->
+        <section class="bg-surface rounded-xl shadow-lg border border-slate-700 overflow-hidden">
+            <div class="p-6 border-b border-slate-700">
+                <h2 class="text-2xl font-bold text-white mb-2">作業系統分類演進</h2>
+                <p class="text-slate-400 text-sm">從「批次處理」到「分散式處理」的時代跳躍</p>
+                <div class="flex flex-wrap gap-2 mt-4" id="matrix-dimensions"></div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead>
+                        <tr
+                            class="text-slate-400 bg-dark/50 border-b border-slate-700 uppercase tracking-tighter font-black">
+                            <th class="p-4 w-1/4">分類名稱</th>
+                            <th class="p-4 dimension-col" data-idx="0">核心觀點</th>
+                            <th class="p-4 dimension-col" data-idx="1">主要優勢</th>
+                            <th class="p-4 dimension-col" data-idx="2">致命缺點</th>
+                            <th class="p-4 dimension-col" data-idx="3">現實應用</th>
+                        </tr>
+                    </thead>
+                    <tbody id="matrix-body" class="text-slate-300"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Module B: Core Concept Labs -->
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Lab 1: Time-Sharing Clock -->
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-primary/30 flex flex-col items-center">
+                <h3 class="text-xl font-bold text-white mb-8 self-start flex items-center gap-2">
+                    <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    分時處理 (Time-Sharing) 模擬器
+                </h3>
+
+                <div class="relative w-64 h-64 mb-8">
+                    <!-- Users in a circle -->
+                    <div id="user-1"
+                        class="user-node absolute top-0 left-1/2 -translate-x-1/2 w-12 h-12 rounded-full border-2 border-slate-700 flex items-center justify-center text-xs font-bold bg-dark">
+                        U1</div>
+                    <div id="user-2"
+                        class="user-node absolute top-1/2 right-0 -translate-y-1/2 w-12 h-12 rounded-full border-2 border-slate-700 flex items-center justify-center text-xs font-bold bg-dark">
+                        U2</div>
+                    <div id="user-3"
+                        class="user-node absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-12 rounded-full border-2 border-slate-700 flex items-center justify-center text-xs font-bold bg-dark">
+                        U3</div>
+                    <div id="user-4"
+                        class="user-node absolute top-1/2 left-0 -translate-y-1/2 w-12 h-12 rounded-full border-2 border-slate-700 flex items-center justify-center text-xs font-bold bg-dark">
+                        U4</div>
+
+                    <!-- CPU in the center -->
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <div class="cpu-core w-16 h-16 rounded-xl bg-primary flex items-center justify-center text-dark font-black text-xs z-10 shadow-lg"
+                            id="cpu-hub">CPU</div>
+                        <!-- Moving Arm -->
+                        <div id="cpu-arm" class="absolute w-2 h-24 bg-primary/40 rounded-full origin-bottom"
+                            style="transform: translateY(-50%) rotate(0deg); bottom: 50%;"></div>
+                    </div>
+                </div>
+
+                <div class="w-full space-y-4">
+                    <div
+                        class="flex justify-between items-center text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                        <span>時間片 (Time Slice): <span id="slice-val" class="text-primary italic">快速</span></span>
+                        <button onclick="toggleTimeSharing()" id="run-ts-btn"
+                            class="px-4 py-1 bg-primary text-dark rounded font-black hover:bg-primary/80 transition-all">START
+                            SHARING</button>
+                    </div>
+                    <p class="text-[10px] text-slate-400 text-center italic">
+                        邏輯：CPU 將時間切成極小片輪流分配。因為切換速度極快，所有使用者均產生「獨佔系統」的幻覺。
+                    </p>
+                </div>
+            </div>
+
+            <!-- Lab 2: Deadlock Condition Breaker -->
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-secondary/30 flex flex-col">
+                <h3 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
+                        </path>
+                    </svg>
+                    死結 (Deadlock) 條件破壞者
+                </h3>
+
+                <div class="space-y-4 flex-1">
+                    <p class="text-[11px] text-slate-400 mb-6">發生死結必須【同時】滿足以下四個條件。只要破壞其中「一個」，死結就不會發生：</p>
+
+                    <div class="space-y-3">
+                        <div class="flex items-center gap-3 p-3 bg-dark/50 rounded-lg border border-slate-800 transition-all"
+                            id="cond-1">
+                            <input type="checkbox" checked id="check-1"
+                                class="condition-checkbox w-4 h-4 bg-slate-900 border-slate-700 rounded text-secondary focus:ring-secondary"
+                                onchange="updateDeadlockStatus()">
+                            <label for="check-1" class="text-xs flex-1">1. 互相排斥 (Mutual Exclusion)</label>
+                            <div class="text-[8px] text-slate-500 italic">資源一次給一人</div>
+                        </div>
+                        <div class="flex items-center gap-3 p-3 bg-dark/50 rounded-lg border border-slate-800 transition-all"
+                            id="cond-2">
+                            <input type="checkbox" checked id="check-2"
+                                class="condition-checkbox w-4 h-4 bg-slate-900 border-slate-700 rounded text-secondary focus:ring-secondary"
+                                onchange="updateDeadlockStatus()">
+                            <label for="check-2" class="text-xs flex-1">2. 佔有並等待 (Hold and Wait)</label>
+                            <div class="text-[8px] text-slate-500 italic">拿著 A 等 B</div>
+                        </div>
+                        <div class="flex items-center gap-3 p-3 bg-dark/50 rounded-lg border border-slate-800 transition-all"
+                            id="cond-3">
+                            <input type="checkbox" checked id="check-3"
+                                class="condition-checkbox w-4 h-4 bg-slate-900 border-slate-700 rounded text-secondary focus:ring-secondary"
+                                onchange="updateDeadlockStatus()">
+                            <label for="check-3" class="text-xs flex-1">3. 不可強奪 (No Preemption)</label>
+                            <div class="text-[8px] text-slate-500 italic">不能搶別人的</div>
+                        </div>
+                        <div class="flex items-center gap-3 p-3 bg-dark/50 rounded-lg border border-slate-800 transition-all"
+                            id="cond-4">
+                            <input type="checkbox" checked id="check-4"
+                                class="condition-checkbox w-4 h-4 bg-slate-900 border-slate-700 rounded text-secondary focus:ring-secondary"
+                                onchange="updateDeadlockStatus()">
+                            <label for="check-4" class="text-xs flex-1">4. 循環等待 (Circular Wait)</label>
+                            <div class="text-[8px] text-slate-500 italic"> A等B、B等A</div>
+                        </div>
+                    </div>
+
+                    <div id="deadlock-status-box"
+                        class="mt-6 p-4 rounded-xl border-2 flex flex-col items-center justify-center transition-all bg-red-900/20 border-red-500">
+                        <div id="deadlock-icon" class="text-2xl mb-2">🚫</div>
+                        <div id="deadlock-text" class="text-sm font-black text-red-500 uppercase tracking-widest">SYSTEM
+                            DEADLOCKED</div>
+                        <div id="deadlock-subtext" class="text-[10px] text-slate-400 mt-1">系統陷入永久停滯中</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Module C: Exam Drill -->
+        <section class="space-y-8">
+            <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                <svg class="w-6 h-6 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4">
+                    </path>
+                </svg>
+                實戰演練場
+            </h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="flashcards-container"></div>
+            <div class="bg-surface rounded-xl p-8 border border-slate-700">
+                <h3 class="text-lg font-semibold text-slate-400 mb-8 border-l-4 border-primary pl-4">大管家的管理智慧</h3>
+                <div class="space-y-6" id="scenarios-container"></div>
+            </div>
+        </section>
+
+        <!-- Module E: Appendix -->
+        <section class="border-t border-slate-700 pt-8">
+            <button id="accordion-btn"
+                class="w-full flex justify-between items-center p-4 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors group">
+                <span class="font-bold text-slate-300 group-hover:text-white">附錄：我的原始筆記</span>
+                <svg id="accordion-icon" class="w-5 h-5 text-slate-400 transform transition-transform" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+            </button>
+            <div id="accordion-content" class="hidden mt-2 p-6 bg-black/30 rounded-lg border border-slate-800">
+                <pre class="raw-notes text-sm text-slate-400 whitespace-pre-wrap font-mono h-64 overflow-y-auto leading-relaxed"
+                    id="raw-notes-content"></pre>
+            </div>
+        </section>
+
+        <footer class="text-center text-slate-600 py-8 text-sm">
+            Based on User Notes • Generated by Agentic AI • 2026
+        </footer>
+    </div>
+
+    <script>
+        const data = {
+            "keywords": [
+                { "term": "Processor Management", "why_important": "核心權力，決定誰可以用 CPU 並進行排程。", "common_exam_angle": "決定 CPU 使用權的工作由誰負責？ (OS)" },
+                { "term": "Time Slice (時間片)", "why_important": "分時系統中分配給每個應用程式的極小執行時間。", "common_exam_angle": "分時系統如何讓多個使用者「感覺」獨佔 CPU？" },
+                { "term": "SPOOLing", "why_important": "利用磁碟作為緩衝區，解決 CPU 與低速周邊的速度落差。", "common_exam_angle": "印表機常見的周邊作業技術" },
+                { "term": "Distributed Processing", "why_important": "將工作分散到多台電腦，具備負載平衡與容錯性。", "common_exam_angle": "什麼系統不怕單一節點損壞？" },
+                { "term": "Resource Arbiter", "why_important": "OS 作為硬體資源仲裁者，避免程式衝突。", "common_exam_angle": "OS 的基本角色定義" }
+            ],
+            "weighting": {
+                "items": [
+                    { "topic": "5 Management Functions", "weight": 95, "reason": "這是 OS 章節的基石，必須精確區分每項職責對應的硬體。" },
+                    { "topic": "Deadlock 4 Conditions", "weight": 90, "reason": "熱門考題！需熟記「互斥、佔用等待、不可強奪、循環等待」。" },
+                    { "topic": "Batch vs Time-Sharing", "weight": 75, "reason": "考不同處理型態的發展順序與歷史背景。" }
+                ]
+            },
+            "comparison_matrix": {
+                "dimensions": ["核心觀點", "主要優勢", "致命缺點", "現實應用"],
+                "rows": [
+                    {
+                        "name": "批次處理 (Batch)",
+                        "values": {
+                            "核心觀點": "工作成批累積、順序執行",
+                            "主要優勢": "適合大量、不需互動的任務",
+                            "致命缺點": "無法互動、CPU 容易閒置",
+                            "現實應用": "工資結算、報表統計"
+                        },
+                        "pitfall": "誤以為現在大型主機都不用批次。在後端處理依然很常見。",
+                        "rule_of_thumb": "批次處理：排隊等叫號，中途不准聊。"
+                    },
+                    {
+                        "name": "分時系統 (Time-Sharing)",
+                        "values": {
+                            "核心觀點": "多使用者輪流、快速切換",
+                            "主要優勢": "互動性強、多人感覺獨佔",
+                            "致命缺點": "切換頻繁產生系統開銷 (Overhead)",
+                            "現實應用": "現代 PC、伺服器主機"
+                        },
+                        "pitfall": "注意切換的時間片 (Slice) 必須足夠小。",
+                        "rule_of_thumb": "分時小組：大家都有份，快到看不見。"
+                    },
+                    {
+                        "name": "分散式系統 (Distributed)",
+                        "values": {
+                            "核心觀點": "多台主機合作、負載平衡",
+                            "主要優勢": "容錯性極高、效能強大",
+                            "致命缺點": "同步複雜、通訊協定繁瑣",
+                            "現實應用": "Google 搜尋、雲端計算"
+                        },
+                        "pitfall": "分散式不僅是多台電腦，更強調「協作與透明性」。",
+                        "rule_of_thumb": "分散式：兄弟齊心，其利斷金。"
+                    }
+                ]
+            },
+            "flashcards": [
+                { "front": "OS 常駐何處？", "back": "核心部分常駐在「主記憶體 (RAM)」中。" },
+                { "front": "SPOOL 縮寫意義？", "back": "Simultaneous Peripheral Operations On-Line (周邊聯機同時作業)。" },
+                { "front": "哪種系統最不怕當機？", "back": "分散式處理系統 (Distributed)，因為具備容錯能力 (Reliability)。" },
+                { "front": "分時系統的關鍵關鍵技術？", "back": "時間片 (Time Slice) 分碼技術與中斷機制。" }
+            ],
+            "scenarios": [
+                {
+                    "statement": "在死結 (Deadlock) 發生的四個條件中，只要打破「循環等待」就能預防死結。",
+                    "answer": "O",
+                    "explanation": "對。只要破壞任一必要條件，死結就不成立。"
+                },
+                {
+                    "statement": "批次處理系統 (Batch) 比分時系統 (Time-Sharing) 的互動性更高，因為它一次處理很多。",
+                    "answer": "X",
+                    "explanation": "錯。批次處理完全沒有互動性 (Offline)；分時系統才有高互動性。"
+                },
+                {
+                    "statement": "記憶體管理 (Memory Management) 不需要理會第三章提過的虛擬記憶體。",
+                    "answer": "X",
+                    "explanation": "錯。虛擬記憶體正是 OS 記憶體管理模組的核心職責之一。"
+                }
+            ],
+            "notes": `(Notes inherited from User Request...)`
+        };
+
+        // --- Logic ---
+
+        // Keywords
+        const kwContainer = document.getElementById('keywords-container');
+        const kwDetail = document.getElementById('keyword-detail');
+        data.keywords.forEach(kw => {
+            const btn = document.createElement('button');
+            btn.className = 'px-3 py-1 bg-slate-700 hover:bg-primary/50 text-slate-200 text-xs rounded transition-all';
+            btn.textContent = kw.term;
+            btn.onclick = () => {
+                kwDetail.classList.remove('hidden');
+                kwDetail.innerHTML = `<strong class="text-primary">${kw.term}</strong>：${kw.why_important}<br><span class="text-slate-500 font-bold mt-2 block uppercase text-[10px]">Exam Angle: ${kw.common_exam_angle}</span>`;
+            };
+            kwContainer.appendChild(btn);
+        });
+
+        // Weighting
+        const wContainer = document.getElementById('weighting-container');
+        data.weighting.items.forEach(item => {
+            wContainer.innerHTML += `
+                <div class="space-y-1">
+                    <div class="flex justify-between text-[10px]">
+                        <span class="text-slate-400 font-bold uppercase">${item.topic}</span>
+                        <span class="text-secondary">${item.weight}%</span>
+                    </div>
+                    <div class="h-1 bg-slate-800 rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-primary to-secondary" style="width: ${item.weight}%"></div>
+                    </div>
+                    <p class="text-[8px] text-slate-600 italic mt-1 leading-tight">${item.reason}</p>
+                </div>`;
+        });
+
+        // Matrix
+        const body = document.getElementById('matrix-body');
+        function renderRows(highlightIdx) {
+            body.innerHTML = '';
+            data.comparison_matrix.rows.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-slate-700/50 hover:bg-white/5 transition-colors cursor-pointer group';
+                let cells = `<td class="p-4 font-bold text-white">${row.name}</td>`;
+                data.comparison_matrix.dimensions.forEach((dim, idx) => {
+                    const isHighlight = idx === highlightIdx;
+                    cells += `<td class="p-4 text-xs transition-colors ${isHighlight ? 'text-primary bg-primary/5' : 'text-slate-500'}">${row.values[dim]}</td>`;
+                });
+                tr.innerHTML = cells;
+                tr.onclick = () => document.getElementById(`detail-${row.name}`).classList.toggle('hidden');
+                body.appendChild(tr);
+
+                const dtr = document.createElement('tr');
+                dtr.id = `detail-${row.name}`;
+                dtr.className = 'hidden bg-slate-800/50';
+                dtr.innerHTML = `<td colspan="5" class="p-4"><div class="flex gap-12 text-[10px]"><div class="flex-1 text-primary"><span class="font-black mr-2">⚠️ PITFALL:</span>${row.pitfall}</div><div class="flex-1 text-emerald-400"><span class="font-black mr-2">💡 RULE:</span>${row.rule_of_thumb}</div></div></td>`;
+                body.appendChild(dtr);
+            });
+        }
+        renderRows(0);
+
+        const matDims = document.getElementById('matrix-dimensions');
+        data.comparison_matrix.dimensions.forEach((dim, idx) => {
+            const btn = document.createElement('button');
+            btn.className = `dim-btn px-3 py-1 text-[10px] rounded border border-slate-600 hover:border-primary transition-all ${idx === 0 ? 'bg-primary text-dark font-black' : 'text-slate-500'}`;
+            btn.textContent = dim;
+            btn.onclick = () => {
+                document.querySelectorAll('.dim-btn').forEach(b => b.classList.remove('bg-primary', 'text-dark', 'font-black'));
+                btn.classList.add('bg-primary', 'text-dark', 'font-black');
+                renderRows(idx);
+            };
+            matDims.appendChild(btn);
+        });
+
+        // Time-Sharing Logic
+        let tsInterval = null;
+        let rotation = 0;
+        function toggleTimeSharing() {
+            const btn = document.getElementById('run-ts-btn');
+            if (tsInterval) {
+                clearInterval(tsInterval);
+                tsInterval = null;
+                btn.textContent = "START SHARING";
+                btn.classList.remove('bg-secondary');
+            } else {
+                btn.textContent = "SHARING...";
+                btn.classList.add('bg-secondary');
+                tsInterval = setInterval(() => {
+                    rotation = (rotation + 90) % 360;
+                    document.getElementById('cpu-arm').style.transform = `translateY(-50%) rotate(${rotation}deg)`;
+
+                    const userIdx = (rotation / 90) % 4 + 1;
+                    document.querySelectorAll('.user-node').forEach(u => u.classList.remove('active'));
+                    document.getElementById(`user-${userIdx === 0 ? 4 : userIdx}`).classList.add('active');
+
+                    document.getElementById('cpu-hub').textContent = `U${userIdx === 0 ? 4 : userIdx}`;
+                }, 800);
+            }
+        }
+
+        // Deadlock Logic
+        function updateDeadlockStatus() {
+            const c1 = document.getElementById('check-1').checked;
+            const c2 = document.getElementById('check-2').checked;
+            const c3 = document.getElementById('check-3').checked;
+            const c4 = document.getElementById('check-4').checked;
+
+            const box = document.getElementById('deadlock-status-box');
+            const icon = document.getElementById('deadlock-icon');
+            const txt = document.getElementById('deadlock-text');
+            const sub = document.getElementById('deadlock-subtext');
+
+            if (c1 && c2 && c3 && c4) {
+                box.className = "mt-6 p-4 rounded-xl border-2 flex flex-col items-center justify-center transition-all bg-red-900/20 border-red-500 animate-pulse";
+                icon.textContent = "🚫";
+                txt.textContent = "SYSTEM DEADLOCKED";
+                txt.className = "text-sm font-black text-red-500 uppercase tracking-widest";
+                sub.textContent = "滿足四大條件：系統陷入永久停滯";
+            } else {
+                box.className = "mt-6 p-4 rounded-xl border-2 flex flex-col items-center justify-center transition-all bg-emerald-900/20 border-emerald-500";
+                icon.textContent = "🛡️";
+                txt.textContent = "DEADLOCK PREVENTED";
+                txt.className = "text-sm font-black text-emerald-500 uppercase tracking-widest";
+                sub.textContent = "條件已破壞：系統運作安全";
+            }
+        }
+
+        // Flashcards
+        const fcContainer = document.getElementById('flashcards-container');
+        data.flashcards.forEach(fc => {
+            const card = document.createElement('div');
+            card.className = 'flip-card h-40';
+            card.innerHTML = `
+                <div class="flip-card-inner border border-slate-700 shadow-xl">
+                    <div class="flip-card-front bg-surface">
+                        <span class="text-primary font-black text-center text-xs px-4 leading-tight">${fc.front}</span>
+                         <span class="text-[8px] text-slate-600 mt-6 italic">點擊翻轉</span>
+                    </div>
+                    <div class="flip-card-back bg-gradient-to-br from-primary/80 to-secondary/80 text-white p-6">
+                        <p class="text-[10px] font-bold text-center leading-normal">${fc.back}</p>
+                    </div>
+                </div>`;
+            card.onclick = () => card.classList.toggle('flipped');
+            fcContainer.appendChild(card);
+        });
+
+        // Scenarios
+        const scContainer = document.getElementById('scenarios-container');
+        data.scenarios.forEach((sc, idx) => {
+            const div = document.createElement('div');
+            div.className = 'p-6 bg-dark/40 rounded-xl border border-slate-800 hover:border-slate-700 transition-all group';
+            div.innerHTML = `
+                <div class="flex items-start gap-4">
+                    <div class="w-8 h-8 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-xs font-black text-slate-500 group-hover:text-primary transition-colors">OS${idx + 1}</div>
+                    <div class="flex-1">
+                        <p class="text-slate-300 mb-6 font-bold leading-relaxed text-sm">${sc.statement}</p>
+                        <div class="flex gap-4">
+                            <button class="btn-ans px-8 py-2 rounded border border-slate-700 hover:border-emerald-500 hover:text-emerald-500 font-bold text-xs transition-all" data-ans="O">O 正解</button>
+                            <button class="btn-ans px-8 py-2 rounded border border-slate-700 hover:border-rose-500 hover:text-rose-500 font-bold text-xs transition-all" data-ans="X">X 非也</button>
+                        </div>
+                        <div class="feedback hidden mt-4 p-4 rounded bg-slate-800/50 text-[11px] border-l-2"></div>
+                    </div>
+                </div>`;
+
+            div.querySelectorAll('.btn-ans').forEach(btn => btn.onclick = () => {
+                const fb = div.querySelector('.feedback');
+                fb.classList.remove('hidden', 'text-emerald-400', 'text-rose-400', 'border-emerald-500', 'border-rose-500');
+                if (btn.dataset.ans === sc.answer) {
+                    fb.classList.add('text-emerald-400', 'border-emerald-500');
+                    fb.innerHTML = `<strong>賓果！</strong> ${sc.explanation}`;
+                } else {
+                    fb.classList.add('text-rose-400', 'border-rose-500');
+                    fb.innerHTML = `<strong>再想想喔！</strong> ${sc.explanation}`;
+                }
+                fb.classList.remove('hidden');
+            });
+            scContainer.appendChild(div);
+        });
+
+        // Appendix
+        document.getElementById('accordion-btn').onclick = () => {
+            document.getElementById('accordion-content').classList.toggle('hidden');
+            document.getElementById('accordion-icon').classList.toggle('rotate-180');
+        };
+        document.getElementById('raw-notes-content').textContent = `
+在「第四章 作業系統與系統程式」的宏觀架構下，來源資料將**「作業系統 (Operating System, OS)」視為電腦系統中「絕對權威的管理者」與「不可或缺的介面」**。
+1. 核心定義：硬體與使用者之間的「介面」
+第一個執行的程式、核心常駐記憶體、圖形介面 (GUI) vs. 文字介面 (CUI)。
+2. 五大管家職能：
+- 處理器管理 (Processor Management)：決定使用權、排程。
+- 記憶體管理 (Memory Management)：虛擬記憶體、RAM 分配。
+- 設備管理 (Device Management)：I/O 控制、SPOOLing。
+- 檔案管理 (File Management)：抽象化存取。
+- 資訊安全：權限管理。
+3. 分類演進：
+- 批次處理 (Batch)：不互動、Offline、累積處理。
+- 連線處理 (On-line)：即時傳送。
+- 分時處理 (Time-sharing System)：時間片 (Time Slice)、多人線上、幻覺。
+- 分散式處理 (Distributed)：網路合作、容錯、可靠。
+4. 死結 (Deadlock) 四條件：
+1. 互斥 (Mutual Exclusion)
+2. 佔用且等待 (Hold and Wait)
+3. 不可強奪 (No Preemption)
+4. 循環等待 (Circular Wait)`;
+
+    </script>
+</body>
+
+</html>
