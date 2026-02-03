@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ch4 死結 (Deadlock) - 互動複習指南</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#f43f5e', // Rose-500
+                        secondary: '#f59e0b', // Amber-500
+                        dark: '#0f172a', // Slate-900
+                        surface: '#1e293b', // Slate-800
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .flip-card {
+            perspective: 1000px;
+            cursor: pointer;
+        }
+
+        .flip-card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+
+        .flip-card.flipped .flip-card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .flip-card-front,
+        .flip-card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .flip-card-back {
+            transform: rotateY(180deg);
+        }
+
+        /* Banker's Visuals */
+        .resource-chip {
+            transition: all 0.3s ease;
+        }
+
+        .resource-chip.safe {
+            background-color: rgba(16, 185, 129, 0.2);
+            border-color: #10b981;
+            color: #10b981;
+        }
+
+        .resource-chip.unsafe {
+            background-color: rgba(244, 63, 94, 0.2);
+            border-color: #f43f5e;
+            color: #f43f5e;
+        }
+
+        /* Animation */
+        @keyframes pulse-red {
+            0% {
+                box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.4);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(244, 63, 94, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(244, 63, 94, 0);
+            }
+        }
+
+        .deadlock-active {
+            animation: pulse-red 2s infinite;
+        }
+    </style>
+</head>
+
+<body class="bg-dark text-slate-200 font-sans antialiased min-h-screen">
+
+    <div class="max-w-6xl mx-auto p-4 md:p-8 space-y-12">
+
+        <!-- Header -->
+        <header class="space-y-4 text-center border-b border-slate-700 pb-8 animate-fade-in-down">
+            <div
+                class="inline-block px-3 py-1 text-xs font-semibold tracking-wider text-primary uppercase bg-primary/10 rounded-full">
+                Chapter 4: Operating Systems (Part 4)
+            </div>
+            <h1
+                class="text-3xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
+                死結的病理分析與對策
+            </h1>
+            <p class="text-slate-400 text-lg max-w-2xl mx-auto">
+                解析資源分配中最嚴重的「十字路口堵塞」，從成因解構到銀行家演算法的預防醫學。
+            </p>
+        </header>
+
+        <!-- Module A: Strategic Dashboard -->
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-slate-700">
+                <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
+                        </path>
+                    </svg>
+                    關鍵字雷達
+                </h2>
+                <div class="flex flex-wrap gap-2" id="keywords-container"></div>
+                <div id="keyword-detail"
+                    class="mt-4 p-4 bg-dark/50 rounded-lg text-sm text-slate-300 min-h-[90px] hidden leading-relaxed">
+                </div>
+            </div>
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-slate-700">
+                <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path>
+                    </svg>
+                    考場熱度預估
+                </h2>
+                <div class="space-y-4" id="weighting-container"></div>
+            </div>
+        </section>
+
+        <!-- Module D: Comparison Matrix -->
+        <section
+            class="bg-surface rounded-xl shadow-lg border border-slate-700 overflow-hidden text-sm leading-relaxed">
+            <div class="p-6 border-b border-slate-700">
+                <h2 class="text-2xl font-bold text-white mb-2">病態狀態大比拼</h2>
+                <p class="text-slate-400 text-sm">區分死結、飢餓與競爭狀況</p>
+                <div class="flex flex-wrap gap-2 mt-4" id="matrix-dimensions"></div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr
+                            class="text-slate-500 bg-dark/50 border-b border-slate-700 uppercase tracking-widest font-black text-[10px]">
+                            <th class="p-4 w-1/4">病症名稱</th>
+                            <th class="p-4 dimension-col font-bold" data-idx="0">核心觀點</th>
+                            <th class="p-4 dimension-col font-bold" data-idx="1">主要成因</th>
+                            <th class="p-4 dimension-col font-bold" data-idx="2">嚴重度</th>
+                            <th class="p-4 dimension-col font-bold" data-idx="3">對策</th>
+                        </tr>
+                    </thead>
+                    <tbody id="matrix-body" class="text-slate-300"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Module B: Core Concept Labs -->
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Lab 1: Deadlock Condition Visualizer -->
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-primary/30 flex flex-col">
+                <h3 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                        </path>
+                    </svg>
+                    死結成因解構 (4 Necessary Conditions)
+                </h3>
+
+                <div
+                    class="relative w-full h-48 bg-dark/50 rounded-xl mb-6 overflow-hidden flex items-center justify-center">
+                    <div id="deadlock-graphic"
+                        class="relative w-32 h-32 border-4 border-slate-700 rounded-full flex items-center justify-center transition-all">
+                        <div
+                            class="absolute -top-4 left-1/2 -translate-x-1/2 bg-surface px-2 text-[10px] font-bold text-slate-500">
+                            P1 hold R1, wait R2</div>
+                        <div
+                            class="absolute -bottom-4 left-1/2 -translate-x-1/2 bg-surface px-2 text-[10px] font-bold text-slate-500">
+                            P2 hold R2, wait R1</div>
+                        <svg class="w-full h-full text-slate-700" viewBox="0 0 100 100">
+                            <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-dasharray="10 5" />
+                        </svg>
+                        <span id="center-status"
+                            class="text-xs font-black text-slate-600 tracking-widest uppercase">STANDBY</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="toggleCondition(1)" id="btn-cond-1"
+                        class="p-2 border border-slate-700 rounded text-[10px] hover:border-primary transition-all active">1.
+                        互相排斥</button>
+                    <button onclick="toggleCondition(2)" id="btn-cond-2"
+                        class="p-2 border border-slate-700 rounded text-[10px] hover:border-primary transition-all active">2.
+                        佔用且等待</button>
+                    <button onclick="toggleCondition(3)" id="btn-cond-3"
+                        class="p-2 border border-slate-700 rounded text-[10px] hover:border-primary transition-all active">3.
+                        不可強奪</button>
+                    <button onclick="toggleCondition(4)" id="btn-cond-4"
+                        class="p-2 border border-slate-700 rounded text-[10px] hover:border-primary transition-all active">4.
+                        循環等待</button>
+                </div>
+
+                <p id="condition-explanation"
+                    class="mt-4 p-3 bg-indigo-900/20 rounded text-[10px] text-slate-400 leading-relaxed min-h-[50px]">
+                    所有條件皆具備時，系統將進入死結狀態。點擊上面按鈕「破壞」條件看看。
+                </p>
+            </div>
+
+            <!-- Lab 2: Banker's Algorithm Mini-Lab -->
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-secondary/30 flex flex-col">
+                <h3 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z">
+                        </path>
+                    </svg>
+                    銀行家演算法 (Avoidance Strategy)
+                </h3>
+
+                <div class="flex-1 space-y-6">
+                    <div class="flex flex-col gap-4">
+                        <div class="flex justify-between items-end">
+                            <span class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">系統剩餘資源
+                                (Available)</span>
+                            <span id="avail-count" class="text-xl font-black text-secondary">3</span>
+                        </div>
+                        <div class="flex gap-2" id="avail-visual">
+                            <div class="w-8 h-8 rounded border-2 border-secondary bg-secondary/10"></div>
+                            <div class="w-8 h-8 rounded border-2 border-secondary bg-secondary/10"></div>
+                            <div class="w-8 h-8 rounded border-2 border-secondary bg-secondary/10"></div>
+                        </div>
+                    </div>
+
+                    <div class="p-4 bg-dark/50 rounded-xl border border-slate-800 space-y-4">
+                        <div class="flex justify-between items-center">
+                            <div class="text-[10px] text-slate-300">Process A 請求 2 個資源</div>
+                            <button onclick="requestResource(2)"
+                                class="px-3 py-1 bg-slate-700 hover:bg-emerald-600 text-[10px] rounded transition-all font-bold">檢查並分配</button>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <div class="text-[10px] text-slate-300">Process B 請求 4 個資源</div>
+                            <button onclick="requestResource(4)"
+                                class="px-3 py-1 bg-slate-700 hover:bg-rose-600 text-[10px] rounded transition-all font-bold">檢查並分配</button>
+                        </div>
+                    </div>
+
+                    <div id="banker-result"
+                        class="p-3 rounded-lg border text-[10px] font-bold uppercase tracking-widest text-center border-slate-700 text-slate-500">
+                        等待請求中...
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Module C: Exam Drill -->
+        <section class="space-y-8">
+            <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                <svg class="w-6 h-6 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4">
+                    </path>
+                </svg>
+                實戰演練場
+            </h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="flashcards-container"></div>
+            <div class="bg-surface rounded-xl p-8 border border-slate-700">
+                <h3 class="text-lg font-semibold text-slate-400 mb-8 border-l-4 border-primary pl-4">物流官的情境判斷：是非對錯</h3>
+                <div class="space-y-6" id="scenarios-container"></div>
+            </div>
+        </section>
+
+        <!-- Module E: Appendix -->
+        <section class="border-t border-slate-700 pt-8">
+            <button id="accordion-btn"
+                class="w-full flex justify-between items-center p-4 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors group">
+                <span class="font-bold text-slate-300 group-hover:text-white">附錄：我的原始筆記</span>
+                <svg id="accordion-icon" class="w-5 h-5 text-slate-400 transform transition-transform" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+            </button>
+            <div id="accordion-content" class="hidden mt-2 p-6 bg-black/30 rounded-lg border border-slate-800">
+                <pre class="raw-notes text-sm text-slate-400 whitespace-pre-wrap font-mono h-64 overflow-y-auto leading-relaxed"
+                    id="raw-notes-content"></pre>
+            </div>
+        </section>
+
+        <footer class="text-center text-slate-600 py-8 text-sm">
+            Based on User Notes • Generated by Agentic AI • 2026
+        </footer>
+    </div>
+
+    <script>
+        const data = {
+            "keywords": [
+                { "term": "Critical Region", "why_important": "互斥存取共享資料的程式區段。", "common_exam_angle": "同一時間只准一個 Process 進入的區域名為？" },
+                { "term": "Banker's Algorithm", "why_important": "由 Dijkstra 提出，透過檢查「安全狀態」來「避免」死結。", "common_exam_angle": "死結「避免 (Avoidance)」的代表演算法？" },
+                { "term": "Starvation (飢餓)", "why_important": "因分配不公導致低優先權 Process 長期拿不到資源。", "common_exam_angle": "死結與飢餓的區別 (永久 vs 長期)" },
+                { "term": "Race Condition", "why_important": "多個 Process 競爭讀寫導致結果不一致。", "common_exam_angle": "常出現在共用全域變數的情境中" },
+                { "term": "Timestamp Priority", "why_important": "利用時間戳記決定資源取用順序以預防死結。", "common_exam_angle": "死結「預防 (Prevention)」的具體手段實例" }
+            ],
+            "weighting": {
+                "items": [
+                    { "topic": "4 Necessary Conditions", "weight": 95, "reason": "死結章節的靈魂，考題幾乎必出的核心知識。" },
+                    { "topic": "Deadlock Strategies", "weight": 90, "reason": "預防、避免、偵測的三層級差異是愛考考點。" },
+                    { "topic": "Banker's logic", "weight": 80, "reason": "著重在「不安全狀態」不代表「一定死結」的觀念。" }
+                ]
+            },
+            "comparison_matrix": {
+                "dimensions": ["核心觀點", "主要成因", "嚴重度", "對策"],
+                "rows": [
+                    {
+                        "name": "死結 (Deadlock)",
+                        "values": {
+                            "核心觀點": "永久停滯，誰也不讓誰",
+                            "主要成因": "滿足四大條件",
+                            "嚴重度": "毀滅級 (系統掛掉)",
+                            "對策": "預防、避免、偵測與恢復"
+                        },
+                        "pitfall": "誤以為重開機是唯一的科學解。其實設計上應優先預防。",
+                        "rule_of_thumb": "死結：大家都卡死，永遠沒明天。"
+                    },
+                    {
+                        "name": "飢餓 (Starvation)",
+                        "values": {
+                            "核心觀點": "長期待等，但有機會執行",
+                            "主要成因": "資源分配演算法不公",
+                            "嚴重度": "中級 (效能下降)",
+                            "對策": "老化 (Aging) 提高優先權"
+                        },
+                        "pitfall": "常與死結搞混。飢餓是「等不到」，死結是「沒法等」。",
+                        "rule_of_thumb": "飢餓：別人都在吃，我一直排隊。"
+                    },
+                    {
+                        "name": "競賽狀況 (Race)",
+                        "values": {
+                            "核心觀點": "結果取決於執行順序",
+                            "主要成因": "多方同時修改共用資料",
+                            "嚴重度": "隱蔽級 (結果出錯)",
+                            "對策": "號誌 (Semaphore)、互斥鎖"
+                        },
+                        "pitfall": "最危險，因為程式「看起來在跑」，但結果是錯的。",
+                        "rule_of_thumb": "競賽：大家搶著改，數據亂糟糟。"
+                    }
+                ]
+            },
+            "flashcards": [
+                { "front": "死結避免 (Avoidance) 代表？", "back": "銀行家演算法 (Banker's Algorithm)。" },
+                { "front": "何謂佔用且等待？", "back": "Process 擁有一項資源，卻還在等待另一項被別人佔有的資源。" },
+                { "front": "老化 (Aging) 解決什麼？", "back": "解決「飢餓 (Starvation)」問題。" },
+                { "front": "破壞任一死結條件？", "back": "死結即「預防 (Prevention)」成功。" }
+            ],
+            "scenarios": [
+                {
+                    "statement": "只要系統進入「不安全狀態 (Unsafe State)」，死結就「一定」會發生。",
+                    "answer": "X",
+                    "explanation": "錯。「不安全狀態」只是「有可能」發生死結，銀行家演算法是為了避開這種風險。"
+                },
+                {
+                    "statement": "「互斥 (Mutual Exclusion)」條件是死結發生的必備條件之一。",
+                    "answer": "O",
+                    "explanation": "對。如果資源能無限共享，自然就沒有互相卡死的問題。"
+                },
+                {
+                    "statement": "透過作業系統強行奪走 Process 的資源，可以破壞「不可強奪 (No Preemption)」條件。",
+                    "answer": "O",
+                    "explanation": "對。這正是破壞該必要條件的一種暴力但有效的預防手段。"
+                }
+            ]
+        };
+
+        // --- Logic ---
+
+        // Keywords
+        const kwContainer = document.getElementById('keywords-container');
+        const kwDetail = document.getElementById('keyword-detail');
+        data.keywords.forEach(kw => {
+            const btn = document.createElement('button');
+            btn.className = 'px-3 py-1 bg-slate-700 hover:bg-primary/50 text-slate-200 text-xs rounded transition-all';
+            btn.textContent = kw.term;
+            btn.onclick = () => {
+                kwDetail.classList.remove('hidden');
+                kwDetail.innerHTML = `<strong class="text-primary">${kw.term}</strong>：${kw.why_important}<br><span class="text-slate-500 font-bold mt-2 block uppercase text-[10px]">考點：${kw.common_exam_angle}</span>`;
+            };
+            kwContainer.appendChild(btn);
+        });
+
+        // Weighting
+        const wContainer = document.getElementById('weighting-container');
+        data.weighting.items.forEach(item => {
+            wContainer.innerHTML += `
+               <div class="flex items-center gap-4">
+                    <div class="w-1/3 text-[10px] text-slate-400 truncate text-right font-bold uppercase tracking-widest">${item.topic}</div>
+                    <div class="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-primary to-secondary" style="width: ${item.weight}%"></div>
+                    </div>
+                </div>`;
+        });
+
+        // Matrix
+        const body = document.getElementById('matrix-body');
+        function renderRows(highlightIdx) {
+            body.innerHTML = '';
+            data.comparison_matrix.rows.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-slate-700/50 hover:bg-white/5 transition-colors cursor-pointer group';
+                let cells = `<td class="p-4 font-bold text-white text-xs">${row.name}</td>`;
+                data.comparison_matrix.dimensions.forEach((dim, idx) => {
+                    const isHighlight = idx === highlightIdx;
+                    cells += `<td class="p-4 text-[11px] transition-colors ${isHighlight ? 'text-primary bg-primary/5 font-medium' : 'text-slate-500'}">${row.values[dim]}</td>`;
+                });
+                tr.innerHTML = cells;
+                tr.onclick = () => document.getElementById(`detail-${row.name}`).classList.toggle('hidden');
+                body.appendChild(tr);
+
+                const dtr = document.createElement('tr');
+                dtr.id = `detail-${row.name}`;
+                dtr.className = 'hidden bg-slate-800/50';
+                dtr.innerHTML = `<td colspan="5" class="p-4"><div class="flex gap-12 text-[10px]"><div class="flex-1 text-primary"><span class="font-black mr-2">⚠️ PITFALL:</span>${row.pitfall}</div><div class="flex-1 text-emerald-400"><span class="font-black mr-2">💡 RULE:</span>${row.rule_of_thumb}</div></div></td>`;
+                body.appendChild(dtr);
+            });
+        }
+        renderRows(0);
+
+        const matDims = document.getElementById('matrix-dimensions');
+        data.comparison_matrix.dimensions.forEach((dim, idx) => {
+            const btn = document.createElement('button');
+            btn.className = `dim-btn px-3 py-1 text-[10px] rounded-full border border-slate-600 hover:border-primary transition-all ${idx === 0 ? 'bg-primary text-dark font-black' : 'text-slate-500'}`;
+            btn.textContent = dim;
+            btn.onclick = () => {
+                document.querySelectorAll('.dim-btn').forEach(b => b.classList.remove('bg-primary', 'text-dark', 'font-black'));
+                btn.classList.add('bg-primary', 'text-dark', 'font-black');
+                renderRows(idx);
+            };
+            matDims.appendChild(btn);
+        });
+
+        // Condition Breaker
+        let conditions = [true, true, true, true];
+        function toggleCondition(idx) {
+            conditions[idx - 1] = !conditions[idx - 1];
+            const btn = document.getElementById(`btn-cond-${idx}`);
+            btn.classList.toggle('active');
+            btn.classList.toggle('bg-primary');
+            btn.classList.toggle('text-dark');
+            btn.classList.toggle('font-black');
+
+            const graphic = document.getElementById('deadlock-graphic');
+            const status = document.getElementById('center-status');
+            const expl = document.getElementById('condition-explanation');
+
+            const allTrue = conditions.every(c => c);
+            if (allTrue) {
+                graphic.className = "relative w-32 h-32 border-4 border-primary rounded-full flex items-center justify-center transition-all deadlock-active";
+                status.textContent = "LOCKED";
+                status.className = "text-xs font-black text-primary tracking-widest uppercase";
+                expl.textContent = "四大條件同時滿足。系統陷入【死結】。";
+            } else {
+                graphic.className = "relative w-32 h-32 border-4 border-slate-700 rounded-full flex items-center justify-center transition-all";
+                status.textContent = "SAFE";
+                status.className = "text-xs font-black text-emerald-500 tracking-widest uppercase";
+                expl.textContent = "其中條件已被破壞。系統雖然可能擁塞，但【死結已預防】。";
+            }
+        }
+        toggleCondition(1); toggleCondition(1); // Refresh
+
+        // Banker's Algorithm
+        let available = 3;
+        function requestResource(amount) {
+            const res = document.getElementById('banker-result');
+            if (amount <= available) {
+                res.className = "p-3 rounded-lg border text-[10px] font-bold uppercase tracking-widest text-center border-emerald-500 text-emerald-400 bg-emerald-950/20";
+                res.textContent = "分配成功：系統處於安全狀態 (Safe State)";
+                available -= amount;
+                updateAvail();
+                setTimeout(() => { available += amount; updateAvail(); }, 1500);
+            } else {
+                res.className = "p-3 rounded-lg border text-[10px] font-bold uppercase tracking-widest text-center border-rose-500 text-rose-400 bg-rose-950/20";
+                res.textContent = "拒絕分配：資源不足，避免進入不安全狀態";
+            }
+        }
+        function updateAvail() {
+            document.getElementById('avail-count').textContent = available;
+            const visual = document.getElementById('avail-visual');
+            visual.innerHTML = '';
+            for (let i = 0; i < available; i++) {
+                visual.innerHTML += `<div class="w-8 h-8 rounded border-2 border-secondary bg-secondary/10"></div>`;
+            }
+        }
+
+        // Flashcards
+        const fcContainer = document.getElementById('flashcards-container');
+        data.flashcards.forEach(fc => {
+            const card = document.createElement('div');
+            card.className = 'flip-card h-40';
+            card.innerHTML = `
+                <div class="flip-card-inner border border-slate-700 shadow-xl">
+                    <div class="flip-card-front bg-surface">
+                        <span class="text-primary font-black text-center text-xs px-4 leading-tight">${fc.front}</span>
+                         <span class="text-[8px] text-slate-600 mt-6 italic">TOUCH TO FLIP</span>
+                    </div>
+                    <div class="flip-card-back bg-gradient-to-br from-primary/80 to-secondary/80 text-white p-6">
+                        <p class="text-[10px] font-bold text-center leading-normal">${fc.back}</p>
+                    </div>
+                </div>`;
+            card.onclick = () => card.classList.toggle('flipped');
+            fcContainer.appendChild(card);
+        });
+
+        // Scenarios
+        const scContainer = document.getElementById('scenarios-container');
+        data.scenarios.forEach((sc, idx) => {
+            const div = document.createElement('div');
+            div.className = 'p-6 bg-dark/40 rounded-xl border border-slate-800 hover:border-slate-700 transition-all group';
+            div.innerHTML = `
+                <div class="flex items-start gap-4">
+                    <div class="w-8 h-8 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-xs font-black text-slate-500 group-hover:text-primary transition-colors">D${idx + 1}</div>
+                    <div class="flex-1">
+                        <p class="text-slate-200 mb-6 font-bold leading-relaxed text-sm">${sc.statement}</p>
+                        <div class="flex gap-4">
+                            <button class="btn-ans px-8 py-2 rounded-full border border-slate-700 hover:border-emerald-500 hover:text-emerald-500 font-black text-xs transition-all" data-ans="O">O 是</button>
+                            <button class="btn-ans px-8 py-2 rounded-full border border-slate-700 hover:border-rose-500 hover:text-rose-500 font-black text-xs transition-all" data-ans="X">X 否</button>
+                        </div>
+                        <div class="feedback hidden mt-4 p-4 rounded-lg bg-slate-800/50 text-[11px] border-l-2"></div>
+                    </div>
+                </div>`;
+
+            div.querySelectorAll('.btn-ans').forEach(btn => btn.onclick = () => {
+                const fb = div.querySelector('.feedback');
+                fb.classList.remove('hidden', 'text-emerald-400', 'text-rose-400', 'border-emerald-500', 'border-rose-500');
+                if (btn.dataset.ans === sc.answer) {
+                    fb.classList.add('text-emerald-400', 'border-emerald-500');
+                    fb.innerHTML = `<strong>核心正確！</strong> ${sc.explanation}`;
+                } else {
+                    fb.classList.add('text-rose-400', 'border-rose-500');
+                    fb.innerHTML = `<strong>觀念偏差！</strong> ${sc.explanation}`;
+                }
+                fb.classList.remove('hidden');
+            });
+            scContainer.appendChild(div);
+        });
+
+        // Appendix
+        document.getElementById('accordion-btn').onclick = () => {
+            document.getElementById('accordion-content').classList.toggle('hidden');
+            document.getElementById('accordion-icon').classList.toggle('rotate-180');
+        };
+        document.getElementById('raw-notes-content').textContent = `
+在「第四章 作業系統與系統程式」的宏觀架構下，來源資料將**「死結 (Deadlock)」視為作業系統在執行「資源分配」**職能時可能發生的最嚴重病理狀態。
+1. 定義：
+每一個 Process 都在等待一個絕對不會發生的事件。
+死結 (Deadlock) vs 飢餓 (Starvation) vs 競爭 (Race Condition)。
+2. 四大必要條件：
+1. 相互排斥 (Mutual Exclusion)
+2. 佔用且等待 (Hold and Wait)
+3. 不可強奪 (No Preemption)
+4. 循環等待 (Circular Wait)
+3. 解決之道：
+- 死結預防 (Prevention)：打破四大條件之一。
+- 死結避免 (Avoidance)：檢查安全狀態，銀行家演算法 (Banker's Algorithm)。
+- 死結偵測 (Detection)：發生後處理。
+4. 臨界區 (Critical Region)：
+互斥區域，保證一次只有一個程序進入。`;
+
+    </script>
+</body>
+
+</html>
