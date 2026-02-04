@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ch5 電腦資料處理與通信 - 互動複習指南</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#10b981', // Emerald-500
+                        secondary: '#3b82f6', // Blue-500
+                        dark: '#0f172a', // Slate-900
+                        surface: '#1e293b', // Slate-800
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .flip-card {
+            perspective: 1000px;
+            cursor: pointer;
+        }
+
+        .flip-card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+
+        .flip-card.flipped .flip-card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .flip-card-front,
+        .flip-card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .flip-card-back {
+            transform: rotateY(180deg);
+        }
+
+        /* Hierarchy Zoomer */
+        .hierarchy-item {
+            transition: all 0.3s ease;
+        }
+
+        .hierarchy-item:hover {
+            transform: scale(1.02);
+            filter: brightness(1.2);
+        }
+
+        /* RAID Visuals */
+        .raid-disk {
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .data-stripe {
+            height: 12px;
+            margin-bottom: 2px;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .stripe-a {
+            background-color: #3b82f6;
+        }
+
+        /* Blue */
+        .stripe-b {
+            background-color: #10b981;
+        }
+
+        /* Green */
+        .stripe-p {
+            background-color: #f59e0b;
+        }
+
+        /* Parity - Amber */
+
+        /* Animation */
+        @keyframes flow {
+            0% {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+
+            50% {
+                opacity: 1;
+            }
+
+            100% {
+                transform: translateY(100%);
+                opacity: 0;
+            }
+        }
+
+        .data-flow {
+            animation: flow 2s infinite linear;
+        }
+    </style>
+</head>
+
+<body class="bg-dark text-slate-200 font-sans antialiased min-h-screen">
+
+    <div class="max-w-6xl mx-auto p-4 md:p-8 space-y-12">
+
+        <!-- Header -->
+        <header class="space-y-4 text-center border-b border-slate-700 pb-8 animate-fade-in-down">
+            <div
+                class="inline-block px-3 py-1 text-xs font-semibold tracking-wider text-primary uppercase bg-primary/10 rounded-full">
+                Chapter 5: Data Processing & RAID
+            </div>
+            <h1
+                class="text-3xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
+                承先啟後：資料管理之美
+            </h1>
+            <p class="text-slate-400 text-lg max-w-2xl mx-auto">
+                從微觀位元到宏觀資料庫，探索資料如何被組織、保護與交換。雖然考頻僅 2%，卻是系統架構的基石。
+            </p>
+        </header>
+
+        <!-- Module A: Strategic Dashboard -->
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-slate-700">
+                <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                        </path>
+                    </svg>
+                    關鍵字雷達
+                </h2>
+                <div class="flex flex-wrap gap-2" id="keywords-container"></div>
+                <div id="keyword-detail"
+                    class="mt-4 p-4 bg-dark/50 rounded-lg text-sm text-slate-300 min-h-[90px] hidden leading-relaxed">
+                </div>
+            </div>
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-slate-700 flex flex-col justify-center">
+                <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path>
+                    </svg>
+                    出題佔比 (注意：偏低)
+                </h2>
+                <div class="text-center p-8 border-2 border-dashed border-slate-800 rounded-xl">
+                    <span class="text-5xl font-black text-slate-700">2<span class="text-xl">%</span></span>
+                    <p class="text-[10px] text-slate-500 mt-2 uppercase tracking-widest font-bold italic">近年平均出題頻率</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Module D: Comparison Matrix -->
+        <section class="bg-surface rounded-xl shadow-lg border border-slate-700 overflow-hidden text-sm">
+            <div class="p-6 border-b border-slate-700">
+                <h2 class="text-2xl font-bold text-white mb-2">處理模式演進</h2>
+                <p class="text-slate-400 text-sm">從「CPU 效率優先」到「使用者體驗優先」</p>
+                <div class="flex flex-wrap gap-2 mt-4" id="matrix-dimensions"></div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr
+                            class="text-slate-500 bg-dark/50 border-b border-slate-700 uppercase tracking-widest font-black text-[10px]">
+                            <th class="p-4 w-1/4">模式名稱</th>
+                            <th class="p-4 dimension-col" data-idx="0">核心觀點</th>
+                            <th class="p-4 dimension-col" data-idx="1">主要優勢</th>
+                            <th class="p-4 dimension-col" data-idx="2">互動性</th>
+                            <th class="p-4 dimension-col" data-idx="3">現實應用</th>
+                        </tr>
+                    </thead>
+                    <tbody id="matrix-body" class="text-slate-300"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Module B: Core Concept Labs -->
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Lab 1: Data Hierarchy Zoomer -->
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-primary/30 flex flex-col items-center">
+                <h3 class="text-xl font-bold text-white mb-8 self-start flex items-center gap-2">
+                    <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                        </path>
+                    </svg>
+                    資料階層 (Hierarchy) 縮放器
+                </h3>
+
+                <div class="w-full space-y-2" id="hierarchy-viz">
+                    <!-- JS Powered -->
+                </div>
+
+                <div class="mt-8 grid grid-cols-2 gap-4 w-full">
+                    <div class="p-3 bg-dark/50 rounded-lg border border-slate-800 text-center">
+                        <div class="text-[10px] text-slate-500 uppercase font-black mb-1">物理層面</div>
+                        <div class="text-[11px] font-bold text-primary">實體資料錄 (Block)</div>
+                    </div>
+                    <div class="p-3 bg-dark/50 rounded-lg border border-slate-800 text-center">
+                        <div class="text-[10px] text-slate-500 uppercase font-black mb-1">邏輯層面</div>
+                        <div class="text-[11px] font-bold text-secondary">邏輯資料錄 (Record)</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lab 2: RAID Simulator -->
+            <div class="bg-surface rounded-xl p-6 shadow-lg border border-secondary/30 flex flex-col">
+                <h3 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                        </path>
+                    </svg>
+                    RAID 磁碟陣列模擬
+                </h3>
+
+                <div class="flex-1 space-y-6">
+                    <div class="flex gap-2 justify-center" id="disk-array">
+                        <div
+                            class="raid-disk w-16 h-28 bg-dark rounded border border-slate-700 p-2 flex flex-col justify-end">
+                            <div class="text-[8px] text-slate-600 text-center mb-2">DISK 0</div>
+                            <div class="stripe-container space-y-1"></div>
+                        </div>
+                        <div
+                            class="raid-disk w-16 h-28 bg-dark rounded border border-slate-700 p-2 flex flex-col justify-end">
+                            <div class="text-[8px] text-slate-600 text-center mb-2">DISK 1</div>
+                            <div class="stripe-container space-y-1"></div>
+                        </div>
+                        <div class="raid-disk w-16 h-28 bg-dark rounded border border-slate-700 p-2 flex flex-col justify-end hidden"
+                            id="disk-2">
+                            <div class="text-[8px] text-slate-600 text-center mb-2">DISK 2</div>
+                            <div class="stripe-container space-y-1"></div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-2">
+                        <button onclick="setRAID(0)" id="btn-raid-0"
+                            class="py-2 border border-slate-700 rounded text-[10px] font-bold hover:border-secondary transition-all active bg-secondary text-dark">RAID
+                            0 (Striping)</button>
+                        <button onclick="setRAID(1)" id="btn-raid-1"
+                            class="py-2 border border-slate-700 rounded text-[10px] font-bold hover:border-secondary transition-all">RAID
+                            1 (Mirroring)</button>
+                        <button onclick="setRAID(5)" id="btn-raid-5"
+                            class="py-2 border border-slate-700 rounded text-[10px] font-bold hover:border-secondary transition-all">RAID
+                            5 (Parity)</button>
+                    </div>
+
+                    <div id="raid-desc"
+                        class="p-3 bg-dark/50 rounded-lg text-[10px] text-slate-400 italic text-center min-h-[40px]">
+                        RAID 0：資料分開儲存，速度最快，但一個硬碟壞掉資料就全部消失。
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Module C: Exam Drill -->
+        <section class="space-y-8">
+            <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                <svg class="w-6 h-6 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4">
+                    </path>
+                </svg>
+                實戰演練場
+            </h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="flashcards-container"></div>
+            <div class="bg-surface rounded-xl p-8 border border-slate-700">
+                <h3 class="text-lg font-semibold text-slate-400 mb-8 border-l-4 border-primary pl-4">物流官的情境判斷：是非對錯</h3>
+                <div class="space-y-6" id="scenarios-container"></div>
+            </div>
+        </section>
+
+        <!-- Module E: Appendix -->
+        <section class="border-t border-slate-700 pt-8">
+            <button id="accordion-btn"
+                class="w-full flex justify-between items-center p-4 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors group">
+                <span class="font-bold text-slate-300 group-hover:text-white">附錄：我的原始筆記</span>
+                <svg id="accordion-icon" class="w-5 h-5 text-slate-400 transform transition-transform" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+            </button>
+            <div id="accordion-content" class="hidden mt-2 p-6 bg-black/30 rounded-lg border border-slate-800">
+                <pre class="raw-notes text-sm text-slate-400 whitespace-pre-wrap font-mono h-64 overflow-y-auto leading-relaxed"
+                    id="raw-notes-content"></pre>
+            </div>
+        </section>
+
+        <footer class="text-center text-slate-600 py-8 text-sm">
+            Based on User Notes • Generated by Agentic AI • 2026
+        </footer>
+    </div>
+
+    <script>
+        const data = {
+            "keywords": [
+                { "term": "Data Hierarchy", "why_important": "資料的微觀到宏觀組建：Bit -> Byte -> ... -> Database。", "common_exam_angle": "排序順序必考。" },
+                { "term": "Blocking (區塊化)", "why_important": "將多個邏輯資料錄打包，減少磁碟機械動作次數。", "common_exam_angle": "目的為何？ (提高 I/O 效率)" },
+                { "term": "RAID 5", "why_important": "分散式同位檢查碼，兼顧速度與容錯。", "common_exam_angle": "目前業界最普遍的 RAID 選擇。" },
+                { "term": "XML", "why_important": "具備「自我描述」特性的資料交換標準。", "common_exam_angle": "與 HTML 的區別 (XML 重內容/結構)" },
+                { "term": "Logical Record", "why_important": "使用者視角的一筆資料，不等於磁碟上的存取單位。", "common_exam_angle": "邏輯錄與實體錄的關係與運算。" }
+            ],
+            "weighting": {
+                "items": [
+                    { "topic": "RAID Levels", "weight": 95, "reason": "RAID 0/1/5 的差異是本章為數不多的愛考點。" },
+                    { "topic": "Data Hierarchy", "weight": 85, "reason": "考順序以及 Byte/Field 的定義區別。" },
+                    { "topic": "Processing Modes", "weight": 70, "reason": "分清楚 Batch, Real-time 與 Distributed 的特徵。" }
+                ]
+            },
+            "comparison_matrix": {
+                "dimensions": ["核心觀點", "主要優勢", "互動性", "現實應用"],
+                "rows": [
+                    {
+                        "name": "批次處理 (Batch)",
+                        "values": {
+                            "核心觀點": "資料累積一批後再一次處理",
+                            "主要優勢": "CPU 效率極大化 (Offline)",
+                            "互動性": "無 (Off-line)",
+                            "現實應用": "水電費帳單、薪資結算"
+                        },
+                        "pitfall": "誤以為已過時，在後端資料同步時依然主流。",
+                        "rule_of_thumb": "批次處理：大家請排隊，叫號才辦事。"
+                    },
+                    {
+                        "name": "即時處理 (Real-time)",
+                        "values": {
+                            "核心觀點": "資料產生即傳輸、即處理",
+                            "主要優勢": "回應極快 (Low Latency)",
+                            "互動性": "極高 (On-line)",
+                            "現實應用": "航空訂位、ATM 提款"
+                        },
+                        "pitfall": "要注意這類系統對網路穩定性要求極高。",
+                        "rule_of_thumb": "即時處理：分秒必爭，反應快如電。"
+                    },
+                    {
+                        "name": "分散式處理 (Distributed)",
+                        "values": {
+                            "核心觀點": "網路連結多台電腦共跑",
+                            "主要優勢": "可靠度高、負載平衡",
+                            "互動性": "高 (透明性)",
+                            "現實應用": "雲端儲存、Google 搜尋"
+                        },
+                        "pitfall": "不僅是網路化，重點是邏輯上的統一管理。",
+                        "rule_of_thumb": "分散處理：多機合一，不怕當機。"
+                    }
+                ]
+            },
+            "hierarchy": [
+                { name: "資料庫 (Database)", color: "bg-slate-900 border-primary" },
+                { name: "檔案 (File)", color: "bg-slate-800 border-primary/80" },
+                { name: "資料錄 (Record)", color: "bg-slate-700 border-primary/60" },
+                { name: "欄位 (Field)", color: "bg-slate-600 border-primary/40" },
+                { name: "位元組 (Byte)", color: "bg-slate-500 border-primary/20 text-dark font-black" },
+                { name: "位元 (Bit)", color: "bg-slate-400 border-white/10 text-dark font-black" }
+            ],
+            "flashcards": [
+                { "front": "資料階層中最小單位？", "back": "位元 (Bit)。" },
+                { "front": "何謂 RAID 5 的容錯？", "back": "允許壞掉「一個」硬碟，資料仍可透過 Parity 算回來。" },
+                { "front": "邏輯 Record 打包成 Block？", "back": "目的在於提升磁碟 I/O 效率 (減少對磁碟的存取頻率)。" },
+                { "front": "XML 的核心特性？", "back": "自我描述 (Self-describing)，著重資料內容與意義。" }
+            ],
+            "scenarios": [
+                {
+                    "statement": "RAID 0 雖然速度最快，但因為沒有備份機制，並不具備容錯 (Reliability) 能力。",
+                    "answer": "O",
+                    "explanation": "對。RAID 0 追求的是 Performance，任何一顆硬碟損壞都會導致資料全毀。"
+                },
+                {
+                    "statement": "批次處理 (Batch) 因為累積處理，所以使用者在處理過程中可以即時修改資料。",
+                    "answer": "X",
+                    "explanation": "錯。批次處理是 Offline 的，處理開始後使用者無法干預。"
+                },
+                {
+                    "statement": "資料庫 (Database) 的出現，是為了增加資料的重複性 (Redundancy) 以確保安全。",
+                    "answer": "X",
+                    "explanation": "錯。資料庫是為了「減少」重複性與解決「不一致性」問題。"
+                }
+            ],
+            "notes": `(User provided notes inherited...)`
+        };
+
+        // --- Logic ---
+
+        // Keywords
+        const kwContainer = document.getElementById('keywords-container');
+        const kwDetail = document.getElementById('keyword-detail');
+        data.keywords.forEach(kw => {
+            const btn = document.createElement('button');
+            btn.className = 'px-3 py-1 bg-slate-700 hover:bg-primary/50 text-slate-200 text-xs rounded transition-all';
+            btn.textContent = kw.term;
+            btn.onclick = () => {
+                kwDetail.classList.remove('hidden');
+                kwDetail.innerHTML = `<strong class="text-primary">${kw.term}</strong>：${kw.why_important}<br><span class="text-slate-500 font-bold mt-2 block uppercase text-[10px]">Exam Angle: ${kw.common_exam_angle}</span>`;
+            };
+            kwContainer.appendChild(btn);
+        });
+
+        // Hierarchy Viz
+        const hViz = document.getElementById('hierarchy-viz');
+        data.hierarchy.forEach((h, idx) => {
+            const div = document.createElement('div');
+            const padding = idx * 8;
+            div.className = `hierarchy-item border p-2 rounded list-none text-center text-[10px] ${h.color}`;
+            div.style.marginLeft = `${padding}px`;
+            div.style.marginRight = `${padding}px`;
+            div.textContent = h.name;
+            hViz.appendChild(div);
+        });
+
+        // RAID Logic
+        function setRAID(level) {
+            const disks = [0, 1, 2];
+            const disk2 = document.getElementById('disk-2');
+            const desc = document.getElementById('raid-desc');
+            const containers = document.querySelectorAll('.stripe-container');
+
+            // UI Reset
+            document.querySelectorAll('[id^="btn-raid-"]').forEach(b => b.className = "py-2 border border-slate-700 rounded text-[10px] font-bold hover:border-secondary transition-all");
+            document.getElementById(`btn-raid-${level}`).className = "py-2 border border-slate-700 rounded text-[10px] font-bold hover:border-secondary transition-all bg-secondary text-dark";
+
+            containers.forEach(c => c.innerHTML = '');
+
+            if (level === 0) {
+                disk2.classList.add('hidden');
+                desc.textContent = "RAID 0 (Striping)：資料分段存在不同硬碟，速度加倍，安全歸零。";
+                containers[0].innerHTML = `<div class="data-stripe stripe-a">A1</div><div class="data-stripe stripe-a">A3</div>`;
+                containers[1].innerHTML = `<div class="data-stripe stripe-b">A2</div><div class="data-stripe stripe-b">A4</div>`;
+            } else if (level === 1) {
+                disk2.classList.add('hidden');
+                desc.textContent = "RAID 1 (Mirroring)：兩顆硬碟存一模一樣的東西，極度安全，成本也加倍。";
+                containers[0].innerHTML = `<div class="data-stripe stripe-a">A1</div><div class="data-stripe stripe-b">A2</div>`;
+                containers[1].innerHTML = `<div class="data-stripe stripe-a">A1</div><div class="data-stripe stripe-b">A2</div>`;
+            } else if (level === 5) {
+                disk2.classList.remove('hidden');
+                desc.textContent = "RAID 5 (Parity)：平均分配資料與檢查碼。兼具效能與一顆硬碟容錯能力。";
+                containers[0].innerHTML = `<div class="data-stripe stripe-a">A1</div><div class="data-stripe stripe-b">B1</div><div class="data-stripe stripe-p">P1</div>`;
+                containers[1].innerHTML = `<div class="data-stripe stripe-a">A2</div><div class="data-stripe stripe-p">P2</div><div class="data-stripe stripe-b">B2</div>`;
+                containers[2].innerHTML = `<div class="data-stripe stripe-p">P3</div><div class="data-stripe stripe-a">A3</div><div class="data-stripe stripe-b">B3</div>`;
+            }
+        }
+        setRAID(0);
+
+        // Matrix
+        const body = document.getElementById('matrix-body');
+        function renderRows(highlightIdx) {
+            body.innerHTML = '';
+            data.comparison_matrix.rows.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-slate-700/50 hover:bg-white/5 transition-colors cursor-pointer group';
+                let cells = `<td class="p-4 font-bold text-white text-xs">${row.name}</td>`;
+                data.comparison_matrix.dimensions.forEach((dim, idx) => {
+                    const isHighlight = idx === highlightIdx;
+                    cells += `<td class="p-4 text-[11px] transition-colors ${isHighlight ? 'text-primary bg-primary/5 font-medium' : 'text-slate-500'}">${row.values[dim]}</td>`;
+                });
+                tr.innerHTML = cells;
+                tr.onclick = () => document.getElementById(`detail-${row.name}`).classList.toggle('hidden');
+                body.appendChild(tr);
+
+                const dtr = document.createElement('tr');
+                dtr.id = `detail-${row.name}`;
+                dtr.className = 'hidden bg-slate-800/50';
+                dtr.innerHTML = `<td colspan="5" class="p-4"><div class="flex gap-12 text-[10px]"><div class="flex-1 text-primary"><span class="font-black mr-2">⚠️ PITFALL:</span>${row.pitfall}</div><div class="flex-1 text-emerald-400"><span class="font-black mr-2">💡 RULE:</span>${row.rule_of_thumb}</div></div></td>`;
+                body.appendChild(dtr);
+            });
+        }
+        renderRows(0);
+
+        const matDims = document.getElementById('matrix-dimensions');
+        data.comparison_matrix.dimensions.forEach((dim, idx) => {
+            const btn = document.createElement('button');
+            btn.className = `dim-btn px-3 py-1 text-[10px] rounded-full border border-slate-600 hover:border-primary transition-all ${idx === 0 ? 'bg-primary text-dark font-black' : 'text-slate-500'}`;
+            btn.textContent = dim;
+            btn.onclick = () => {
+                document.querySelectorAll('.dim-btn').forEach(b => b.classList.remove('bg-primary', 'text-dark', 'font-black'));
+                btn.classList.add('bg-primary', 'text-dark', 'font-black');
+                renderRows(idx);
+            };
+            matDims.appendChild(btn);
+        });
+
+        // Flashcards
+        const fcContainer = document.getElementById('flashcards-container');
+        data.flashcards.forEach(fc => {
+            const card = document.createElement('div');
+            card.className = 'flip-card h-40';
+            card.innerHTML = `
+                <div class="flip-card-inner border border-slate-700 shadow-xl">
+                    <div class="flip-card-front bg-surface">
+                        <span class="text-primary font-black text-center text-xs px-4 leading-tight">${fc.front}</span>
+                         <span class="text-[8px] text-slate-600 mt-6 italic">TOUCH TO REVEAL</span>
+                    </div>
+                    <div class="flip-card-back bg-gradient-to-br from-primary/80 to-secondary/80 text-white p-6 text-center">
+                        <p class="text-[10px] font-bold leading-normal">${fc.back}</p>
+                    </div>
+                </div>`;
+            card.onclick = () => card.classList.toggle('flipped');
+            fcContainer.appendChild(card);
+        });
+
+        // Scenarios
+        const scContainer = document.getElementById('scenarios-container');
+        data.scenarios.forEach((sc, idx) => {
+            const div = document.createElement('div');
+            div.className = 'p-6 bg-dark/40 rounded-xl border border-slate-800 hover:border-slate-700 transition-all group';
+            div.innerHTML = `
+                <div class="flex items-start gap-4">
+                    <div class="w-8 h-8 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-xs font-black text-slate-500 group-hover:text-primary transition-colors">V${idx + 1}</div>
+                    <div class="flex-1">
+                        <p class="text-slate-200 mb-6 font-bold leading-relaxed text-sm">${sc.statement}</p>
+                        <div class="flex gap-4">
+                            <button class="btn-ans px-8 py-2 rounded-full border border-slate-700 hover:border-emerald-500 hover:text-emerald-500 font-black text-xs transition-all" data-ans="O">O 正確</button>
+                            <button class="btn-ans px-8 py-2 rounded-full border border-slate-700 hover:border-rose-500 hover:text-rose-500 font-black text-xs transition-all" data-ans="X">X 非也</button>
+                        </div>
+                        <div class="feedback hidden mt-4 p-4 rounded-lg bg-slate-800/50 text-[11px] border-l-2"></div>
+                    </div>
+                </div>`;
+
+            div.querySelectorAll('.btn-ans').forEach(btn => btn.onclick = () => {
+                const fb = div.querySelector('.feedback');
+                fb.classList.remove('hidden', 'text-emerald-400', 'text-rose-400', 'border-emerald-500', 'border-rose-500');
+                if (btn.dataset.ans === sc.answer) {
+                    fb.classList.add('text-emerald-400', 'border-emerald-500');
+                    fb.innerHTML = `<strong>內行！</strong> ${sc.explanation}`;
+                } else {
+                    fb.classList.add('text-rose-400', 'border-rose-500');
+                    fb.innerHTML = `<strong>需再複習！</strong> ${sc.explanation}`;
+                }
+                fb.classList.remove('hidden');
+            });
+            scContainer.appendChild(div);
+        });
+
+        // Appendix
+        document.getElementById('accordion-btn').onclick = () => {
+            document.getElementById('accordion-content').classList.toggle('hidden');
+            document.getElementById('accordion-icon').classList.toggle('rotate-180');
+        };
+        document.getElementById('raw-notes-content').textContent = `
+在「計算機概論」的宏觀架構下，來源資料將第五章「電腦資料處理與電腦通信」定位為橋樑。
+1. 資料階層 (Data Hierarchy)：
+Bit -> Byte/Character -> Field -> Record -> File -> Database。
+邏輯資料錄 vs. 實體資料錄 (Block)，透過 Blocking 提升效率。
+2. 處理模式：
+- 批次處理 (Batch)：不互動、累積。
+- 即時處理 (Real-time)：回應時間優先、On-line。
+- 分時 (Time-sharing) & 分散式 (Distributed)。
+3. RAID 磁碟陣列：
+- RAID 0：速度、無容錯。
+- RAID 1：安全、成本高。
+- RAID 3/5：Parity 同位檢查、效能/安全平衡。
+4. 預告：
+- 資料庫系統 (DBMS)：正規化、減少不一致性。
+- XML：自我描述、資料交換標準。`;
+
+    </script>
+</body>
+
+</html>
