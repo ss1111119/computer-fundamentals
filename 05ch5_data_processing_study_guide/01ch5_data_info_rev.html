@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>01 電腦資料處理與電腦通信 - 資料 vs 資訊</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#06b6d4', // Cyan 500
+                        secondary: '#6366f1', // Indigo 500
+                        darkBg: '#0f172a', // Slate 900
+                        cardBg: '#1e293b', // Slate 800
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #0f172a;
+            color: #f1f5f9;
+        }
+
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .glow-hover:hover {
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.3);
+        }
+
+        .flip-card {
+            perspective: 1000px;
+            cursor: pointer;
+        }
+
+        .flip-card-inner {
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+
+        .flip-card.flipped .flip-card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .flip-card-front,
+        .flip-card-back {
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+
+        .flip-card-back {
+            transform: rotateY(180deg);
+        }
+
+        .transition-all-custom {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-fadeIn {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+    </style>
+</head>
+
+<body class="p-4 md:p-8">
+    <!-- Header -->
+    <header class="max-w-6xl mx-auto mb-10 animate-fadeIn">
+        <div class="flex items-center gap-3 mb-2">
+            <span
+                class="px-3 py-1 text-xs font-bold tracking-widest uppercase bg-primary/20 text-primary border border-primary/30 rounded-full">Section
+                01</span>
+            <span class="text-slate-500">|</span>
+            <span class="text-slate-400 font-medium">Chapter 05 電腦資料處理與電腦通信</span>
+        </div>
+        <h1
+            class="text-4xl md:text-5xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+            資料 (Data) vs. 資訊 (Information)</h1>
+        <p class="mt-4 text-lg text-slate-400 max-w-2xl leading-relaxed" id="chapter-positioning"></p>
+    </header>
+
+    <main class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- A) Strategic Dashboard -->
+        <section class="lg:col-span-12 grid grid-cols-1 md:grid-cols-2 gap-6 animate-fadeIn"
+            style="animation-delay: 0.1s">
+            <div class="glass-card p-6 rounded-2xl">
+                <h2 class="text-xl font-bold mb-6 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
+                        </path>
+                    </svg>
+                    出題權重分配
+                </h2>
+                <div id="weighting-chart" class="space-y-4">
+                    <!-- Dynamic Bars -->
+                </div>
+            </div>
+
+            <div class="glass-card p-6 rounded-2xl">
+                <h2 class="text-xl font-bold mb-6 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M7 7h.01M7 11h.01M7 15h.01M13 7h.01M13 11h.01M13 15h.01M17 7h.01M17 11h.01M17 15h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z">
+                        </path>
+                    </svg>
+                    關鍵核心術語 (Keywords)
+                </h2>
+                <div id="keywords-container" class="flex flex-wrap gap-2">
+                    <!-- Dynamic Tags -->
+                </div>
+                <div id="keyword-detail"
+                    class="mt-6 p-4 rounded-xl bg-slate-900/50 border border-slate-700 hidden min-h-[100px]">
+                    <h3 id="keyword-title" class="font-bold text-primary mb-1"></h3>
+                    <p id="keyword-important" class="text-sm text-slate-300 mb-2"></p>
+                    <div class="flex items-start gap-2 text-xs text-orange-400 bg-orange-400/10 p-2 rounded">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <span id="keyword-exam"></span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- B) Comparison Matrix -->
+        <section class="lg:col-span-12 glass-card p-6 rounded-2xl animate-fadeIn" style="animation-delay: 0.2s">
+            <h2 class="text-xl font-bold mb-6 flex items-center gap-2">
+                <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01">
+                    </path>
+                </svg>
+                <span id="matrix-title"></span>
+            </h2>
+
+            <div id="matrix-dimensions" class="flex flex-wrap gap-2 mb-6">
+                <!-- Dimension Chips -->
+            </div>
+
+            <div class="overflow-x-auto rounded-xl border border-slate-700">
+                <table class="w-full text-left border-collapse">
+                    <thead id="matrix-head" class="bg-slate-800/50">
+                        <!-- Head -->
+                    </thead>
+                    <tbody id="matrix-body">
+                        <!-- Body -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- C) Core Concept Lab (Tree) -->
+        <section class="lg:col-span-7 glass-card p-6 rounded-2xl animate-fadeIn" style="animation-delay: 0.3s">
+            <div class="flex justify-between items-start mb-6">
+                <div>
+                    <h2 class="text-xl font-bold flex items-center gap-2">
+                        <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.618.309a6 6 0 01-4.82.433l-2.387-.477a2 2 0 00-1.022.547l-1.162 1.162a2 2 0 00-.586 1.414V21h12v-4a2 2 0 00-.586-1.414l-1.162-1.162zM12 7V4m0 0a2 2 0 100-4 2 2 0 000 4zm0 0v3a2 2 0 002 2h3m-6 0a2 2 0 00-2 2v3">
+                            </path>
+                        </svg>
+                        核心觀念實驗室：<span id="lab-chosen-concept"></span>
+                    </h2>
+                    <p class="text-sm text-slate-400 mt-1" id="lab-objective"></p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-6">
+                <div class="bg-slate-900 shadow-inner rounded-xl p-6 min-h-[300px]">
+                    <div id="tree-container" class="space-y-2">
+                        <!-- Hierarchy Tree -->
+                    </div>
+                </div>
+
+                <div id="tree-info" class="p-6 bg-primary/10 border border-primary/20 rounded-xl hidden">
+                    <h3 id="tree-info-title" class="font-bold text-primary mb-2"></h3>
+                    <p id="tree-info-content" class="text-slate-300 text-sm leading-relaxed"></p>
+                </div>
+
+                <div id="lab-mistakes" class="space-y-2">
+                    <!-- Common Mistakes -->
+                </div>
+            </div>
+        </section>
+
+        <!-- D) Exam Drill -->
+        <section class="lg:col-span-5 flex flex-col gap-6 animate-fadeIn" style="animation-delay: 0.4s">
+            <!-- Flashcards -->
+            <div class="glass-card p-6 rounded-2xl flex-1">
+                <h2 class="text-xl font-bold mb-6 flex items-center justify-between">
+                    利弊快取卡 (Flashcards)
+                    <span id="flash-count" class="text-xs font-normal text-slate-500">1 / 5</span>
+                </h2>
+                <div class="relative h-48 group">
+                    <div id="flashcard-container" class="w-full h-full flip-card">
+                        <div class="flip-card-inner w-full h-full">
+                            <div
+                                class="flip-card-front w-full h-full absolute bg-slate-700/50 rounded-xl flex items-center justify-center p-6 text-center border border-slate-600">
+                                <p id="flash-front" class="text-lg font-semibold"></p>
+                            </div>
+                            <div
+                                class="flip-card-back w-full h-full absolute bg-secondary/20 rounded-xl flex flex-col items-center justify-center p-6 text-center border border-secondary/40">
+                                <p id="flash-back" class="text-sm leading-relaxed"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-center gap-4 mt-6">
+                    <button onclick="prevFlash()"
+                        class="p-2 rounded-full hover:bg-slate-700 text-slate-400 transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7">
+                            </path>
+                        </svg>
+                    </button>
+                    <button id="tap-hint" onclick="toggleFlash()"
+                        class="text-xs text-slate-500 uppercase tracking-tighter self-center">點擊卡片翻面</button>
+                    <button onclick="nextFlash()"
+                        class="p-2 rounded-full hover:bg-slate-700 text-slate-400 transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7">
+                            </path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Scenario Checks -->
+            <div class="glass-card p-6 rounded-2xl flex-1">
+                <h2 class="text-xl font-bold mb-6">實戰演練 (Scenario Check)</h2>
+                <div id="scenarios-container" class="space-y-4">
+                    <!-- Dynamic Scenarios -->
+                </div>
+            </div>
+        </section>
+
+        <!-- E) Feynman Explanation -->
+        <section
+            class="lg:col-span-12 glass-card p-6 rounded-2xl bg-gradient-to-br from-cardBg to-slate-800 animate-fadeIn"
+            style="animation-delay: 0.5s">
+            <h2 class="text-2xl font-bold mb-6 text-cyan-400">費曼解釋 (Feynman Method)</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                    <div class="mb-6">
+                        <h3 class="text-slate-400 text-sm mb-1 uppercase font-semibold">白話概念</h3>
+                        <p class="text-xl font-medium text-white" id="feynman-plain"></p>
+                    </div>
+                    <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
+                        <h3 class="text-slate-400 text-xs mb-2 uppercase font-semibold">日常類比 (Analogy)</h3>
+                        <p class="text-slate-300 italic" id="feynman-analogy"></p>
+                    </div>
+                </div>
+                <div class="space-y-4">
+                    <h3 class="text-slate-400 text-sm mb-1 uppercase font-semibold">教學流程 (Teach Flow)</h3>
+                    <ul id="feynman-flow" class="space-y-3">
+                        <!-- Flow Items -->
+                    </ul>
+                </div>
+            </div>
+            <div class="mt-8 pt-8 border-t border-slate-700 flex flex-wrap gap-10">
+                <div class="flex-1 min-w-[300px]">
+                    <h3 class="text-orange-400 text-xs mb-2 uppercase font-semibold">考試觸發詞 (Exam Triggers)</h3>
+                    <div id="exam-triggers" class="flex flex-wrap gap-2"></div>
+                </div>
+                <div class="flex-1 min-w-[200px]">
+                    <h3 class="text-primary text-xs mb-2 uppercase font-semibold">60 秒快速教案</h3>
+                    <p id="feynman-one-minute" class="text-sm text-slate-400 leading-relaxed"></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- F) Appendix (Original Notes) -->
+        <section class="lg:col-span-12 mt-10">
+            <div class="border border-slate-700 rounded-xl overflow-hidden">
+                <button onclick="toggleAppendix()"
+                    class="w-full flex justify-between items-center p-4 bg-slate-800 hover:bg-slate-700 transition-colors uppercase tracking-widest text-xs font-bold text-slate-400">
+                    附錄：我的原始筆記 (Appendix: Original Notes)
+                    <svg id="appendix-icon" class="w-4 h-4 transition-transform" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </button>
+                <div id="appendix-content" class="hidden bg-slate-900 p-6 overflow-x-auto">
+                    <pre id="original-notes" class="text-slate-500 text-sm whitespace-pre-wrap font-mono"></pre>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="max-w-6xl mx-auto mt-20 pb-10 text-center border-t border-slate-800 pt-8 text-slate-500 text-sm">
+        <p>&copy; Study Guide for 電腦資料處理與電腦通信 - Section 01</p>
+    </footer>
+
+    <script>
+        const data = {
+            "chapter_positioning": {
+                "one_sentence": "本節定義資料與資訊，確立電腦存在的核心價值：將未經處理的原料轉化為具備決策價值的產品。",
+                "prerequisites": ["基本電腦運作概念"],
+                "downstream_links": ["5-2 檔案儲存", "5-3 處理模式", "5-4 資料庫架構"]
+            },
+            "keywords": [
+                {
+                    "term": "資料 (Data)",
+                    "why_important": "資料處理的起點，代表未經處理的原始素材。",
+                    "common_exam_angle": "定義為「未經處理」的現象、文字、數字或符號。"
+                },
+                {
+                    "term": "資訊 (Information)",
+                    "why_important": "資料處理的終點，具備決策參考價值。",
+                    "common_exam_angle": "定義為「經過處理」的資料，強調其功能性與決策價值。"
+                },
+                {
+                    "term": "資料處理 (Data Processing)",
+                    "why_important": "連接資料與資訊的核心過程。",
+                    "common_exam_angle": "輸入(Data) → 處理(CPU/軟體) → 輸出(Information) 的邏輯。"
+                },
+                {
+                    "term": "GIGO 原則",
+                    "why_important": "強調輸入品質對輸出結果的決定性影響。",
+                    "common_exam_angle": "Garbage In, Garbage Out (垃圾進，垃圾出)。"
+                },
+                {
+                    "term": "資料階層 (Data Hierarchy)",
+                    "why_important": "資料組織化的結構，使資料產生意義。",
+                    "common_exam_angle": "順序：位元 -> 位元組 -> 欄位 -> 資料錄 -> 檔案 -> 資料庫。"
+                }
+            ],
+            "weighting": {
+                "basis": "estimate",
+                "items": [
+                    {
+                        "topic": "資料與資訊的定義區分",
+                        "weight": 80,
+                        "reason": "基礎概念，常考名詞解釋與對比。"
+                    },
+                    {
+                        "topic": "資料處理流程 (IPO)",
+                        "weight": 70,
+                        "reason": "電腦系統運作的基本邏輯。"
+                    },
+                    {
+                        "topic": "資料階層排序",
+                        "weight": 90,
+                        "reason": "極高機率考大小排序或定義。"
+                    }
+                ]
+            },
+            "comparison_matrix": {
+                "title": "資料 (Data) vs. 資訊 (Information)",
+                "dimensions": [
+                    "狀態",
+                    "性質",
+                    "價值",
+                    "範例"
+                ],
+                "rows": [
+                    {
+                        "name": "資料 (Data)",
+                        "values": {
+                            "狀態": "未經處理 (Unprocessed)",
+                            "性質": "原始素材/原料",
+                            "價值": "缺乏脈絡，直接價值度低",
+                            "範例": "數字「25」"
+                        },
+                        "pitfall": "容易誤以為只要是存在電腦裡的都是資訊。",
+                        "rule_of_thumb": "它是「沒被解釋過的數字或符號」。"
+                    },
+                    {
+                        "name": "資訊 (Information)",
+                        "values": {
+                            "狀態": "經過處理 (Processed)",
+                            "性質": "產成品/結果",
+                            "價值": "具備脈絡，可輔助決策",
+                            "範例": "「年齡」欄位中的 25"
+                        },
+                        "pitfall": "如果處理後無法幫助決策，僅能稱為資料處理的殘餘或垃圾。",
+                        "rule_of_thumb": "它是「能幫你做決定的有意義結果」。"
+                    }
+                ]
+            },
+            "core_concept_lab": {
+                "chosen_concept": "資料階層 (Data Hierarchy)",
+                "type": "tree",
+                "learning_objective": "掌握從位元到資料庫的階層關係與包含內容。",
+                "inputs": [
+                    {
+                        "id": "level_selector",
+                        "label": "查看階層關鍵字",
+                        "type": "select",
+                        "options": [
+                            "Bit",
+                            "Byte",
+                            "Field",
+                            "Record",
+                            "File",
+                            "Database"
+                        ],
+                        "default": "Field"
+                    }
+                ],
+                "interaction_logic": [
+                    "使用者點選或選擇不同的階層單位 → 系統顯示該單位的組成關係 → 舉出具體實例並標示在階層中的位置。"
+                ],
+                "outputs": [
+                    {
+                        "id": "hierarchy_viewer",
+                        "label": "階層視覺化展示",
+                        "format": "chart"
+                    },
+                    {
+                        "id": "definition_box",
+                        "label": "定義與實例說明",
+                        "format": "text"
+                    }
+                ],
+                "common_mistakes": [
+                    {
+                        "mistake": "混淆 Field 與 Record 的關係",
+                        "why_wrong": "常以為 Record 組成 Field。",
+                        "how_to_fix": "記住多個 Field（欄位，如姓名、電話）組成一個完整的 Record（資料錄，如某人的個人資料）。"
+                    }
+                ]
+            },
+            "feynman_explanation": {
+                "one_sentence_plain": "資料是還在土裡的礦石，資訊是提煉出來可以賣錢的純金。",
+                "analogy": "就像你去超市買東西，「25」只是一個數字（資料），但在收據上寫著「單價 25 元」（資訊），你才知道這趟買得貴不貴。",
+                "forbidden_terms_used": [
+                    "資料處理 (Data Processing)",
+                    "資料階層 (Data Hierarchy)"
+                ]
+            },
+            "feynman_rebuild": {
+                "teach_flow": [
+                    "首先，想像電腦是個加工廠，它需要吃進原料（資料）才能吐出產品（資訊）。",
+                    "接著，這些原料不能亂放，必須由小到大像堆積木一樣（資料階層）疊起來才有意義。",
+                    "最後，如果老闆看著報表能決定明天要進多少貨，那這份報表才算成功的資訊。"
+                ],
+                "one_minute_version": "電腦存在的目的，就是把一堆沒頭沒腦的「資料」（如純數字）透過整理與計算，變成能幫人類做決定的「資訊」（如獲利分析）。這個過程叫資料處理，而為了有效處理，我們會把資料從最小的 Bit 一路疊到大型 Database。",
+                "exam_trigger_phrases": [
+                    "提供決策參考",
+                    "未經處理之代表現象",
+                    "位元 -> ... -> 資料庫",
+                    "Garbage In, Garbage Out"
+                ]
+            },
+            "flashcards": [
+                {
+                    "front": "電腦存在的價值是什麼？",
+                    "back": "將原始素材（資料）轉化為決策依據（資訊）。"
+                },
+                {
+                    "front": "GIGO 原則的含義？",
+                    "back": "Garbage In, Garbage Out；指輸入錯誤的資料，必然導致錯誤的資訊輸出。"
+                },
+                {
+                    "front": "資料階層的順序？",
+                    "back": "Bit -> Byte -> Field -> Record -> File -> Database (位->節->欄->錄->案->池)"
+                },
+                {
+                    "front": "資料 (Data) 的本質定義？",
+                    "back": "未經處理之代表現象，原始的文字、數字及符號。"
+                },
+                {
+                    "front": "資訊 (Information) 的核心價值？",
+                    "back": "具備功能性，能提供決策參考之輔助。"
+                }
+            ],
+            "scenario_checks": [
+                {
+                    "statement": "只要是經過電腦處理過的數據，就一定可以稱之為「資訊」。",
+                    "answer": "X",
+                    "explanation": "錯誤。若處理後的結果不具備決策參考價值或屬於 GIGO 現象，則不能稱為有效資訊。"
+                },
+                {
+                    "statement": "在資料階層中，欄位 (Field) 是組成資料錄 (Record) 的單位。",
+                    "answer": "O",
+                    "explanation": "正確。多個相關的欄位（如姓名、性別、生日）構成一筆資料錄。"
+                },
+                {
+                    "statement": "GIGO 原則意味著只要硬體夠快，輸入垃圾也能變黃金。",
+                    "answer": "X",
+                    "explanation": "錯誤。GIGO 指輸入垃圾資料，輸出就一定是垃圾資訊。"
+                }
+            ],
+            "original_notes_for_appendix": "在「第五章 電腦資料處理與電腦通信」的宏觀背景下，來源資料將**「資料 (Data)」與「資訊 (Information)」的定義視為整個資料處理流程的起點與終點**。\n這一節的觀點不僅是名詞解釋，更是確立了**「電腦存在的價值」**——即將無序的原始素材轉化為有用的決策依據。根據來源資料，我們可以從以下三個核心層面來探討其看法：\n1. 本質的區辨：原料與產品\n來源資料明確劃分了兩者的狀態，建立了一個工業化的類比：\n• 資料 (Data) —— 原料：\n    ◦ 定義：被視為**「未經處理」**之代表現象。\n    ◦ 形式：它是事象之原始文字、數字及符號。\n    ◦ 看法：在這個階段，資料雖然客觀存在，但缺乏脈絡與直接的使用價值。\n• 資訊 (Information) —— 產品：\n    ◦ 定義：被視為**「經過處理」**的資料。\n    ◦ 價值：其核心目的在於能**「提供決策參考之輔助」**。\n    ◦ 看法：這強調了資訊的「功能性」。如果處理後的結果不能幫助人類做決定，那它可能還停留在資料的層次，或者只是無用的垃圾（呼應 GIGO 原則：Garbage In, Garbage Out）。\n2. 轉化的過程：資料處理的核心邏輯\n在第五章的脈絡中，定義這兩個詞是為了引入**「資料處理 (Data Processing)」**的概念。來源資料將這個轉化過程視為電腦的核心任務：\n• 輸入 → 處理 → 輸出：電腦系統的運作就是將 Input (Data) 透過 CPU 與軟體的運算，轉變為 Output (Information) 的過程。\n• 處理型態的演進：為了更有效率地完成這個「將資料變資訊」的任務，來源資料在後續章節 (5-3) 介紹了批次處理（累積一批原料再加工）、即時處理（原料一到馬上加工）與分散式處理（分工合作加工）等不同模式。這顯示了「如何處理」取決於我們對「資訊時效性」的需求。\n3. 結構化的觀點：從位元到資料庫\n來源資料在定義完資料後，緊接著提出了**「資料階層 (Data Hierarchy)」的看法，這暗示了資料必須經過「組織 (Organization)」**才能產生意義。\n• 微觀到巨觀：資料由最小的 位元 (Bit) → 位元組 (Byte) → 欄位 (Field) → 資料錄 (Record) → 檔案 (File) → 堆疊成 資料庫 (Database)。\n• 看法：單獨的「資料」（如一個數字 25）意義有限，但當它被放入「欄位」（如 年齡）並歸屬於某個「資料錄」（如 王小明的員工資料）時，它就開始具備成為「資訊」的潛力。\n總結\n在第五章的背景下，來源資料認為：「資料」是電腦處理的對象，而「資訊」是電腦處理的結果與目的。 整個第五章的內容——從檔案如何儲存 (5-2)、處理模式如何選擇 (5-3) 到資料庫如何架構 (5-4)——全都是為了優化這個**「從 Data 到 Information」**的價值轉換過程,。"
+        };
+
+        // Initialize Dashboard
+        document.getElementById('chapter-positioning').innerText = data.chapter_positioning.one_sentence;
+
+        const weightChart = document.getElementById('weighting-chart');
+        data.weighting.items.forEach(item => {
+            const row = document.createElement('div');
+            row.innerHTML = `
+                <div class="flex justify-between items-center mb-1">
+                    <span class="text-sm font-medium text-slate-300">${item.topic}</span>
+                    <span class="text-xs text-primary">${item.weight}%</span>
+                </div>
+                <div class="w-full bg-slate-700 h-2 rounded-full overflow-hidden">
+                    <div class="bg-primary h-full transition-all duration-1000" style="width: 0%" data-width="${item.weight}%"></div>
+                </div>
+                <p class="text-[10px] text-slate-500 mt-1">${item.reason}</p>
+            `;
+            weightChart.appendChild(row);
+        });
+
+        // Dashboard Animation Trigger
+        setTimeout(() => {
+            weightChart.querySelectorAll('[data-width]').forEach(bar => {
+                bar.style.width = bar.getAttribute('data-width');
+            });
+        }, 500);
+
+        const keywordsContainer = document.getElementById('keywords-container');
+        data.keywords.forEach(kw => {
+            const btn = document.createElement('button');
+            btn.className = 'px-3 py-1 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-300 hover:border-primary hover:text-primary transition-all glow-hover';
+            btn.innerText = kw.term;
+            btn.onclick = () => {
+                document.getElementById('keyword-detail').classList.remove('hidden');
+                document.getElementById('keyword-title').innerText = kw.term;
+                document.getElementById('keyword-important').innerText = kw.why_important;
+                document.getElementById('keyword-exam').innerText = kw.common_exam_angle;
+
+                // Highlight active button
+                keywordsContainer.querySelectorAll('button').forEach(b => b.classList.remove('border-primary', 'text-primary'));
+                btn.classList.add('border-primary', 'text-primary');
+            };
+            keywordsContainer.appendChild(btn);
+        });
+
+        // Comparison Matrix
+        document.getElementById('matrix-title').innerText = data.comparison_matrix.title;
+        const matrixDims = document.getElementById('matrix-dimensions');
+        const matrixHead = document.getElementById('matrix-head');
+        const matrixBody = document.getElementById('matrix-body');
+
+        // Render Head
+        let headHtml = `<tr><th class="p-4 border-b border-slate-700 text-slate-400 font-semibold uppercase text-xs">對象</th>`;
+        data.comparison_matrix.dimensions.forEach(dim => {
+            headHtml += `<th class="p-4 border-b border-slate-700 text-slate-400 font-semibold uppercase text-xs" data-dim="${dim}">${dim}</th>`;
+
+            // Chips
+            const chip = document.createElement('button');
+            chip.className = 'px-3 py-1 text-xs rounded-full bg-slate-800 border border-slate-700 text-slate-400 hover:bg-indigo-900/30 transition-all';
+            chip.innerText = dim;
+            chip.onclick = () => highlightDim(dim);
+            matrixDims.appendChild(chip);
+        });
+        headHtml += `</tr>`;
+        matrixHead.innerHTML = headHtml;
+
+        // Render Body
+        data.comparison_matrix.rows.forEach(row => {
+            let rowHtml = `
+                <tr class="group border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors">
+                    <td class="p-4 font-bold text-white border-r border-slate-800">${row.name}</td>`;
+            data.comparison_matrix.dimensions.forEach(dim => {
+                rowHtml += `<td class="p-4 text-slate-300 text-sm" data-dim-cell="${dim}">${row.values[dim] || '-'}</td>`;
+            });
+            rowHtml += `</tr>`;
+
+            // Expandable Row
+            rowHtml += `
+                <tr class="bg-slate-900/30">
+                    <td colspan="${data.comparison_matrix.dimensions.length + 1}" class="px-4 py-2">
+                        <div class="flex gap-10 text-xs">
+                            <div class="flex gap-2 items-center"><span class="text-orange-400 font-bold uppercase">Pitfall:</span> <span class="text-slate-400">${row.pitfall}</span></div>
+                            <div class="flex gap-2 items-center"><span class="text-green-400 font-bold uppercase">Rule:</span> <span class="text-slate-400">${row.rule_of_thumb}</span></div>
+                        </div>
+                    </td>
+                </tr>
+            `;
+            matrixBody.innerHTML += rowHtml;
+        });
+
+        function highlightDim(dim) {
+            // Reset
+            document.querySelectorAll('[data-dim], [data-dim-cell]').forEach(el => {
+                el.classList.remove('bg-indigo-500/10', 'text-indigo-400', 'font-bold');
+            });
+            // Apply
+            document.querySelectorAll(`[data-dim="${dim}"], [data-dim-cell="${dim}"]`).forEach(el => {
+                el.classList.add('bg-indigo-500/10', 'text-indigo-400', 'font-bold');
+            });
+            // Active chip
+            matrixDims.querySelectorAll('button').forEach(b => {
+                b.classList.toggle('border-indigo-400', b.innerText === dim);
+                b.classList.toggle('text-indigo-400', b.innerText === dim);
+            });
+        }
+
+        // Core Concept Lab: Tree
+        const treeData = [
+            { id: 'Bit', label: '1. 位元 (Bit)', content: '微觀最小單位，代表電腦中的 0 或 1。', children: ['Byte'] },
+            { id: 'Byte', label: '2. 位元組 (Byte)', content: '由 8 個 Bit 組成，是儲存文字字元的最小單位。', children: ['Field'] },
+            { id: 'Field', label: '3. 欄位 (Field)', content: '由一或多個 Byte 組成。舉例：姓名、年齡、國籍。', children: ['Record'] },
+            { id: 'Record', label: '4. 資料錄 (Record)', content: '由一組相關連的 Field 組成。舉例：某員工的完整人事檔案。', children: ['File'] },
+            { id: 'File', label: '5. 檔案 (File)', content: '多個相關 Record 的集合。舉例：公司的人事檔案系統。', children: ['Database'] },
+            { id: 'Database', label: '6. 資料庫 (Database)', content: '宏觀最高層級，所有相關數據檔案的整合架構。', children: [] }
+        ];
+
+        document.getElementById('lab-chosen-concept').innerText = data.core_concept_lab.chosen_concept;
+        document.getElementById('lab-objective').innerText = data.core_concept_lab.learning_objective;
+
+        const treeContainer = document.getElementById('tree-container');
+        treeData.forEach((node, idx) => {
+            const div = document.createElement('div');
+            div.className = 'transition-all duration-300';
+            div.style.paddingLeft = (idx * 20) + 'px';
+            div.innerHTML = `
+                <button onclick="showTreeNode('${node.id}')" id="btn-${node.id}" class="group flex items-center gap-3 w-full p-3 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-all">
+                    <div class="w-2 h-2 rounded-full bg-slate-600 group-hover:bg-cyan-400 transition-colors"></div>
+                    <span class="font-bold text-sm text-slate-500 uppercase tracking-widest mr-2">Level ${idx + 1}</span>
+                    <span class="text-base">${node.label}</span>
+                    <svg class="w-4 h-4 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </button>
+            `;
+            treeContainer.appendChild(div);
+        });
+
+        function showTreeNode(id) {
+            const node = treeData.find(n => n.id === id);
+            const infoBox = document.getElementById('tree-info');
+            infoBox.classList.remove('hidden');
+            document.getElementById('tree-info-title').innerText = node.label;
+            document.getElementById('tree-info-content').innerText = node.content;
+
+            // Highlight button
+            treeContainer.querySelectorAll('button').forEach(b => {
+                b.classList.remove('bg-cyan-500/10', 'text-cyan-400');
+                if (b.id === `btn-${id}`) b.classList.add('bg-cyan-500/10', 'text-cyan-400');
+            });
+        }
+
+        const mistakesContainer = document.getElementById('lab-mistakes');
+        data.core_concept_lab.common_mistakes.forEach(m => {
+            const div = document.createElement('div');
+            div.className = 'p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs';
+            div.innerHTML = `
+                <span class="text-red-400 font-bold uppercase block mb-1">陷阱：${m.mistake}</span>
+                <p class="text-slate-400">${m.how_to_fix}</p>
+            `;
+            mistakesContainer.appendChild(div);
+        });
+
+        // Flashcards
+        let currentFlash = 0;
+        const flashcardInner = document.querySelector('.flip-card-inner');
+        const flashcardContainer = document.getElementById('flashcard-container');
+
+        function updateFlashcard() {
+            flashcardContainer.classList.remove('flipped');
+            setTimeout(() => {
+                document.getElementById('flash-front').innerText = data.flashcards[currentFlash].front;
+                document.getElementById('flash-back').innerText = data.flashcards[currentFlash].back;
+                document.getElementById('flash-count').innerText = `${currentFlash + 1} / ${data.flashcards.length}`;
+            }, 300);
+        }
+
+        function toggleFlash() {
+            flashcardContainer.classList.toggle('flipped');
+        }
+
+        function nextFlash() {
+            currentFlash = (currentFlash + 1) % data.flashcards.length;
+            updateFlashcard();
+        }
+
+        function prevFlash() {
+            currentFlash = (currentFlash - 1 + data.flashcards.length) % data.flashcards.length;
+            updateFlashcard();
+        }
+
+        flashcardContainer.onclick = toggleFlash;
+        updateFlashcard();
+
+        // Scenario Checks
+        const scenariosContainer = document.getElementById('scenarios-container');
+        data.scenario_checks.forEach((sc, idx) => {
+            const scDiv = document.createElement('div');
+            scDiv.className = 'p-4 rounded-xl border border-slate-700 bg-slate-800/20';
+            scDiv.innerHTML = `
+                <p class="text-sm text-slate-300 mb-4 font-medium">${sc.statement}</p>
+                <div class="flex gap-2">
+                    <button onclick="checkScenario(${idx}, 'O')" id="sc-${idx}-O" class="px-4 py-1.5 rounded-lg border border-slate-600 hover:border-cyan-400 hover:text-cyan-400 text-xs transition-all">是 (O)</button>
+                    <button onclick="checkScenario(${idx}, 'X')" id="sc-${idx}-X" class="px-4 py-1.5 rounded-lg border border-slate-600 hover:border-red-400 hover:text-red-400 text-xs transition-all">否 (X)</button>
+                </div>
+                <div id="sc-ans-${idx}" class="mt-4 text-xs p-3 rounded-lg hidden"></div>
+            `;
+            scenariosContainer.appendChild(scDiv);
+        });
+
+        function checkScenario(idx, choice) {
+            const sc = data.scenario_checks[idx];
+            const ansBox = document.getElementById(`sc-ans-${idx}`);
+            ansBox.classList.remove('hidden', 'bg-green-500/10', 'text-green-400', 'bg-red-500/10', 'text-red-400');
+
+            const isCorrect = choice === sc.answer;
+            ansBox.classList.add(isCorrect ? 'bg-green-500/10' : 'bg-red-500/10');
+            ansBox.classList.add(isCorrect ? 'text-green-400' : 'text-red-400');
+
+            ansBox.innerHTML = `
+                <div class="font-bold mb-1">${isCorrect ? '正確！' : '不完全正確...'}</div>
+                <p class="text-slate-400 leading-relaxed">${sc.explanation}</p>
+            `;
+
+            // Disable buttons
+            document.getElementById(`sc-${idx}-O`).disabled = true;
+            document.getElementById(`sc-${idx}-X`).disabled = true;
+            document.getElementById(`sc-${idx}-${choice}`).classList.add(isCorrect ? 'bg-green-400/20' : 'bg-red-400/20');
+        }
+
+        // Feynman Section
+        document.getElementById('feynman-plain').innerText = data.feynman_explanation.one_sentence_plain;
+        document.getElementById('feynman-analogy').innerText = data.feynman_explanation.analogy;
+        document.getElementById('feynman-one-minute').innerText = data.feynman_rebuild.one_minute_version;
+
+        const feynmanFlow = document.getElementById('feynman-flow');
+        data.feynman_rebuild.teach_flow.forEach((step, idx) => {
+            const li = document.createElement('li');
+            li.className = 'flex gap-3 text-sm';
+            li.innerHTML = `
+                <span class="flex-shrink-0 w-6 h-6 rounded-full bg-slate-800 border border-slate-700 text-primary text-[10px] flex items-center justify-center font-bold">${idx + 1}</span>
+                <span class="text-slate-300 leading-relaxed">${step}</span>
+            `;
+            feynmanFlow.appendChild(li);
+        });
+
+        const triggerContainer = document.getElementById('exam-triggers');
+        data.feynman_rebuild.exam_trigger_phrases.forEach(phrase => {
+            const span = document.createElement('span');
+            span.className = 'px-2 py-1 rounded bg-orange-400/10 border border-orange-400/30 text-orange-400 text-xs font-medium';
+            span.innerText = phrase;
+            triggerContainer.appendChild(span);
+        });
+
+        // Appendix
+        document.getElementById('original-notes').innerText = data.original_notes_for_appendix;
+        function toggleAppendix() {
+            const content = document.getElementById('appendix-content');
+            const icon = document.getElementById('appendix-icon');
+            content.classList.toggle('hidden');
+            icon.classList.toggle('rotate-180');
+        }
+
+        // Initial lab show
+        showTreeNode('Bit');
+    </script>
+</body>
+
+</html>
