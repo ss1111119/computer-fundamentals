@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>02 電腦資料處理與電腦通信 - 檔案架構與存取方法</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#6366f1', // Indigo 500
+                        secondary: '#ec4899', // Pink 500
+                        accent: '#10b981', // Emerald 500
+                        darkBg: '#0f172a',
+                        cardBg: '#1e293b',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #0f172a;
+            color: #f1f5f9;
+        }
+
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .flip-card {
+            perspective: 1000px;
+        }
+
+        .flip-card-inner {
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+
+        .flip-card.flipped .flip-card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .flip-card-front,
+        .flip-card-back {
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+
+        .flip-card-back {
+            transform: rotateY(180deg);
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .animate-slideIn {
+            animation: slideIn 0.5s ease-out forwards;
+        }
+    </style>
+</head>
+
+<body class="p-4 md:p-8">
+    <!-- Header -->
+    <header class="max-w-6xl mx-auto mb-12 animate-slideIn">
+        <div class="flex items-center gap-3 mb-3">
+            <span
+                class="px-3 py-1 text-xs font-bold tracking-widest uppercase bg-primary/20 text-primary border border-primary/30 rounded-full">Section
+                02</span>
+            <span class="text-slate-600">|</span>
+            <span class="text-slate-400 font-medium">Chapter 05 電腦資料處理與電腦通信</span>
+        </div>
+        <h1 class="text-4xl md:text-6xl font-extrabold gradient-text">檔案架構與存取方法</h1>
+        <p class="mt-4 text-lg text-slate-400 max-w-2xl leading-relaxed">
+            本節探討「如何存放資料」以提升存取效率，是連接資料定義與處理型態的關鍵中介層。核心在於：依據應用需求進行權衡 (Trade-off)。
+        </p>
+    </header>
+
+    <main class="max-w-6xl mx-auto space-y-8">
+
+        <!-- Row 1: Dashboard & Keywords -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <section class="lg:col-span-4 glass-card p-6 rounded-3xl">
+                <h2 class="text-xl font-bold mb-6 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                    出題戰略指標
+                </h2>
+                <div id="weighting-container" class="space-y-6">
+                    <!-- Weighted Topics -->
+                </div>
+            </section>
+
+            <section class="lg:col-span-8 glass-card p-6 rounded-3xl relative overflow-hidden">
+                <div class="absolute top-0 right-0 p-8 opacity-10">
+                    <svg class="w-32 h-32 text-primary" fill="currentColor" viewBox="0 0 24 24">
+                        <path
+                            d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zm0 2v12h16V6H4zm2 2h4v8H6V8zm6 0h6v2h-6V8zm0 4h6v2h-6v-2zm0 4h6v2h-6v-2z" />
+                    </svg>
+                </div>
+                <h2 class="text-xl font-bold mb-6 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"></path>
+                    </svg>
+                    關鍵定義速覽 (Flash Definitions)
+                </h2>
+                <div id="keywords-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Keywords -->
+                </div>
+            </section>
+        </div>
+
+        <!-- Row 2: Interactive Lab: Blocking Factor & RAID -->
+        <section class="glass-card p-8 rounded-3xl">
+            <h2 class="text-2xl font-bold mb-8 flex items-center gap-3">
+                <svg class="w-6 h-6 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.618.309a6 6 0 01-4.82.433l-2.387-.477a2 2 0 00-1.022.547l-1.162 1.162a2 2 0 00-.586 1.414V21h12v-4a2 2 0 00-.586-1.414l-1.162-1.162zM12 7V4m0 0a2 2 0 100-4 2 2 0 000 4zm0 0v3a2 2 0 002 2h3m-6 0a2 2 0 00-2 2v3">
+                    </path>
+                </svg>
+                核心觀念實驗室 (Efficiency & Security)
+            </h2>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                <!-- Blocking Factor Lab -->
+                <div class="bg-slate-900/50 p-6 rounded-2xl border border-slate-700">
+                    <h3 class="text-lg font-semibold mb-4 text-primary">1. Blocking Factor 效能計算機</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs uppercase text-slate-500 font-bold mb-2">實體區塊大小 (Block Size,
+                                Bytes)</label>
+                            <input type="number" id="input-block" value="4096"
+                                class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white focus:border-primary outline-none transition-all">
+                        </div>
+                        <div>
+                            <label class="block text-xs uppercase text-slate-500 font-bold mb-2">邏輯資料錄大小 (Record Size,
+                                Bytes)</label>
+                            <input type="number" id="input-record" value="128"
+                                class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white focus:border-primary outline-none transition-all">
+                        </div>
+                        <div class="pt-4 border-t border-slate-700">
+                            <div
+                                class="flex justify-between items-center bg-primary/10 p-4 rounded-xl border border-primary/20">
+                                <span class="text-primary font-bold">Blocking Factor (B.F.)</span>
+                                <span id="bf-result" class="text-3xl font-black text-white">32</span>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-4 leading-relaxed">
+                                <span class="text-accent">💡 物理學原理：</span> 將 <span id="bf-text">32</span>
+                                筆資料打包後，讀取頭只需「起降一次」即可存取全部，大幅減少機械動作延遲。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RAID Strategy Simulator -->
+                <div class="bg-slate-900/50 p-6 rounded-2xl border border-slate-700">
+                    <h3 class="text-lg font-semibold mb-4 text-secondary">2. RAID 戰略選擇器</h3>
+                    <div class="space-y-4">
+                        <div class="flex gap-2">
+                            <button onclick="selectRaid(0)" id="btn-raid0"
+                                class="flex-1 py-2 rounded-lg border border-slate-700 bg-slate-800 text-sm hover:border-secondary transition-all">RAID
+                                0</button>
+                            <button onclick="selectRaid(1)" id="btn-raid1"
+                                class="flex-1 py-2 rounded-lg border border-slate-700 bg-slate-800 text-sm hover:border-secondary transition-all">RAID
+                                1</button>
+                            <button onclick="selectRaid(5)" id="btn-raid5"
+                                class="flex-1 py-2 rounded-lg border border-slate-700 bg-slate-800 text-sm hover:border-secondary transition-all">RAID
+                                5</button>
+                        </div>
+                        <div id="raid-visual"
+                            class="h-24 flex items-center justify-center gap-4 bg-slate-950 rounded-xl border border-slate-800">
+                            <!-- Disk Visualization -->
+                        </div>
+                        <div id="raid-desc" class="p-4 rounded-xl bg-slate-900 text-sm border-l-4 border-secondary">
+                            <!-- Dynamic Content -->
+                        </div>
+                    </div>
+                    <!-- Common Mistake Card -->
+                    <div class="mt-4 p-3 bg-red-400/10 border border-red-400/20 rounded-xl flex gap-3">
+                        <svg class="w-5 h-5 text-red-500 shrink-0" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <div class="text-xs">
+                            <span class="text-red-400 font-bold block mb-1">常見陷阱：RAID 0 無容錯</span>
+                            <span class="text-slate-400">RAID 0 雖然快，但「零」資料保護。一旦任一硬碟故障，全數據遺失。</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Row 3: Comparison Matrix -->
+        <section class="glass-card p-8 rounded-3xl">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-3">
+                <svg class="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+                </svg>
+                存取策略權衡表 (Access Methods Trade-offs)
+            </h2>
+            <div id="matrix-dimensions" class="flex flex-wrap gap-2 mb-6">
+                <!-- Dimension Chips -->
+            </div>
+            <div class="overflow-x-auto rounded-2xl border border-slate-800">
+                <table class="w-full text-left">
+                    <thead class="bg-slate-800/50">
+                        <tr id="matrix-head"></tr>
+                    </thead>
+                    <tbody id="matrix-body">
+                        <!-- Rows -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Row 4: Flashcards & Scenarios -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <section class="glass-card p-6 rounded-3xl">
+                <h2 class="text-xl font-bold mb-6 flex justify-between items-center">
+                    利弊快取卡 (Recall)
+                    <span id="card-index" class="text-xs font-normal text-slate-500 tracking-widest">1 / 5</span>
+                </h2>
+                <div class="flip-card h-48 cursor-pointer" id="flashcard">
+                    <div class="flip-card-inner h-full w-full relative">
+                        <div
+                            class="flip-card-front absolute inset-0 bg-slate-800/50 rounded-2xl border border-slate-700 flex items-center justify-center p-8 text-center">
+                            <h3 id="card-front" class="text-xl font-semibold text-white"></h3>
+                        </div>
+                        <div
+                            class="flip-card-back absolute inset-0 bg-primary/20 rounded-2xl border border-primary/40 flex items-center justify-center p-8 text-center overflow-hidden">
+                            <p id="card-back" class="text-sm leading-relaxed font-medium"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-center gap-6 mt-6">
+                    <button onclick="prevCard()"
+                        class="p-2 rounded-full hover:bg-slate-800 text-slate-400 transition-all"><svg class="w-8 h-8"
+                            fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7">
+                            </path>
+                        </svg></button>
+                    <button onclick="nextCard()"
+                        class="p-2 rounded-full hover:bg-slate-800 text-slate-400 transition-all"><svg class="w-8 h-8"
+                            fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7">
+                            </path>
+                        </svg></button>
+                </div>
+            </section>
+
+            <section class="glass-card p-6 rounded-3xl">
+                <h2 class="text-xl font-bold mb-6">實戰邏輯演練 (Exam Scenarios)</h2>
+                <div id="scenarios-list" class="space-y-4">
+                    <!-- Scenarios -->
+                </div>
+            </section>
+        </div>
+
+        <!-- Row 5: Feynman -->
+        <section class="glass-card p-8 rounded-3xl bg-gradient-to-br from-cardBg to-slate-800 border-none">
+            <h2 class="text-2xl font-bold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">
+                費曼學習法：檔案架構生存指南</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                <div>
+                    <h3 class="text-xs uppercase text-slate-500 font-black tracking-widest mb-4">白話概念 (The Core)</h3>
+                    <p id="feynman-plain" class="text-2xl font-bold text-white mb-6 leading-snug"></p>
+                    <div class="p-6 bg-slate-950/50 rounded-2xl border border-slate-800">
+                        <h4 class="text-xs font-bold text-primary uppercase mb-2">生活類比 (The Hook)</h4>
+                        <p id="feynman-analogy" class="text-slate-400 italic leading-relaxed"></p>
+                    </div>
+                </div>
+                <div class="space-y-6">
+                    <h3 class="text-xs uppercase text-slate-500 font-black tracking-widest mb-4">教學地圖 (The Flow)</h3>
+                    <div id="feynman-steps" class="space-y-4">
+                        <!-- Steps -->
+                    </div>
+                </div>
+            </div>
+            <div class="mt-10 pt-10 border-t border-slate-700/50 grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                    <h4 class="text-xs font-bold text-orange-400 uppercase mb-3">考試核心關鍵字</h4>
+                    <div id="trigger-tags" class="flex flex-wrap gap-2"></div>
+                </div>
+                <div class="bg-primary/5 p-6 rounded-2xl">
+                    <h4 class="text-xs font-bold text-primary uppercase mb-3 text-center">60 秒快速教案</h4>
+                    <p id="feynman-one-minute" class="text-sm text-center text-slate-300"></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Appendix -->
+        <section class="mt-12">
+            <button onclick="toggleAppendix()"
+                class="w-full flex justify-between items-center p-4 bg-slate-900/50 rounded-xl text-xs font-bold text-slate-500 hover:text-white transition-all">
+                APPENDIX: ORIGINAL NOTES
+                <svg id="appendix-btn" class="w-4 h-4 transition-transform" fill="none" stroke="currentColor"
+                    viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+            </button>
+            <div id="appendix-content" class="hidden mt-4 p-8 bg-slate-950 rounded-2xl overflow-x-auto">
+                <pre id="raw-notes" class="text-slate-600 font-mono text-xs whitespace-pre-wrap"></pre>
+            </div>
+        </section>
+    </main>
+
+    <footer class="max-w-6xl mx-auto mt-20 mb-10 text-center text-slate-600 text-xs">
+        <p>© Chapter 5.2 - Interactive Study Guide | Powered by ss1111119/computer-fundamentals</p>
+    </footer>
+
+    <script>
+        const data = {
+            "chapter_positioning": {
+                "one_sentence": "本節探討「如何存放資料」以提升存取效率，是連接資料定義與處理型態的關鍵中介層，核心在於需求權衡 (Trade-off)。",
+                "prerequisites": ["5-1 資料與資訊定義"],
+                "downstream_links": ["5-3 處理模式", "12 資料庫系統"]
+            },
+            "keywords": [
+                {
+                    "term": "區塊化 (Blocking)",
+                    "why_important": "提升 I/O 效率核心技術，減少磁碟讀寫次數。",
+                    "common_exam_angle": "邏輯資料錄與實體資料錄的打包概念，計算 Blocking Factor。"
+                },
+                {
+                    "term": "主檔 (Master File)",
+                    "why_important": "資料處理的永久性核心（資料基石）。",
+                    "common_exam_angle": "區分永久性與暫時性，及其更新機制。"
+                },
+                {
+                    "term": "異動檔 (Transaction File)",
+                    "why_important": "驅動主檔更新的事件檔案。",
+                    "common_exam_angle": "暫時性、週期性，用於批次處理流程。"
+                },
+                {
+                    "term": "存取方法 (Access Method)",
+                    "why_important": "決定提取資料的邏輯路徑。",
+                    "common_exam_angle": "SAM, ISAM, DAM 的優缺點與適合場景比較。"
+                },
+                {
+                    "term": "RAID",
+                    "why_important": "檔案儲存層級的保護與效能提升策略。",
+                    "common_exam_angle": "比較 RAID 0, 1, 3, 5 的容錯性與效能分配。"
+                }
+            ],
+            "weighting": {
+                "basis": "estimate",
+                "items": [
+                    {
+                        "topic": "存取方法比較 (SAM/ISAM/DAM)",
+                        "weight": 40,
+                        "reason": "本節內容最核心，考題最密集之處。"
+                    },
+                    {
+                        "topic": "RAID 級別與特性",
+                        "weight": 30,
+                        "reason": "常考容錯機制與效能平衡之計算題。"
+                    },
+                    {
+                        "topic": "區塊化 (Blocking) 計算",
+                        "weight": 20,
+                        "reason": "基礎計算題，理解 I/O 瓶頸之關鍵。"
+                    },
+                    {
+                        "topic": "檔案分類 (Master/Trans)",
+                        "weight": 10,
+                        "reason": "定義題，理解資料流向必備。"
+                    }
+                ]
+            },
+            "comparison_matrix": {
+                "title": "三種主要存取方法權衡表",
+                "dimensions": ["核心技術", "空間利用率", "存取速度", "適合場景"],
+                "rows": [
+                    {
+                        "name": "循序存取 (SAM)",
+                        "values": {
+                            "核心技術": "依序排列提取",
+                            "空間利用率": "最高（無須索引）",
+                            "存取速度": "找單一極慢 / 處理全部極快",
+                            "適合場景": "批次處理、資料備份"
+                        },
+                        "pitfall": "不適合需要即時回應的系統。",
+                        "rule_of_thumb": "「老實人」：按部就班，效率在活動性高時爆發。"
+                    },
+                    {
+                        "name": "索引循序 (ISAM)",
+                        "values": {
+                            "核心技術": "主要區 + 索引區",
+                            "空間利用率": "中（需額外儲存索引）",
+                            "存取速度": "中等，具備隨機能力",
+                            "適合場景": "需中等查詢彈性的系統"
+                        },
+                        "pitfall": "超溢區 (Overflow Area) 過大會導致效能驟降。",
+                        "rule_of_thumb": "「折衷派」：既要順序又要隨機，需定期重新整理。"
+                    },
+                    {
+                        "name": "直接存取 (DAM)",
+                        "values": {
+                            "核心技術": "雜湊 (Hashing)",
+                            "空間利用率": "通常較低（需預留空間）",
+                            "存取速度": "極快（直接計算位址）",
+                            "適合場景": "即時處理 (Real-time)"
+                        },
+                        "pitfall": "需處理 Collision (碰撞) 與 Synonym (同義字) 問題。",
+                        "rule_of_thumb": "「飛人」：瞬間抵達，但家裡（硬體空間）要夠大才不會撞到。"
+                    }
+                ]
+            },
+            "core_concept_lab": {
+                "chosen_concept": "區塊化與 RAID 戰略模擬器",
+                "type": "calculator",
+                "learning_objective": "理解 Blocking 如何優化 I/O，並根據需求選擇合適的 RAID 方案。",
+                "inputs": [
+                    {
+                        "id": "block_size",
+                        "label": "實體區塊大小 (Bytes)",
+                        "type": "number",
+                        "default": "4096"
+                    },
+                    {
+                        "id": "record_size",
+                        "label": "邏輯資料錄大小 (Bytes)",
+                        "type": "number",
+                        "default": "128"
+                    },
+                    {
+                        "id": "raid_type",
+                        "label": "RAID 方案",
+                        "type": "select",
+                        "options": ["RAID 0", "RAID 1", "RAID 5"],
+                        "default": "RAID 5"
+                    }
+                ],
+                "interaction_logic": "系統計算 Blocking Factor = Block / Record。同時根據選擇的 RAID 類型，顯示其戰略優勢（效能 vs 容錯）。",
+                "outputs": [
+                    {
+                        "id": "bf_result",
+                        "label": "Blocking Factor (B.F.)",
+                        "format": "text"
+                    },
+                    {
+                        "id": "io_summary",
+                        "label": "效能與容錯分析",
+                        "format": "table"
+                    }
+                ],
+                "common_mistakes": [
+                    {
+                        "mistake": "以為 RAID 0 具備容錯能力",
+                        "why_wrong": "RAID 0 只有 Striping，任何一顆硬碟損壞資料皆遺失。",
+                        "how_to_fix": "記住 RAID 0 代表「零」容錯。"
+                    }
+                ]
+            },
+            "feynman_explanation": {
+                "one_sentence_plain": "這章在教你：如果你有很多書（資料），該怎麼按規矩擺放，才能在搬家（備份）或想看某一本（查詢）時最快。",
+                "analogy": "Blocking 就像是去超市買礦泉水，拿「一箱 24 瓶 (實體區塊)」比一瓶一瓶 (邏輯資料錄) 拿回去來的快。",
+                "forbidden_terms_used": ["邏輯資料錄", "實體資料錄", "雜湊演算法"]
+            },
+            "feynman_rebuild": {
+                "teach_flow": [
+                    "首先，介紹 Blocking 概念：單兵作戰 (單一讀取) 太慢，我們要把邏輯資料錄打包成大區塊。",
+                    "接著，檔案有分主從：主檔是你的本尊，異動檔是每天發生的事情，兩者合併更新。",
+                    "最後，選擇存放方式：如果要大批搬移請選 SAM，如果要瞬間查到請選 DAM。"
+                ],
+                "one_minute_version": "檔案架構就是在效能、空間與安全之間做權衡。先透過 Blocking 技術減少磁碟運動，再根據讀取需求選擇存取法：大量處理用循序 (SAM)，快速定位用雜湊直接存取 (DAM)，兩者兼具選 ISAM。最後用 RAID 技術在硬體層級確保資料不會遺失。",
+                "exam_trigger_phrases": [
+                    "磁碟 I/O 物理限制",
+                    "活動性 (Activity) 高",
+                    "超溢區 (Overflow)",
+                    "磁碟陣列平衡點"
+                ]
+            },
+            "flashcards": [
+                {
+                    "front": "Blocking (區塊化) 的主要目的是？",
+                    "back": "減少磁碟讀寫頭起降次數，提升 I/O 效能。"
+                },
+                {
+                    "front": "哪種存取法最適合資料備份？",
+                    "back": "循序存取 (SAM)；因為備份通常是從頭讀到尾。"
+                },
+                {
+                    "front": "ISAM 的三大組成區域？",
+                    "back": "索引區、主資料區、超溢區。"
+                },
+                {
+                    "front": "RAID 1 的核心原理是？",
+                    "back": "Mirroring (鏡射)；兩顆硬碟存一樣的內容，安全性最高，成本最高。"
+                },
+                {
+                    "front": "何謂同義字 (Synonym)？",
+                    "back": "在 DAM 中，兩個不同的資料關鍵值經過雜湊運算後，得到相同的位址。"
+                }
+            ],
+            "scenario_checks": [
+                {
+                    "statement": "當資料庫檔案非常龐大，且我們每天只需要查詢其中 1% 的特定資料時，使用 SAM 是最佳選擇。",
+                    "answer": "X",
+                    "explanation": "錯誤。1% 的查詢屬於低活動性，SAM 必須從頭過濾檔案，效率極低。此時建議用 DAM 或 ISAM。"
+                },
+                {
+                    "statement": "RAID 5 被視為效能、成本與安全性之間較佳的平衡點。",
+                    "answer": "O",
+                    "explanation": "正確。它透過分散檢查碼 (Parity) 兼顧了循序讀取的效能與單顆硬碟損壞的容錯。"
+                }
+            ],
+            "original_notes_for_appendix": "在「第五章 電腦資料處理與電腦通信」的宏觀架構下，來源資料將**「檔案架構與存取方法 (5-2)」**視為連接「資料定義 (5-1)」與「處理型態 (5-3)」的關鍵中介層。\n如果說 5-1 定義了資料是什麼（原料）， 5-3 定義了如何處理（批次或即時），那麼這一節就是在探討**「如何存放原料，以便最有效率地被取出處理」。來源資料對此抱持著「依據需求權衡 (Trade-off)」**的看法，認為沒有絕對完美的存取法，只有最適合特定應用場景的架構。\n根據來源資料，我們可以從以下四個核心層面來探討其看法：\n1. 效率的物理基礎：邏輯與實體的轉換\n來源資料首先區分了程式設計師眼中的**「邏輯資料錄 (Logical Record)」與硬體儲存的「實體資料錄 (Physical Record)」**。\n• 看法：教材認為，為了克服硬體 I/O 速度慢的物理限制，必須採用**「區塊化 (Blocking)」**技術。\n• 機制：將多個邏輯資料錄打包成一個實體區塊（Block），這樣 CPU 下一次讀取指令時，就能一次搬運多筆資料進入記憶體，減少磁碟讀寫頭頻繁起降的機械動作。這被視為提升存取效率的第一步。\n2. 檔案的角色定位：主檔 vs. 異動檔\n來源資料依據檔案在資料處理流程中的「功能」，將其分類並賦予不同的更新頻率看法：\n• 主檔 (Master File)：被視為**「永久性」**的資料集合（如客戶名單），內容雖會變動但結構穩定。\n• 異動檔 (Transaction File)：被視為**「暫時性」**的事件集合（如當日的交易紀錄），其存在目的是為了更新主檔。\n• 觀點：這種分類是為了配合後續「批次處理」的概念——累積一堆異動檔，再一次性更新主檔。\n3. 存取策略的光譜：從循序到隨機\n這是本節最核心的技術觀點。來源資料透過比較三種主要存取法，展示了在**「空間利用率」與「存取速度」**之間的權衡：\n• 循序存取 (Sequential Access Method, SAM)：\n    ◦ 看法：最簡單、空間利用率最高，但彈性最差。\n    ◦ 適用性：教材強烈建議用於**「批次處理」或「資料備份」**。因為當活動性 (Activity) 高（大部分資料都要處理）時，從頭讀到尾是最快的；但若要找單一資料，效率極低。\n• 索引循序存取 (Indexed Sequential Access Method, ISAM)：\n    ◦ 看法：一種**「折衷」方案。它透過建立索引 (Index)** 來支援隨機存取，同時保留了資料的順序性。\n    ◦ 結構：教材將其解構為索引區、主資料區與超溢區 (Overflow Area)。\n    ◦ 缺點：隨著資料新增，超溢區會變大，導致效能下降，因此被認為需要定期重組 (Reorganization)。\n• 直接存取 (Direct Access Method, DAM)：\n    ◦ 看法：追求極致速度的方案，利用雜湊 (Hashing) 演算法計算位址。\n    ◦ 代價：雖然速度最快，但教材指出了**「碰撞 (Collision)」與「同義字 (Synonym)」的問題，且空間利用率通常較差（需要預留空間避免碰撞）。這適合即時處理 (Real-time)** 系統。\n4. 硬體層級的保護：RAID 的戰略地位\n值得注意的是，來源資料將 RAID (磁碟陣列) 歸類在「資料檔案研究」這一節，而非純硬體章節。\n• 看法：這反映了教材將 RAID 視為一種**「檔案儲存的策略」**。\n• 評估標準：教材透過 RAID 0, 1, 3, 5 的比較，教導學生如何在效能 (Striping)、成本 與 安全性 (Mirroring/Parity) 之間做選擇。例如 RAID 5 被視為兼顧容量與容錯的最佳平衡點。\n總結\n在第五章的脈絡下，來源資料對「檔案架構」的看法是：存取方法的選擇取決於資料的「特性」與「用途」。\n• 如果資料異動頻繁且需即時回應 → 用 DAM 或 ISAM。\n• 如果資料量大且只需週期性更新 → 用 SAM。\n• 如果資料極度重要 → 底層需搭配 RAID 1/5。\n這套邏輯為後續第十二章「資料庫系統」（解決檔案系統的重複性與不一致性問題）鋪平了道路。"
+        };
+
+        // Dashboard Init
+        const weightingContainer = document.getElementById('weighting-container');
+        data.weighting.items.forEach(item => {
+            const div = document.createElement('div');
+            div.innerHTML = `
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm font-semibold text-slate-300">${item.topic}</span>
+                    <span class="text-xs text-primary">${item.weight}%</span>
+                </div>
+                <div class="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                    <div class="h-full bg-primary transition-all duration-1000 ease-out" style="width: 0%" data-target="${item.weight}%"></div>
+                </div>
+                <p class="text-[10px] text-slate-500 mt-2">${item.reason}</p>
+            `;
+            weightingContainer.appendChild(div);
+        });
+
+        setTimeout(() => {
+            weightingContainer.querySelectorAll('[data-target]').forEach(bar => {
+                bar.style.width = bar.getAttribute('data-target');
+            });
+        }, 300);
+
+        // Keywords Grid
+        const keywordsGrid = document.getElementById('keywords-grid');
+        data.keywords.forEach(kw => {
+            const div = document.createElement('div');
+            div.className = 'p-4 rounded-2xl bg-slate-900/40 border border-slate-800 hover:border-secondary transition-all group';
+            div.innerHTML = `
+                <h4 class="text-sm font-bold text-secondary mb-1">${kw.term}</h4>
+                <p class="text-xs text-slate-400 group-hover:text-slate-300 transition-colors">${kw.why_important}</p>
+                <div class="mt-2 text-[10px] text-orange-400/80 font-medium">Exam Angle: ${kw.common_exam_angle}</div>
+            `;
+            keywordsGrid.appendChild(div);
+        });
+
+        // Blocking Factor Lab
+        const inputBlock = document.getElementById('input-block');
+        const inputRecord = document.getElementById('input-record');
+        const bfResult = document.getElementById('bf-result');
+        const bfText = document.getElementById('bf-text');
+
+        function updateBF() {
+            const block = parseInt(inputBlock.value) || 0;
+            const record = parseInt(inputRecord.value) || 1;
+            const bf = Math.floor(block / record);
+            bfResult.innerText = bf;
+            bfText.innerText = bf;
+        }
+
+        inputBlock.oninput = updateBF;
+        inputRecord.oninput = updateBF;
+
+        // RAID Simulator
+        const raidVisual = document.getElementById('raid-visual');
+        const raidDesc = document.getElementById('raid-desc');
+        const raidInfo = {
+            0: { title: "RAID 0 (Striping)", desc: "資料切成塊分開存。速度最快，但沒有容錯，壞一顆就全掛。", disks: ["Block A1", "Block A2", "Block A3"] },
+            1: { title: "RAID 1 (Mirroring)", desc: "資料複製一份。安全性最高，但硬碟利用率只有 50%。", disks: ["Original", "Copy", "Mirror"] },
+            5: { title: "RAID 5 (Parity Balance)", desc: "資料與檢查碼分散存放。兼顧讀取速度、容量與容錯（可忍受壞一顆）。", disks: ["Data", "Data", "Parity"] }
+        };
+
+        function selectRaid(type) {
+            // UI
+            [0, 1, 5].forEach(t => {
+                document.getElementById(`btn-raid${t}`).classList.toggle('border-secondary', t === type);
+                document.getElementById(`btn-raid${t}`).classList.toggle('bg-secondary/10', t === type);
+            });
+            // Visual
+            raidVisual.innerHTML = raidInfo[type].disks.map(name => `
+                <div class="w-16 h-16 rounded-lg bg-slate-800 border-2 border-slate-700 flex items-center justify-center text-[10px] font-bold text-slate-500 text-center px-1">
+                    ${name}
+                </div>
+            `).join('');
+            // Desc
+            raidDesc.innerHTML = `<b class="text-secondary">${raidInfo[type].title}:</b> ${raidInfo[type].desc}`;
+        }
+        selectRaid(5);
+
+        // Comparison Matrix
+        const matrixHead = document.getElementById('matrix-head');
+        const matrixBody = document.getElementById('matrix-body');
+        const matrixDims = document.getElementById('matrix-dimensions');
+
+        let headHtml = `<th class="p-4 border-b border-slate-800 text-xs text-slate-500 uppercase font-black">Method</th>`;
+        data.comparison_matrix.dimensions.forEach(dim => {
+            headHtml += `<th class="p-4 border-b border-slate-800 text-xs text-slate-500 uppercase font-black" data-dim="${dim}">${dim}</th>`;
+            const chip = document.createElement('button');
+            chip.className = 'px-3 py-1 text-[10px] font-bold rounded-full bg-slate-800 border border-slate-700 text-slate-500 hover:text-white transition-all';
+            chip.innerText = dim;
+            chip.onclick = () => highlightDim(dim);
+            matrixDims.appendChild(chip);
+        });
+        matrixHead.innerHTML = headHtml;
+
+        data.comparison_matrix.rows.forEach(row => {
+            let rowHtml = `<tr class="border-b border-slate-800/50 hover:bg-slate-800/20 transition-all">
+                <td class="p-4 text-sm font-bold text-white">${row.name}</td>`;
+            data.comparison_matrix.dimensions.forEach(dim => {
+                rowHtml += `<td class="p-4 text-sm text-slate-400" data-cell="${dim}">${row.values[dim]}</td>`;
+            });
+            rowHtml += `</tr>`;
+            rowHtml += `<tr class="bg-slate-900/30"><td colspan="${data.comparison_matrix.dimensions.length + 1}" class="px-4 py-2 text-[10px]">
+                <div class="flex gap-8">
+                    <span class="text-orange-400">Pitfall: ${row.pitfall}</span>
+                    <span class="text-accent">Rule: ${row.rule_of_thumb}</span>
+                </div>
+            </td></tr>`;
+            matrixBody.innerHTML += rowHtml;
+        });
+
+        function highlightDim(dim) {
+            document.querySelectorAll('[data-dim], [data-cell]').forEach(el => el.classList.remove('bg-primary/10', 'text-primary', 'font-bold'));
+            document.querySelectorAll(`[data-dim="${dim}"], [data-cell="${dim}"]`).forEach(el => el.classList.add('bg-primary/10', 'text-primary', 'font-bold'));
+            matrixDims.querySelectorAll('button').forEach(b => b.classList.toggle('border-primary', b.innerText === dim));
+        }
+
+        // Flashcards
+        let currentCard = 0;
+        const flashcard = document.getElementById('flashcard');
+        function updateCard() {
+            flashcard.classList.remove('flipped');
+            setTimeout(() => {
+                document.getElementById('card-front').innerText = data.flashcards[currentCard].front;
+                document.getElementById('card-back').innerText = data.flashcards[currentCard].back;
+                document.getElementById('card-index').innerText = `${currentCard + 1} / ${data.flashcards.length}`;
+            }, 300);
+        }
+        flashcard.onclick = () => flashcard.classList.toggle('flipped');
+        function nextCard() { currentCard = (currentCard + 1) % data.flashcards.length; updateCard(); }
+        function prevCard() { currentCard = (currentCard - 1 + data.flashcards.length) % data.flashcards.length; updateCard(); }
+        updateCard();
+
+        // Scenario Checks
+        const scenariosList = document.getElementById('scenarios-list');
+        data.scenario_checks.forEach((sc, idx) => {
+            const div = document.createElement('div');
+            div.className = "p-4 rounded-2xl bg-slate-900/50 border border-slate-700";
+            div.innerHTML = `
+                <p class="text-sm font-medium text-slate-300 mb-4">${sc.statement}</p>
+                <div class="flex gap-4">
+                    <button onclick="checkScenario(${idx}, 'O')" id="sc-${idx}-O" class="flex-1 py-1 text-xs rounded-lg border border-slate-700 hover:border-accent hover:text-accent font-bold transition-all">是 (O)</button>
+                    <button onclick="checkScenario(${idx}, 'X')" id="sc-${idx}-X" class="flex-1 py-1 text-xs rounded-lg border border-slate-700 hover:border-secondary hover:text-secondary font-bold transition-all">否 (X)</button>
+                </div>
+                <div id="sc-ans-${idx}" class="mt-4 hidden p-3 rounded-lg text-xs leading-relaxed transition-all"></div>
+            `;
+            scenariosList.appendChild(div);
+        });
+
+        function checkScenario(idx, choice) {
+            const sc = data.scenario_checks[idx];
+            const ansBox = document.getElementById(`sc-ans-${idx}`);
+            ansBox.classList.remove('hidden', 'bg-accent/10', 'text-accent', 'bg-secondary/10', 'text-secondary');
+            const correct = choice === sc.answer;
+            ansBox.classList.add(correct ? 'bg-accent/10' : 'bg-secondary/10');
+            ansBox.classList.add(correct ? 'text-accent' : 'text-secondary');
+            ansBox.innerHTML = `<b>${correct ? "Correct!" : "Mistake!"}</b><br>${sc.explanation}`;
+            document.getElementById(`sc-${idx}-O`).disabled = true;
+            document.getElementById(`sc-${idx}-X`).disabled = true;
+        }
+
+        // Feynman
+        document.getElementById('feynman-plain').innerText = data.feynman_explanation.one_sentence_plain;
+        document.getElementById('feynman-analogy').innerText = data.feynman_explanation.analogy;
+        document.getElementById('feynman-one-minute').innerText = data.feynman_rebuild.one_minute_version;
+        const feynmanSteps = document.getElementById('feynman-steps');
+        data.feynman_rebuild.teach_flow.forEach((step, idx) => {
+            feynmanSteps.innerHTML += `
+                <div class="flex gap-4 items-start">
+                    <div class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center shrink-0 border border-slate-700 text-primary font-bold text-xs">${idx + 1}</div>
+                    <p class="text-sm text-slate-300 pt-1">${step}</p>
+                </div>
+            `;
+        });
+        const triggers = document.getElementById('trigger-tags');
+        data.feynman_rebuild.exam_trigger_phrases.forEach(p => {
+            triggers.innerHTML += `<span class="px-2 py-1 rounded-md bg-orange-400/10 border border-orange-400/30 text-[10px] text-orange-400 font-bold">${p}</span>`;
+        });
+
+        // Appendix
+        document.getElementById('raw-notes').innerText = data.original_notes_for_appendix;
+        function toggleAppendix() {
+            const content = document.getElementById('appendix-content');
+            const btn = document.getElementById('appendix-btn');
+            content.classList.toggle('hidden');
+            btn.classList.toggle('rotate-180');
+        }
+    </script>
+</body>
+
+</html>
