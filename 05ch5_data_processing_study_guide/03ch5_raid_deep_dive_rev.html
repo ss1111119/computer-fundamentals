@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>03 RAID 磁碟陣列深探 - 學習導論</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#f59e0b', // Amber 500
+                        secondary: '#3b82f6', // Blue 500
+                        accent: '#ef4444', // Red 500
+                        darkBg: '#0f172a',
+                        cardBg: '#1e293b',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Segoe+UI:wght@300;400;600;700&display=swap');
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: #0f172a;
+            color: #f1f5f9;
+        }
+
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .raid-active {
+            border-color: #f59e0b;
+            box-shadow: 0 0 20px rgba(245, 158, 11, 0.2);
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .disk-cube {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .disk-error {
+            background-color: #ef4444 !important;
+            border-color: #b91c1c !important;
+            animation: shake 0.5s ease-in-out infinite;
+        }
+
+        @keyframes shake {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            25% {
+                transform: translateX(-2px);
+            }
+
+            75% {
+                transform: translateX(2px);
+            }
+        }
+
+        .xor-cell {
+            font-family: monospace;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #334155;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body class="p-4 md:p-8">
+
+    <!-- Header -->
+    <header class="max-w-6xl mx-auto mb-10">
+        <div class="flex items-center gap-3 mb-2">
+            <span
+                class="px-3 py-1 text-xs font-bold tracking-widest uppercase bg-primary/20 text-primary border border-primary/30 rounded-full">Section
+                03</span>
+            <span class="text-slate-500">|</span>
+            <span class="text-slate-400 font-medium">Chapter 05 電腦資料處理與通信</span>
+        </div>
+        <h1 class="text-4xl md:text-5xl font-black text-white">RAID 磁碟陣列深探</h1>
+        <p class="mt-4 text-slate-400 max-w-2xl leading-relaxed italic border-l-4 border-primary pl-4">
+            「RAID 的核心價值在於解決檔案系統的『可靠性』與『存取效率』問題。」
+        </p>
+    </header>
+
+    <main class="max-w-6xl mx-auto space-y-8">
+
+        <!-- RAID Performance / Utilization Dashboard -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <section class="lg:col-span-8 glass-card p-8 rounded-3xl">
+                <div class="flex justify-between items-center mb-8">
+                    <h2 class="text-2xl font-bold flex items-center gap-3 text-primary">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                            </path>
+                        </svg>
+                        磁碟陣列戰略模擬器
+                    </h2>
+                    <div class="flex gap-2">
+                        <input type="number" id="disk-count" value="4" min="2" max="12"
+                            class="w-16 bg-slate-800 border border-slate-700 rounded p-1 text-center text-sm">
+                        <span
+                            class="text-xs text-slate-500 self-center uppercase font-bold tracking-tighter">Disks</span>
+                    </div>
+                </div>
+
+                <!-- RAID Selector Grid -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                    <button onclick="setRaid(0)" id="btn-raid0"
+                        class="p-4 rounded-xl border border-slate-700 bg-slate-800/50 hover:border-primary transition-all text-left">
+                        <div class="text-xs text-slate-500 font-bold mb-1">RAID 0</div>
+                        <div class="text-sm font-bold">Striping</div>
+                    </button>
+                    <button onclick="setRaid(1)" id="btn-raid1"
+                        class="p-4 rounded-xl border border-slate-700 bg-slate-800/50 hover:border-primary transition-all text-left">
+                        <div class="text-xs text-slate-500 font-bold mb-1">RAID 1</div>
+                        <div class="text-sm font-bold">Mirroring</div>
+                    </button>
+                    <button onclick="setRaid(5)" id="btn-raid5"
+                        class="p-4 rounded-xl border border-slate-700 bg-slate-800/50 hover:border-primary transition-all text-left">
+                        <div class="text-xs text-slate-500 font-bold mb-1">RAID 5</div>
+                        <div class="text-sm font-bold">Distributed Parity</div>
+                    </button>
+                    <button onclick="setRaid(10)" id="btn-raid10"
+                        class="p-4 rounded-xl border border-slate-700 bg-slate-800/50 hover:border-primary transition-all text-left">
+                        <div class="text-xs text-slate-500 font-bold mb-1">RAID 10</div>
+                        <div class="text-sm font-bold">Hybrid (1+0)</div>
+                    </button>
+                </div>
+
+                <!-- Visualization Area -->
+                <div id="raid-viz"
+                    class="bg-slate-950 rounded-2xl p-6 border border-slate-800 min-h-[200px] flex flex-wrap gap-4 items-center justify-center">
+                    <!-- Disks injected here -->
+                </div>
+
+                <!-- Calculated Stats -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+                    <div class="p-4 bg-slate-900/50 rounded-xl border border-slate-800">
+                        <div class="text-xs text-slate-500 font-bold uppercase mb-2">硬碟利用率 (Efficiency)</div>
+                        <div id="stat-efficiency" class="text-2xl font-black text-white">--</div>
+                    </div>
+                    <div class="p-4 bg-slate-900/50 rounded-xl border border-slate-800">
+                        <div class="text-xs text-slate-500 font-bold uppercase mb-2">容錯數量 (Fault Tolerance)</div>
+                        <div id="stat-fault" class="text-2xl font-black text-accent">--</div>
+                    </div>
+                    <div class="p-4 bg-slate-900/50 rounded-xl border border-slate-800">
+                        <div class="text-xs text-slate-500 font-bold uppercase mb-2">主要用途 (Best Use-case)</div>
+                        <div id="stat-use" class="text-sm font-bold text-slate-300">--</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- XOR Parity Lab -->
+            <section class="lg:col-span-4 glass-card p-8 rounded-3xl border-secondary/20 bg-secondary/5">
+                <h2 class="text-xl font-black mb-6 flex items-center gap-2 text-secondary italic">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z">
+                        </path>
+                    </svg>
+                    XOR 同位檢查實驗室
+                </h2>
+                <p class="text-xs text-secondary/70 mb-6 leading-relaxed">
+                    RAID 5 的魔術：利用 A ⊕ B = C 的原理。若 A 遺失，只需 C ⊕ B 即可變回 A。
+                </p>
+                <div class="space-y-6">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-bold">Data 1:</span>
+                        <div id="xor-d1" class="flex gap-1">
+                            <button onclick="toggleBit('xor-d1', 0)"
+                                class="xor-cell bg-slate-800 hover:bg-slate-700">0</button>
+                            <button onclick="toggleBit('xor-d1', 1)"
+                                class="xor-cell bg-slate-800 hover:bg-slate-700">1</button>
+                            <button onclick="toggleBit('xor-d1', 2)"
+                                class="xor-cell bg-slate-800 hover:bg-slate-700">0</button>
+                            <button onclick="toggleBit('xor-d1', 3)"
+                                class="xor-cell bg-slate-800 hover:bg-slate-700">1</button>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-bold">Data 2:</span>
+                        <div id="xor-d2" class="flex gap-1">
+                            <button onclick="toggleBit('xor-d2', 0)"
+                                class="xor-cell bg-slate-800 hover:bg-slate-700">1</button>
+                            <button onclick="toggleBit('xor-d2', 1)"
+                                class="xor-cell bg-slate-800 hover:bg-slate-700">1</button>
+                            <button onclick="toggleBit('xor-d2', 2)"
+                                class="xor-cell bg-slate-800 hover:bg-slate-700">0</button>
+                            <button onclick="toggleBit('xor-d2', 3)"
+                                class="xor-cell bg-slate-800 hover:bg-slate-700">0</button>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-center py-2 text-slate-600 font-black">⊕ (XOR)</div>
+                    <div class="flex items-center justify-between border-t border-secondary/30 pt-4">
+                        <span class="text-sm font-black text-secondary uppercase">Parity:</span>
+                        <div id="xor-res" class="flex gap-1">
+                            <div class="xor-cell border-secondary/50 text-secondary bg-secondary/10">0</div>
+                            <div class="xor-cell border-secondary/50 text-secondary bg-secondary/10">0</div>
+                            <div class="xor-cell border-secondary/50 text-secondary bg-secondary/10">0</div>
+                            <div class="xor-cell border-secondary/50 text-secondary bg-secondary/10">0</div>
+                        </div>
+                    </div>
+                    <div class="mt-8 p-3 bg-slate-900 rounded-xl text-[10px] text-slate-500 text-center">
+                        <span class="text-secondary font-bold">應考要點：</span> RAID 3 固定存放 Parity 在最後一顆；RAID 5 則分散存放於各磁碟。
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- RAID Matrix -->
+        <section class="glass-card p-8 rounded-3xl">
+            <h2 class="text-2xl font-black mb-8">RAID 戰略分佈圖 (The Comparison Matrix)</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-slate-800/50">
+                        <tr>
+                            <th class="p-4 border-b border-slate-700 text-xs font-black uppercase text-slate-500">級別
+                            </th>
+                            <th class="p-4 border-b border-slate-700 text-xs font-black uppercase text-slate-500">核心技術
+                            </th>
+                            <th class="p-4 border-b border-slate-700 text-xs font-black uppercase text-slate-500">利用率
+                            </th>
+                            <th class="p-4 border-b border-slate-700 text-xs font-black uppercase text-slate-500">存取速度
+                            </th>
+                            <th class="p-4 border-b border-slate-700 text-xs font-black uppercase text-slate-500">備註
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="raid-matrix-body" class="text-sm">
+                        <!-- Matrix rows injected here -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Feynman Section -->
+        <section
+            class="glass-card p-10 rounded-3xl bg-gradient-to-br from-cardBg to-slate-900 border-none relative overflow-hidden">
+            <div class="absolute -right-20 -top-20 w-64 h-64 bg-primary/10 rounded-full blur-3xl"></div>
+            <h2 class="text-3xl font-black mb-8 text-white uppercase tracking-tighter">費曼學習法：磁碟陣列的白話奧義</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
+                <div class="space-y-6">
+                    <div>
+                        <h4 class="text-xs font-black text-primary uppercase mb-2 tracking-widest">核心概念</h4>
+                        <p id="feynman-plain" class="text-xl font-bold leading-snug"></p>
+                    </div>
+                    <div class="p-6 bg-slate-950/40 rounded-2xl border border-slate-800">
+                        <h4 class="text-xs font-black text-secondary uppercase mb-2">生活類比</h4>
+                        <p id="feynman-analogy" class="text-slate-400 italic text-sm leading-relaxed"></p>
+                    </div>
+                </div>
+                <div class="space-y-4">
+                    <h4 class="text-xs font-black text-slate-500 uppercase mb-4 tracking-widest">極速教案 (1-Min Version)
+                    </h4>
+                    <ul id="feynman-steps" class="space-y-3">
+                        <!-- steps injected here -->
+                    </ul>
+                </div>
+            </div>
+            <div class="mt-12 pt-8 border-t border-slate-800 flex flex-wrap gap-4">
+                <div class="flex-1">
+                    <h4 class="text-[10px] font-black text-slate-600 uppercase mb-3">考試觸發關鍵字 (Exam Triggers)</h4>
+                    <div id="trigger-badges" class="flex flex-wrap gap-2"></div>
+                </div>
+                <div
+                    class="bg-primary/10 p-4 rounded-xl border border-primary/20 flex items-center justify-center min-w-[300px]">
+                    <p id="feynman-one-minute" class="text-xs font-bold text-primary text-center leading-relaxed"></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Appendix -->
+        <section class="max-w-6xl mx-auto">
+            <button onclick="document.getElementById('appendix-box').classList.toggle('hidden')"
+                class="text-[10px] font-bold text-slate-600 hover:text-slate-400 uppercase tracking-widest transition-colors mb-4 block">
+                [+] View Original Notes
+            </button>
+            <div id="appendix-box" class="hidden p-8 bg-slate-950 rounded-2xl border border-slate-900 overflow-x-auto">
+                <pre id="raw-notes"
+                    class="text-[11px] text-slate-700 leading-relaxed font-mono whitespace-pre-wrap"></pre>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="max-w-6xl mx-auto mt-20 border-t border-slate-900 pt-8 pb-12 text-center text-slate-700 text-xs">
+        <p>Study Guide for Computer Fundamentals - ss1111119/computer-fundamentals</p>
+    </footer>
+
+    <script>
+        const data = {
+            "chapter_positioning": {
+                "one_sentence": "本節深入探討 RAID 技術，將其視為提升檔案系統可靠性與存取效率的硬體層級管理策略。",
+                "prerequisites": ["5-1 資料與資訊", "5-2 檔案架構"],
+                "downstream_links": ["5-4 資料庫架構與安全"]
+            },
+            "keywords": [
+                {
+                    "term": "條狀分佈 (Striping)",
+                    "why_important": "RAID 0 的核心，實現平行存取提升速度。",
+                    "common_exam_angle": "資料分割分散寫入，速度最快但也最危險。"
+                },
+                {
+                    "term": "鏡射 (Mirroring)",
+                    "why_important": "RAID 1 的核心，提供最高等級的資料冗餘。",
+                    "common_exam_angle": "兩倍成本換取最高安全性，利用率僅 50%。"
+                },
+                {
+                    "term": "同位檢查 (Parity)",
+                    "why_important": "RAID 3/5 的核心，利用數學運算平衡空間與安全。",
+                    "common_exam_angle": "XOR 運算原理，單顆損壞可反推重建資料。"
+                },
+                {
+                    "term": "分散儲存 (Interleaving)",
+                    "why_important": "RAID 5 的改良點，解決 RAID 3 的寫入瓶頸。",
+                    "common_exam_angle": "檢查碼分散在所有磁碟，而非固定在單一磁碟。"
+                },
+                {
+                    "term": "RAID 10 (1+0)",
+                    "why_important": "商用高端方案，結合 Striping 的快與 Mirroring 的穩。",
+                    "common_exam_angle": "先鏡射再條狀，至少需 4 顆硬碟，成本極高。"
+                }
+            ],
+            "weighting": {
+                "basis": "estimate",
+                "items": [
+                    {
+                        "topic": "RAID 各層級比較 (0, 1, 5)",
+                        "weight": 50,
+                        "reason": "最基礎也最常考的對比題型。"
+                    },
+                    {
+                        "topic": "容量利用率計算",
+                        "weight": 30,
+                        "reason": "涉及 (N-1)/N 等公式計算，需理解原理。"
+                    },
+                    {
+                        "topic": "RAID 10 架構理解",
+                        "weight": 20,
+                        "reason": "高端商用場景與組合邏輯考點。"
+                    }
+                ]
+            },
+            "comparison_matrix": {
+                "title": "RAID 戰略特徵比較表",
+                "dimensions": ["核心技術", "硬碟利用率", "容錯能力", "主要優點"],
+                "rows": [
+                    {
+                        "name": "RAID 0",
+                        "values": {
+                            "核心技術": "Striping (條狀分佈)",
+                            "硬碟利用率": "100%",
+                            "容錯能力": "無 (零)",
+                            "主要優點": "存取速度極致快"
+                        },
+                        "pitfall": "容易誤以為是為了備份。其實是為了速度。",
+                        "rule_of_thumb": "「飛車黨」：跑最快，但一撞就沒命。"
+                    },
+                    {
+                        "name": "RAID 1",
+                        "values": {
+                            "核心技術": "Mirroring (鏡射)",
+                            "硬碟利用率": "50%",
+                            "容錯能力": "高 (損壞 1 顆無妨)",
+                            "主要優點": "極致安全性，復原快"
+                        },
+                        "pitfall": "成本極高，買兩顆硬碟只能裝一顆的量。",
+                        "rule_of_thumb": "「分身術」：隨時有個分身，本尊受傷分身立刻頂替。"
+                    },
+                    {
+                        "name": "RAID 5",
+                        "values": {
+                            "核心技術": "Distributed Parity",
+                            "硬碟利用率": "(N-1)/N",
+                            "容錯能力": "中 (允許壞 1 顆)",
+                            "主要優點": "性能、容量與安全三者平衡"
+                        },
+                        "pitfall": "重建資料時系統效能會顯著下降。",
+                        "rule_of_thumb": "「互助會」：大家分散拿檢查碼，有人出事大家一起救。"
+                    }
+                ]
+            },
+            "core_concept_lab": {
+                "chosen_concept": "RAID 戰略模擬與 XOR 復原實驗",
+                "type": "calculator",
+                "learning_objective": "理解不同 RAID 級別的容量利用率，並掌握同位檢查的復原邏輯。",
+                "inputs": [
+                    {
+                        "id": "disk_count",
+                        "label": "硬碟總數 (N)",
+                        "type": "range",
+                        "options": ["min:2", "max:8", "step:1"],
+                        "default": "4"
+                    },
+                    {
+                        "id": "disk_size",
+                        "label": "單顆硬碟容量 (GB)",
+                        "type": "number",
+                        "default": "100"
+                    },
+                    {
+                        "id": "target_raid",
+                        "label": "選擇 RAID 級別",
+                        "type": "select",
+                        "options": ["RAID 0", "RAID 1", "RAID 5", "RAID 10"],
+                        "default": "RAID 5"
+                    }
+                ],
+                "interaction_logic": "根據 N、Size 及 RAID 類型計算「可用容量」與「容錯數」。下方顯示 XOR 復原公式動畫 (Data A ⊕ Data B ⊕ Parity = Recovered Data)。",
+                "outputs": [
+                    {
+                        "id": "total_capacity",
+                        "label": "可用總容量 (GB)",
+                        "format": "text"
+                    },
+                    {
+                        "id": "fault_tolerance",
+                        "label": "可容忍損壞硬碟數",
+                        "format": "text"
+                    }
+                ],
+                "common_mistakes": [
+                    {
+                        "mistake": "計算 RAID 5 容量時直接用 N * Size",
+                        "why_wrong": "漏掉了一顆硬碟容量空間被用來存放分散式的同位檢查碼。",
+                        "how_to_fix": "公式永遠是 (N - 1) * Size。"
+                    }
+                ]
+            },
+            "feynman_explanation": {
+                "one_sentence_plain": "RAID 就是把一堆硬碟團結起來，有的負責搬重物 (跑速)，有的負責保險 (備份)，有的負責互助 (檢查碼)。",
+                "analogy": "就像你去登山：RAID 0 是大家把裝備分開背（輕快但有人掉隊就慘了）；RAID 1 是兩個人背一模一樣的裝備（安全但累死人）；RAID 5 是大家分攤備用零件（平衡又安全）。",
+                "forbidden_terms_used": ["同位檢查碼 (Parity)", "條狀分佈 (Striping)", "鏡射 (Mirroring)"]
+            },
+            "feynman_rebuild": {
+                "teach_flow": [
+                    "首先，介紹 RAID 0：追求最速傳說，資料分兩半同時寫兩顆硬碟。",
+                    "接著，對比 RAID 1：追求絕對生存，內容寫兩份分別存兩顆硬碟。",
+                    "最後，介紹 RAID 5：工程師的智慧，利用 XOR 同位檢查，用極小的空間代價換取損壞復原能力。"
+                ],
+                "one_minute_version": "RAID 是一種管理磁碟的戰略。0 代表極速（Striping），1 代表極安（Mirroring），而 5 代表平衡（Parity）。RAID 5 透過數學運算讓資料分散且具備重建能力，是目前最普遍的商用選擇。如果預算充足且要求極致效能與安全，則選擇 RAID 10。",
+                "exam_trigger_phrases": [
+                    "磁碟利用率最高",
+                    "兩倍硬碟成本",
+                    "N-1 顆硬碟空間",
+                    "XOR 同位檢查"
+                ]
+            },
+            "flashcards": [
+                {
+                    "front": "哪種 RAID 被稱為「條狀分佈」？",
+                    "back": "RAID 0；特點是存取最快但完全無容錯能力。"
+                },
+                {
+                    "front": "RAID 5 的硬碟利用率公式？",
+                    "back": "(N-1) / N；其中 N 為硬碟總數。"
+                },
+                {
+                    "front": "RAID 3 與 RAID 5 的主要差異？",
+                    "back": "RAID 3 的檢查碼固定在單一磁碟；RAID 5 的檢查碼分散在所有磁碟。"
+                },
+                {
+                    "front": "何謂 RAID 10？",
+                    "back": "RAID 1 + RAID 0；結合鏡射與條狀，先做安全再做速度。"
+                },
+                {
+                    "front": "RAID 的「R」代表什麼？",
+                    "back": "Redundant (冗餘)；意指額外的資料保護。"
+                }
+            ],
+            "scenario_checks": [
+                {
+                    "statement": "在預算有限的情況下，若需要至少一顆硬碟故障資料不遺失，且希望儲存效率優於 RAID 1，則 RAID 5 是最佳選擇。",
+                    "answer": "O",
+                    "explanation": "正確。RAID 5 的利用率為 (N-1)/N，當 N=3 時利用率為 67%，優於 RAID 1 的 50%。"
+                },
+                {
+                    "statement": "RAID 0 適合存放極端重要、不能遺失的資料。",
+                    "answer": "X",
+                    "explanation": "錯誤。RAID 0 特點是「零容錯」，任一硬碟掛掉資料全毀，僅適合追求速度的非關鍵暫存。"
+                }
+            ],
+            "original_notes_for_appendix": "在「第五章 電腦資料處理與通信」的宏觀脈絡下，來源資料將 RAID (獨立磁碟冗餘陣列) 視為一種**「硬體層級的檔案保護與效能優化策略」**。\n雖然 RAID 涉及硬體（磁碟），但它被安排在 5-2 資料檔案研究 中討論，這反映了教材的觀點：RAID 的核心價值在於解決檔案系統的**「可靠性 (Reliability)」與「存取效率 (Access Performance)」**問題。\n根據來源資料（特別是 pp. 107, 527），我們可以從以下四個層面來探討其看法：\n1. 效能極大化：RAID 0 (條狀分佈/Striping)\n來源資料將 RAID 0 視為追求速度的極致方案，但完全犧牲了安全性。\n• 運作觀點：教材將其描述為**「條狀分佈 (Striping)」**。它將資料分割成小區塊，分散寫入多顆硬碟中。\n• 優勢：因為多顆硬碟同時動作（平行傳輸），存取速度最快，且硬碟容量完全被利用（利用率 100%）。\n• 致命缺點：沒有容錯能力。只要陣列中任何一顆硬碟損壞，所有資料就會遺失，因此教材認為它嚴格來說不算「冗餘 (Redundant)」陣列,。\n2. 安全極大化：RAID 1 (鏡射/Mirroring)\n來源資料將 RAID 1 視為最昂貴但最直觀的備份方案。\n• 運作觀點：教材將其稱為**「鏡射 (Mirroring)」**。寫入資料時，同時將完全相同的複本寫入另一顆硬碟。\n• 優勢：提供最高的資料安全性。若主硬碟壞了，備份硬碟可立即接手。\n• 代價：成本最高。因為需要兩倍的硬碟空間來儲存相同的資料，磁碟利用率僅有 50%,。\n3. 平衡的智慧：RAID 3 與 RAID 5 (同位檢查/Parity)\n這是教材中最推崇的折衷方案，試圖在速度、容量與安全之間取得平衡。\n• 核心技術：利用 XOR 運算 產生 同位檢查碼 (Parity)。當某顆硬碟損壞時，可以利用剩下的資料與檢查碼反推（Rebuild）出遺失的資料。\n• RAID 3 的看法：\n    ◦ 將資料分段儲存，但使用一顆專屬的硬碟來存放同位檢查資料。\n    ◦ 缺點：那顆專用的檢查碼硬碟會成為存取瓶頸（每次寫入都要更新它）,。\n• RAID 5 的看法：\n    ◦ 被視為 RAID 3 的改良版，也是目前最普遍的選擇。\n    ◦ 它將同位檢查碼分散 (Interleaving) 儲存在所有硬碟上，解決了 RAID 3 的瓶頸問題。\n    ◦ 效益：允許一顆硬碟損壞而不丟失資料，且硬碟利用率為 (N−1)/N，優於 RAID 1,。\n4. 混合模式：RAID 10 (1+0)\n在題庫解析中，來源資料補充了 RAID 10 的概念。\n• 看法：這是一種**「先做鏡射，再做條狀」**架構。\n• 目的：同時擁有 RAID 0 的速度與 RAID 1 的容錯能力。\n• 代價：至少需要 4 顆硬碟，成本極高，通常用於企業級伺服器,。\n總結\n在第五章的背景下，RAID 不僅是插幾顆硬碟的問題，它是**「資料生命週期管理」**的一部分。 來源資料透過比較表告訴學生：\n• 想快？選 RAID 0。\n• 想安全？選 RAID 1。\n• 想兩者兼顧且省成本？選 RAID 5。\n• 有錢任性且要求最高？選 RAID 10。\n這套邏輯直接支撐了後續章節（如資料庫系統）對於資料完整性與可用性的需求。"
+        };
+
+        let currentRaid = 5;
+
+        // Initialize Matrix
+        const matrixBody = document.getElementById('raid-matrix-body');
+        data.comparison_matrix.rows.forEach(row => {
+            const tr = document.createElement('tr');
+            tr.className = "border-b border-slate-800 hover:bg-slate-800/30 transition-colors cursor-pointer";
+            tr.onclick = () => {
+                const level = parseInt(row.name.replace('RAID ', ''));
+                setRaid(level);
+            };
+            tr.innerHTML = `
+                <td class="p-4 font-black text-primary">${row.name}</td>
+                <td class="p-4 text-slate-300 font-medium">${row.values['核心技術']}</td>
+                <td class="p-4 text-slate-400">${row.values['硬碟利用率']}</td>
+                <td class="p-4 text-slate-400">${row.values['主要優點']}</td>
+                <td class="p-4 text-[10px] text-slate-500 max-w-[200px] leading-tight">${row.pitfall}</td>
+            `;
+            matrixBody.appendChild(tr);
+        });
+
+        // Add RAID 10 to matrix manually (not in the simplified JSON rows)
+        const tr10 = document.createElement('tr');
+        tr10.className = "border-b border-slate-800 hover:bg-slate-800/30 transition-colors cursor-pointer";
+        tr10.onclick = () => setRaid(10);
+        tr10.innerHTML = `
+            <td class="p-4 font-black text-primary">RAID 10</td>
+            <td class="p-4 text-slate-300 font-medium">Mirror + Stripe</td>
+            <td class="p-4 text-slate-400">50%</td>
+            <td class="p-4 text-slate-400">極速 + 極高容錯</td>
+            <td class="p-4 text-[10px] text-slate-500 max-w-[200px] leading-tight">成本最高，商用主流。</td>
+        `;
+        matrixBody.appendChild(tr10);
+
+        // Simulator Logic
+        const diskCountInput = document.getElementById('disk-count');
+        const raidViz = document.getElementById('raid-viz');
+
+        function setRaid(level) {
+            currentRaid = level;
+            // Update buttons
+            ['0', '1', '5', '10'].forEach(lv => {
+                const btn = document.getElementById(`btn-raid${lv}`);
+                btn.classList.toggle('raid-active', parseInt(lv) === level);
+            });
+            updateSimulator();
+        }
+
+        function updateSimulator() {
+            const n = parseInt(diskCountInput.value);
+            const size = 100; // GB per disk
+
+            // Validation
+            if (currentRaid === 1 && n % 2 !== 0) { /* Optional: force even for RAID1 if needed */ }
+            if (currentRaid === 10 && n < 4) { diskCountInput.value = 4; return updateSimulator(); }
+            if (currentRaid === 5 && n < 3) { diskCountInput.value = 3; return updateSimulator(); }
+
+            // Calculate Stats
+            let capacity = 0;
+            let fault = "0";
+            let useCase = "";
+
+            switch (currentRaid) {
+                case 0:
+                    capacity = n * size;
+                    fault = "0 (極度危險)";
+                    useCase = "暫存、影片剪輯、追求速度。";
+                    break;
+                case 1:
+                    capacity = (n / 2) * size;
+                    fault = "1 ~ 50% (視損壞組合)";
+                    useCase = "極重要小檔案、系統碟備份。";
+                    break;
+                case 5:
+                    capacity = (n - 1) * size;
+                    fault = "1 (允許損壞一顆)";
+                    useCase = "大數據存儲、一般伺服器最佳平衡點。";
+                    break;
+                case 10:
+                    capacity = (n / 2) * size;
+                    fault = "1 ~ 50% (每組 Mirror 損壞不超過一顆)";
+                    useCase = "高性能資料庫伺服器。";
+                    break;
+            }
+
+            document.getElementById('stat-efficiency').innerText = `${Math.floor((capacity / (n * size)) * 100)}% (${capacity}GB)`;
+            document.getElementById('stat-fault').innerText = fault;
+            document.getElementById('stat-use').innerText = useCase;
+
+            // Simple visualization
+            raidViz.innerHTML = '';
+            for (let i = 0; i < n; i++) {
+                const disk = document.createElement('div');
+                disk.className = "w-12 h-16 bg-slate-800 border-2 border-slate-700 rounded-lg flex flex-col items-center justify-center disk-cube";
+
+                let content = "";
+                if (currentRaid === 0) content = `<span class="text-[8px] text-primary">STRIP</span>`;
+                if (currentRaid === 1) content = `<span class="text-[8px] text-secondary">MIRROR</span>`;
+                if (currentRaid === 5) content = (i === n - 1) ? `<span class="text-[8px] text-green-500 font-black italic">PARITY</span>` : `<span class="text-[8px] text-slate-500">DATA</span>`;
+                if (currentRaid === 10) content = (i % 2 === 0) ? `<span class="text-[8px] text-white">M-GRP</span>` : `<span class="text-[8px] text-primary">STRIP</span>`;
+
+                disk.innerHTML = content + `<div class="text-[8px] mt-1 text-slate-600 font-mono">D:${i + 1}</div>`;
+                raidViz.appendChild(disk);
+            }
+        }
+
+        diskCountInput.onchange = updateSimulator;
+
+        // XOR Lab Logic
+        const xorD1 = [0, 1, 0, 1];
+        const xorD2 = [1, 1, 0, 0];
+
+        function toggleBit(rowId, idx) {
+            const arr = rowId === 'xor-d1' ? xorD1 : xorD2;
+            arr[idx] = arr[idx] === 0 ? 1 : 0;
+            renderXOR();
+        }
+
+        function renderXOR() {
+            const d1Row = document.getElementById('xor-d1').children;
+            const d2Row = document.getElementById('xor-d2').children;
+            const resRow = document.getElementById('xor-res').children;
+
+            for (let i = 0; i < 4; i++) {
+                d1Row[i].innerText = xorD1[i];
+                d2Row[i].innerText = xorD2[i];
+                const res = xorD1[i] ^ xorD2[i];
+                resRow[i].innerText = res;
+            }
+        }
+
+        // Feynman & Others
+        document.getElementById('feynman-plain').innerText = data.feynman_explanation.one_sentence_plain;
+        document.getElementById('feynman-analogy').innerText = data.feynman_explanation.analogy;
+        document.getElementById('feynman-one-minute').innerText = data.feynman_rebuild.one_minute_version;
+        document.getElementById('raw-notes').innerText = data.original_notes_for_appendix;
+
+        const feynmanSteps = document.getElementById('feynman-steps');
+        data.feynman_rebuild.teach_flow.forEach((step, idx) => {
+            const li = document.createElement('li');
+            li.className = "flex gap-4 items-start";
+            li.innerHTML = `
+                <div class="w-5 h-5 bg-slate-800 border border-slate-700 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold text-primary">${idx + 1}</div>
+                <p class="text-xs text-slate-400 leading-relaxed">${step}</p>
+            `;
+            feynmanSteps.appendChild(li);
+        });
+
+        const triggerBadges = document.getElementById('trigger-badges');
+        data.feynman_rebuild.exam_trigger_phrases.forEach(phrase => {
+            const span = document.createElement('span');
+            span.className = "px-2 py-1 bg-slate-900 border border-slate-800 text-[9px] font-bold text-slate-500 rounded uppercase tracking-tighter";
+            span.innerText = phrase;
+            triggerBadges.appendChild(span);
+        });
+
+        // Start
+        setRaid(5);
+        renderXOR();
+
+    </script>
+</body>
+
+</html>
