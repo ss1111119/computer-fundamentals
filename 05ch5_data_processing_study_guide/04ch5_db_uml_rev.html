@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>04 資料庫系統與 UML - 學習導論</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#8b5cf6', // Violet 500
+                        secondary: '#3b82f6', // Blue 500
+                        accent: '#10b981', // Emerald 500
+                        darkBg: '#0f172a',
+                        cardBg: '#1e293b',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #f1f5f9;
+        }
+
+        .glass-card {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .layer-active {
+            box-shadow: 0 0 30px rgba(139, 92, 246, 0.3);
+            border-color: #8b5cf6;
+            background: rgba(139, 92, 246, 0.1);
+        }
+
+        .sdlc-node {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .sdlc-node:hover {
+            transform: translateY(-5px);
+            background: rgba(139, 92, 246, 0.1);
+        }
+
+        .flip-card {
+            perspective: 1000px;
+        }
+
+        .flip-card-inner {
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+
+        .flip-card.flipped .flip-card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .flip-card-front,
+        .flip-card-back {
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+
+        .flip-card-back {
+            transform: rotateY(180deg);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .animate-fadeIn {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+    </style>
+</head>
+
+<body class="p-4 md:p-8 lg:p-12">
+
+    <!-- Header -->
+    <header class="max-w-6xl mx-auto mb-16 animate-fadeIn">
+        <div class="flex items-center gap-3 mb-4">
+            <span
+                class="px-4 py-1 text-[10px] font-black tracking-widest uppercase bg-primary/20 text-primary border border-primary/30 rounded-full">Section
+                04</span>
+            <span class="text-slate-600">|</span>
+            <span class="text-slate-400 font-bold text-xs">Chapter 05 電腦資料處理與電腦通信</span>
+        </div>
+        <h1 class="text-5xl md:text-7xl font-black text-white tracking-tighter mb-6">資料庫系統與 UML</h1>
+        <p class="text-xl text-slate-400 max-w-3xl leading-relaxed">
+            從「單純的檔案存取」進化到「複雜系統設計」：資料庫 (DBMS) 管資料，UML 管設計藍圖，共同構建現代資訊系統。
+        </p>
+    </header>
+
+    <main class="max-w-6xl mx-auto space-y-12">
+
+        <!-- ANSI 3-Layer Visualizer & SQL Explorer -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+            <!-- ANSI Visualizer -->
+            <section class="lg:col-span-12 glass-card p-10 rounded-[2.5rem] relative overflow-hidden">
+                <div class="absolute top-0 right-0 p-10 opacity-5 pointer-events-none">
+                    <svg class="w-64 h-64 text-primary" fill="currentColor" viewBox="0 0 24 24">
+                        <path
+                            d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
+                    </svg>
+                </div>
+
+                <h2 class="text-3xl font-black mb-10 flex items-center gap-4 text-white">
+                    <span class="w-1.5 h-8 bg-primary rounded-full"></span>
+                    ANSI 三層式架構：資料獨立性之魂
+                </h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
+                    <!-- Lines connecting blocks (simplified) -->
+                    <div
+                        class="absolute inset-0 pointer-events-none md:flex hidden justify-around items-center opacity-20">
+                        <div class="w-1 h-32 border-l-2 border-dashed border-primary"></div>
+                        <div class="w-1 h-32 border-l-2 border-dashed border-primary"></div>
+                    </div>
+
+                    <div onclick="showLayer('external')" id="layer-external"
+                        class="p-8 rounded-3xl border border-slate-800 bg-slate-900/50 cursor-pointer transition-all hover:scale-105">
+                        <h3 class="text-primary font-black uppercase tracking-widest text-xs mb-2 text-center">使用者角度
+                        </h3>
+                        <div class="text-xl font-bold text-white text-center">外部層 (External)</div>
+                        <p class="mt-4 text-[10px] text-slate-500 text-center leading-relaxed">View Level: 報表、表單、App
+                            視圖。<br>不同的使用者看到不同的資料子集。</p>
+                    </div>
+
+                    <div onclick="showLayer('conceptual')" id="layer-conceptual"
+                        class="p-8 rounded-3xl border border-slate-800 bg-slate-900/50 cursor-pointer transition-all hover:scale-105">
+                        <h3 class="text-primary font-black uppercase tracking-widest text-xs mb-2 text-center">整體邏輯</h3>
+                        <div class="text-xl font-bold text-white text-center">概念層 (Conceptual)</div>
+                        <p class="mt-4 text-[10px] text-slate-500 text-center leading-relaxed">Logical Level:
+                            整個資料庫的設計。<br>包含表格、欄位定義與關聯。</p>
+                    </div>
+
+                    <div onclick="showLayer('internal')" id="layer-internal"
+                        class="p-8 rounded-3xl border border-slate-800 bg-slate-900/50 cursor-pointer transition-all hover:scale-105">
+                        <h3 class="text-primary font-black uppercase tracking-widest text-xs mb-2 text-center">儲存細節</h3>
+                        <div class="text-xl font-bold text-white text-center">內部層 (Internal)</div>
+                        <p class="mt-4 text-[10px] text-slate-500 text-center leading-relaxed">Physical Level:
+                            檔案怎麼存？<br>索引結構、存取路徑與硬碟分佈。</p>
+                    </div>
+                </div>
+
+                <div id="layer-detail-box"
+                    class="mt-10 p-8 rounded-3xl bg-primary/10 border border-primary/20 animate-fadeIn">
+                    <div class="flex gap-4 items-start">
+                        <div class="p-3 rounded-2xl bg-primary/20">
+                            <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 id="layer-title" class="text-lg font-black text-white mb-2">請選擇一個架構層次查看詳情</h4>
+                            <p id="layer-desc" class="text-sm text-slate-400 leading-relaxed max-w-2xl">
+                                點擊上方方塊，了解該層在資料庫系統中的具體作用與「資料獨立性」的關聯。</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SQL Function Explorer -->
+            <section class="lg:col-span-5 glass-card p-10 rounded-[2.5rem]">
+                <h2 class="text-2xl font-black mb-8 flex items-center gap-3">
+                    <svg class="w-6 h-6 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
+                        </path>
+                    </svg>
+                    SQL 操作指令集
+                </h2>
+                <div class="flex gap-2 mb-8">
+                    <button onclick="filterSQL('DDL')" id="btn-DDL"
+                        class="flex-1 py-2 text-[10px] font-black border border-slate-700 rounded-lg hover:border-secondary transition-all">DDL
+                        (定義)</button>
+                    <button onclick="filterSQL('DML')" id="btn-DML"
+                        class="flex-1 py-2 text-[10px] font-black border border-slate-700 rounded-lg hover:border-secondary transition-all">DML
+                        (操作)</button>
+                    <button onclick="filterSQL('DCL')" id="btn-DCL"
+                        class="flex-1 py-2 text-[10px] font-black border border-slate-700 rounded-lg hover:border-secondary transition-all">DCL
+                        (控制)</button>
+                </div>
+                <div id="sql-content" class="space-y-4 min-h-[220px]">
+                    <!-- SQL Cards -->
+                </div>
+                <div class="mt-6 p-4 bg-orange-500/10 border border-orange-500/20 rounded-2xl flex gap-3">
+                    <div class="text-[10px] leading-relaxed">
+                        <span class="text-orange-400 font-black block mb-1">應考陷阱：</span>
+                        <span class="text-slate-400">DDL 處理「表格結構」(蓋房子)；DML 處理「記錄內容」(裝家具)。別混淆了！</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- UML Blueprints -->
+            <section class="lg:col-span-7 glass-card p-10 rounded-[2.5rem]">
+                <h2 class="text-2xl font-black mb-8 flex items-center gap-3">
+                    <svg class="w-6 h-6 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z">
+                        </path>
+                    </svg>
+                    UML：系統設計藍圖
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="p-6 bg-slate-900/60 rounded-3xl border border-slate-800">
+                        <div
+                            class="w-10 h-10 bg-accent/20 rounded-2xl flex items-center justify-center mb-4 text-accent font-black">
+                            1</div>
+                        <h3 class="text-sm font-black text-white mb-2 uppercase tracking-wide">使用案例圖 (Use Case)</h3>
+                        <p class="text-xs text-slate-500 leading-relaxed">捕捉「使用者需求」。誰要用這個系統？他們想做什麼？</p>
+                        <div class="mt-4 flex items-center gap-2 text-[10px] text-accent font-bold">
+                            <span class="px-2 py-0.5 bg-accent/10 rounded">分析階段</span>
+                        </div>
+                    </div>
+                    <div class="p-6 bg-slate-900/60 rounded-3xl border border-slate-800">
+                        <div
+                            class="w-10 h-10 bg-accent/20 rounded-2xl flex items-center justify-center mb-4 text-accent font-black">
+                            2</div>
+                        <h3 class="text-sm font-black text-white mb-2 uppercase tracking-wide">類別圖 (Class Diagram)</h3>
+                        <p class="text-xs text-slate-500 leading-relaxed">定義「系統結構」。物件之間有什麼關係？資料長什麼樣？</p>
+                        <div class="mt-4 flex items-center gap-2 text-[10px] text-accent font-bold">
+                            <span class="px-2 py-0.5 bg-accent/10 rounded">設計階段</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-8 p-6 bg-slate-950/50 rounded-3xl border border-slate-800 text-[10px] text-slate-400">
+                    <span class="text-white font-black block mb-2 uppercase tracking-widest">UML 的三大核心支柱 (Exam
+                        Point)</span>
+                    <ul class="grid grid-cols-3 gap-4 text-center">
+                        <li class="p-2 border border-slate-800 rounded-xl">視覺化 (Visualizing)</li>
+                        <li class="p-2 border border-slate-800 rounded-xl">建構 (Constructing)</li>
+                        <li class="p-2 border border-slate-800 rounded-xl">文件化 (Documenting)</li>
+                    </ul>
+                </div>
+            </section>
+        </div>
+
+        <!-- SDLC Lifecycle Roadmap -->
+        <section class="glass-card p-10 rounded-[2.5rem] bg-gradient-to-r from-cardBg to-slate-900">
+            <h2 class="text-3xl font-black mb-12 text-center text-white">SDLC 系統開發生命週期 (Roadmap)</h2>
+            <div class="relative flex flex-col md:flex-row justify-between items-center gap-4 md:gap-0">
+                <!-- Line -->
+                <div class="absolute top-1/2 left-0 w-full h-0.5 bg-slate-800 hidden md:block pointer-events-none">
+                </div>
+
+                <div
+                    class="sdlc-node w-full md:w-32 p-4 rounded-2xl border border-slate-800 bg-slate-900 text-center relative z-10 group">
+                    <div
+                        class="w-8 h-8 bg-primary/20 rounded-full mx-auto mb-3 flex items-center justify-center text-primary font-black text-xs">
+                        1</div>
+                    <div class="text-[10px] font-black text-white uppercase mb-1">需求確認</div>
+                    <div class="text-[8px] text-slate-500 group-hover:text-slate-300">Requirement</div>
+                </div>
+                <div
+                    class="sdlc-node w-full md:w-32 p-4 rounded-2xl border border-slate-800 bg-slate-900 text-center relative z-10 group">
+                    <div
+                        class="w-8 h-8 bg-primary/20 rounded-full mx-auto mb-3 flex items-center justify-center text-primary font-black text-xs">
+                        2</div>
+                    <div class="text-[10px] font-black text-white uppercase mb-1">系統分析</div>
+                    <div class="text-[8px] text-slate-500 group-hover:text-slate-300">Analysis (UML)</div>
+                </div>
+                <div
+                    class="sdlc-node w-full md:w-32 p-4 rounded-2xl border border-slate-800 bg-slate-900 text-center relative z-10 group">
+                    <div
+                        class="w-8 h-8 bg-primary/20 rounded-full mx-auto mb-3 flex items-center justify-center text-primary font-black text-xs">
+                        3</div>
+                    <div class="text-[10px] font-black text-white uppercase mb-1">系統設計</div>
+                    <div class="text-[8px] text-slate-500 group-hover:text-slate-300">Design</div>
+                </div>
+                <div
+                    class="sdlc-node w-full md:w-32 p-4 rounded-2xl border border-slate-800 bg-slate-900 text-center relative z-10 group">
+                    <div
+                        class="w-8 h-8 bg-primary/20 rounded-full mx-auto mb-3 flex items-center justify-center text-primary font-black text-xs">
+                        4</div>
+                    <div class="text-[10px] font-black text-white uppercase mb-1">程式實作</div>
+                    <div class="text-[8px] text-slate-500 group-hover:text-slate-300">Coding (SQL)</div>
+                </div>
+                <div
+                    class="sdlc-node w-full md:w-32 p-4 rounded-2xl border border-slate-800 bg-slate-900 text-center relative z-10 group">
+                    <div
+                        class="w-8 h-8 bg-primary/20 rounded-full mx-auto mb-3 flex items-center justify-center text-primary font-black text-xs">
+                        5</div>
+                    <div class="text-[10px] font-black text-white uppercase mb-1">維護階段</div>
+                    <div class="text-[8px] text-slate-500 group-hover:text-slate-300">Maintenance</div>
+                </div>
+            </div>
+            <div class="mt-12 text-center text-xs text-slate-500">
+                <span class="px-4 py-2 bg-slate-950 rounded-full border border-slate-800">與資料庫與管理流程整合的終極實例：<b
+                        class="text-primary uppercase">ERP</b></span>
+            </div>
+        </section>
+
+        <!-- Comparison Matrix -->
+        <section class="glass-card p-10 rounded-[2.5rem]">
+            <h2 class="text-2xl font-black mb-8">從地攤到百貨：資料管理的進化論</h2>
+            <div class="overflow-x-auto rounded-3xl border border-slate-800">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-slate-800/50">
+                        <tr>
+                            <th class="p-6 font-black uppercase tracking-widest text-[10px] text-slate-500">特性維度</th>
+                            <th class="p-6 font-black uppercase tracking-widest text-[10px] text-slate-500">傳檔檔案系統 (File
+                                System)</th>
+                            <th class="p-6 font-black uppercase tracking-widest text-[10px] text-slate-500">資料庫系統 (DBMS)
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800">
+                        <tr>
+                            <td class="p-6 font-bold text-white">資料重複性</td>
+                            <td class="p-6 text-slate-400">高 (容易造成不一致)</td>
+                            <td class="p-6 text-accent font-bold">極低 (集中管理)</td>
+                        </tr>
+                        <tr>
+                            <td class="p-6 font-bold text-white">資料獨立性</td>
+                            <td class="p-6 text-slate-400">低 (程式與資料耦合)</td>
+                            <td class="p-6 text-accent font-bold">極高 (三層架構分離)</td>
+                        </tr>
+                        <tr>
+                            <td class="p-6 font-bold text-white">管理中心性</td>
+                            <td class="p-6 text-slate-400">散亂、依賴程式員</td>
+                            <td class="p-6 text-accent font-bold">集中、DBA 全權管理</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Recall & Quiz -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <section class="glass-card p-8 rounded-[2.5rem]">
+                <h2 class="text-2xl font-black mb-8 flex items-center gap-3">
+                    <svg class="w-6 h-6 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253">
+                        </path>
+                    </svg>
+                    復習快取卡 (Recall)
+                </h2>
+                <div class="flip-card h-56 cursor-pointer" id="flashcard">
+                    <div class="flip-card-inner h-full w-full relative">
+                        <div
+                            class="flip-card-front absolute inset-0 bg-slate-900 rounded-3xl border border-slate-800 flex items-center justify-center p-10 text-center">
+                            <h3 id="card-front" class="text-xl font-black text-white leading-snug"></h3>
+                        </div>
+                        <div
+                            class="flip-card-back absolute inset-0 bg-primary/20 rounded-3xl border border-primary/40 flex items-center justify-center p-10 text-center overflow-hidden">
+                            <p id="card-back" class="text-sm leading-relaxed font-bold text-slate-200"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-center gap-6 mt-8">
+                    <button onclick="prevCard()"
+                        class="p-3 rounded-full hover:bg-slate-800 text-slate-500 transition-all"><svg class="w-8 h-8"
+                            fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7">
+                            </path>
+                        </svg></button>
+                    <button onclick="nextCard()"
+                        class="p-3 rounded-full hover:bg-slate-800 text-slate-500 transition-all"><svg class="w-8 h-8"
+                            fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7">
+                            </path>
+                        </svg></button>
+                </div>
+            </section>
+
+            <section class="glass-card p-8 rounded-[2.5rem]">
+                <h2 class="text-2xl font-black mb-8">戰略邏輯演練 (Exam Scenarios)</h2>
+                <div id="scenarios-list" class="space-y-4">
+                    <!-- Scenarios -->
+                </div>
+            </section>
+        </div>
+
+        <!-- Feynman Section -->
+        <section class="glass-card p-12 rounded-[2.5rem] bg-gradient-to-br from-cardBg to-slate-950 border-none">
+            <h2
+                class="text-3xl font-black mb-8 text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent uppercase italic">
+                費曼學習法：系統開發的靈魂二重奏</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-16">
+                <div>
+                    <h3 class="text-xs uppercase text-slate-500 font-black tracking-[0.2em] mb-6">白話核心 (The Core)</h3>
+                    <p id="feynman-plain" class="text-3xl font-black text-white mb-8 leading-tight tracking-tighter">
+                    </p>
+                    <div class="p-8 bg-slate-900/50 rounded-[2rem] border border-slate-800 relative">
+                        <div
+                            class="absolute -top-4 -left-4 w-10 h-10 bg-secondary rounded-2xl flex items-center justify-center text-white font-black italic">
+                            !</div>
+                        <h4 class="text-xs font-black text-secondary uppercase mb-3">生活類比 (The Hook)</h4>
+                        <p id="feynman-analogy" class="text-slate-400 italic leading-relaxed text-sm"></p>
+                    </div>
+                </div>
+                <div class="space-y-8">
+                    <h3 class="text-xs uppercase text-slate-500 font-black tracking-[0.2em] mb-6">攻略教案 (Teach Flow)</h3>
+                    <div id="feynman-steps" class="space-y-6">
+                        <!-- Steps -->
+                    </div>
+                    <div class="pt-8 border-t border-slate-800">
+                        <h4 class="text-xs font-black text-primary uppercase mb-4 tracking-widest text-center">60 秒極速總結
+                        </h4>
+                        <p id="feynman-one-minute" class="text-xs text-center text-slate-500 font-bold leading-relaxed">
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-12 flex flex-wrap gap-2 justify-center">
+                <div id="trigger-tags" class="flex flex-wrap gap-3"></div>
+            </div>
+        </section>
+
+        <!-- Appendix -->
+        <section class="mt-16">
+            <button onclick="document.getElementById('appendix-box').classList.toggle('hidden')"
+                class="w-full flex justify-between items-center p-6 bg-slate-900/30 rounded-2xl text-[10px] font-black text-slate-600 hover:text-white transition-all">
+                VIEW SOURCE NOTES (APPENDIX)
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                    </path>
+                </svg>
+            </button>
+            <div id="appendix-box" class="hidden mt-6 p-10 bg-slate-950 rounded-3xl overflow-x-auto">
+                <pre id="raw-notes"
+                    class="text-slate-700 font-mono text-[11px] leading-relaxed whitespace-pre-wrap"></pre>
+            </div>
+        </section>
+    </main>
+
+    <footer
+        class="max-w-6xl mx-auto mt-24 mb-12 text-center text-slate-700 text-[10px] font-bold tracking-widest uppercase">
+        <p>© Chapter 5.4 - Database Systems & UML Study Guide | Project computer-fundamentals</p>
+    </footer>
+
+    <script>
+        const data = {
+            "chapter_positioning": {
+                "one_sentence": "本節探討如何將零散資料提升為結構化系統，聚焦於 DBMS 管理效能與 UML 溝通藍圖兩大支柱。",
+                "prerequisites": ["5-1 資料與資訊", "5-2 檔案架構"],
+                "downstream_links": ["第十二章 資料庫設計與維護"]
+            },
+            "keywords": [
+                {
+                    "term": "資料重複 (Redundancy)",
+                    "why_important": "傳統檔案系統的救贖。減少重複儲存以確保存取的一致性。",
+                    "common_exam_angle": "檔案系統缺點與資料庫優點之對比。"
+                },
+                {
+                    "term": "三層式架構 (ANSI/SPARC)",
+                    "why_important": "實現資料獨立性 (Independence) 的核心設計。",
+                    "common_exam_angle": "區分內部層 (實體存取)、概念層 (邏輯結構) 與外部層 (個別視圖)。"
+                },
+                {
+                    "term": "物件導向 (Object-Oriented)",
+                    "why_important": "UML 設計的根本哲學，將系統視為物件的互動。",
+                    "common_exam_angle": "UML 的核心目的：支援物件導向分析與設計 (OOAD)。"
+                },
+                {
+                    "term": "視覺化藍圖",
+                    "why_important": "UML 的定位——它是描述系統的標準，而非程式語言。",
+                    "common_exam_angle": "分辨 UML 的功能：視覺化、建構與文件化。"
+                },
+                {
+                    "term": "ERP (企業資源規劃)",
+                    "why_important": "資料庫與管理流程整合的終極實務應用。",
+                    "common_exam_angle": "企業如何利用集中式資料庫整合跨部門資訊。"
+                }
+            ],
+            "weighting": {
+                "basis": "estimate",
+                "items": [
+                    {
+                        "topic": "資料庫系統 (DBMS) 優點與架構",
+                        "weight": 40,
+                        "reason": "三層式架構是資料庫原理的基礎必考點。"
+                    },
+                    {
+                        "topic": "UML 角色與物件導向連接",
+                        "weight": 30,
+                        "reason": "常考 UML 的功能定義與對應開發階段。"
+                    },
+                    {
+                        "topic": "SDLC 開發生命週期",
+                        "weight": 30,
+                        "reason": "系統分析與設計的基本流程，理解軟體工程之關鍵。"
+                    }
+                ]
+            },
+            "comparison_matrix": {
+                "title": "資料存取技術進化表",
+                "dimensions": ["核心目標", "資料重複性", "資料獨立性", "主要維護者"],
+                "rows": [
+                    {
+                        "name": "檔案系統 (File System)",
+                        "values": {
+                            "核心目標": "單純的記錄存取",
+                            "資料重複性": "高 (各程式自帶檔案)",
+                            "資料獨立性": "低 (程式與資料緊密耦合)",
+                            "主要維護者": "程式設計師"
+                        },
+                        "pitfall": "資料不一致性 (Inconsistency) 是致命傷。",
+                        "rule_of_thumb": "「自給自足」：每個人都自己種糧食 (存資料)，低效且易亂。"
+                    },
+                    {
+                        "name": "資料庫系統 (DBMS)",
+                        "values": {
+                            "核心目標": "整合性管理與共享",
+                            "資料重複性": "低 (集中管理)",
+                            "資料獨立性": "高 (三層式架構實現)",
+                            "主要維護者": "資料庫管理員 (DBA)"
+                        },
+                        "pitfall": "初期建置成本高，軟硬體費用較貴。",
+                        "rule_of_thumb": "「現代化超市」：集中供應，規格統一，按需取用。"
+                    }
+                ]
+            },
+            "core_concept_lab": {
+                "chosen_concept": "ANSI 三層架構與 SQL 指令桌",
+                "type": "explorer",
+                "learning_objective": "理解資料如何透過抽象層分離，並掌握操作資料之標準介面。",
+                "inputs": [
+                    {
+                        "id": "view_level",
+                        "label": "查看架構層次",
+                        "type": "select",
+                        "options": ["外部層 (External)", "概念層 (Conceptual)", "內部層 (Internal)"],
+                        "default": "概念層 (Conceptual)"
+                    },
+                    {
+                        "id": "sql_type",
+                        "label": "SQL 指令類別",
+                        "type": "filter",
+                        "options": ["DDL (定義)", "DML (操作)", "DCL (控制)"],
+                        "default": "DML (操作)"
+                    }
+                ],
+                "interaction_logic": "切換層級時，圖解顯示「誰在看、看什麼」。切換 SQL 類別時，展示代表性指令 (如 SELECT vs CREATE)。",
+                "outputs": [
+                    {
+                        "id": "architecture_summary",
+                        "label": "層次功能詳解",
+                        "format": "text"
+                    },
+                    {
+                        "id": "sql_examples",
+                        "label": "代表性指令範例",
+                        "format": "code"
+                    }
+                ],
+                "common_mistakes": [
+                    {
+                        "mistake": "混淆 DDL 與 DML",
+                        "why_wrong": "DDL 是在「蓋盤子」(結構)，DML 是在「放裝菜」(資料內容)。",
+                        "how_to_fix": "記住 Definition = Schema 變更；Manipulation = Record 增刪改。"
+                    }
+                ]
+            },
+            "feynman_explanation": {
+                "one_sentence_plain": "資料庫是管資料的百貨公司，而 UML 是蓋這家百貨公司前要畫好的標準藍圖。",
+                "analogy": "以前檔案系統像「地攤」，每個人都擺自己的；DBMS 像「百貨公司」，規格統一、有管理員。UML 則是百貨公司的「設計圖」，不管是設計電梯 (動態行為) 還是櫃位 (靜態結構) 都要看它。",
+                "forbidden_terms_used": ["資料重複性", "三層式架構", "虛擬化建模"]
+            },
+            "feynman_rebuild": {
+                "teach_flow": [
+                    "首先，DBMS 的價值：為了解決地攤亂象 (重複與不一致)，我們建立一個管理中心，並用 ANSI 三層架構讓程式跟資料互不干擾。",
+                    "接著，溝通的關鍵：我們發明 SQL 跟資料庫說話，並用 UML 同一設計師、工程師與客戶的腦袋。",
+                    "最後，系統的誕生 (SDLC)：我們按照需求分析、設計、實作的順序，把藍圖變成真正的資訊系統。"
+                ],
+                "one_minute_version": "資料庫是為了存得更好 (解決重複性與相依性)，UML 是為了設計得更清楚 (標準化的溝通藍圖)。兩者在 SDLC 流程中各司其職：UML 用於初期的分析設計，DBMS 則在實作階段落地，共同支撐起現代資訊系統的運作。",
+                "exam_trigger_phrases": [
+                    "資料獨立性 (Independence)",
+                    "ANSI 三層架構",
+                    "視覺化建模語言 (Not Programming Language)",
+                    "系統開發生命週期 (SDLC)"
+                ]
+            },
+            "flashcards": [
+                {
+                    "front": "資料庫系統解決檔案系統的哪三大缺點？",
+                    "back": "資料重複 (Redundancy)、資料不一致 (Inconsistency)、資料相依 (Dependency)。"
+                },
+                {
+                    "front": "何謂資料獨立性？",
+                    "back": "意指「修改資料結構而不影響應用程式」的能力，由三層式架構實現。"
+                },
+                {
+                    "front": "UML 的主要功用為何？",
+                    "back": "視覺化、建構與文件化軟體系統的標準。它不是一種程式語言。"
+                },
+                {
+                    "front": "SDLC 中，「分析階段」主要產出的工具是？",
+                    "back": "UML 各類視圖 (例如使用案例圖)，用來確認使用者需求。"
+                },
+                {
+                    "front": "SQL 中，GRANT 與 REVOKE 屬於哪一類？",
+                    "back": "DCL (Data Control Language)，用於權限控管。"
+                }
+            ],
+            "scenario_checks": [
+                {
+                    "statement": "UML 是一種高效的程式語言，專門用來實作資料庫連線。",
+                    "answer": "X",
+                    "explanation": "錯誤。UML 是建模語言 (Modeling Language)，是用來畫設計圖的工具，不是用來執行程式碼的語言。"
+                },
+                {
+                    "statement": "ANSI 三層架構中的「概念層」代表的是各別使用者所看到的報表或視圖。",
+                    "answer": "X",
+                    "explanation": "錯誤。個別使用者看到的是「外部層 (External)」；「概念層 (Conceptual)」是資料庫的整體邏輯視圖。"
+                }
+            ],
+            "original_notes_for_appendix": "在「第五章 電腦資料處理與電腦通信」的宏觀架構下，來源資料將**「資料庫系統 (Database System)」與「統一塑模語言 (UML)」視為資料處理從「單純的檔案存取」進化到「複雜系統設計」的兩個關鍵支柱**。\n這一章的觀點在於：如果我們已經有了資料（5-1）並知道如何存檔（5-2），那麼下一步就是**「如何建立一個能有效管理這些資料的系統」**。\n根據來源資料（特別是 5-4 與 5-5 節），我們可以從以下三個核心層面來探討其看法：\n1. 資料管理的進化論：從檔案到資料庫\n解決痛點：資料重複 (Redundancy)、不一致性與相依性。 DBMS 的角色：資料獨立性 (Independence) 與集中管理。 架構觀點：ANSI 三層式架構（內部、概念、外部層）。\n2. 溝通的標準化：SQL 與 UML 的雙重語言\nSQL (Structured Query Language)：標準介面，分為 DDL, DML, DCL。 UML (Unified Modeling Language)：軟體系統開發的藍圖工具。它不是程式語言，而是一種視覺化、建構與文件化的標準。強調物件導向連結，包含類別圖、使用案例圖等。\n3. 系統開發的生命週期：SDLC 的背景\n流程觀點：確認需求 → 分析 → 設計 → 實作 → 維護。 工具應用：UML 用於分析設計，SQL/DBMS 用於實作階段。 ERP 引入：整合資料庫與管理流程的實例。"
+        };
+
+        const layerData = {
+            'external': {
+                title: "外部層 (External / View Level)",
+                desc: "這是使用者與系統接觸的最前線。不同的使用者（如櫃檯、經理、顧客）擁有不同的「視圖」。架構允許我們在不改動系統核心的情況下，隨意調整這層的顯示方式，這就是「邏輯資料獨立性」的展現。"
+            },
+            'conceptual': {
+                title: "概念層 (Conceptual / Logical Level)",
+                desc: "這是資料庫的核心，由 DBA 定義。它描述了有哪些表格、欄位、主鍵以及它們之間的關聯（ER 圖即屬此層）。它在內外部之間扮演中介，確保「資料庫長什麼樣」與「怎麼用」可以脫鉤。"
+            },
+            'internal': {
+                title: "內部層 (Internal / Physical Level)",
+                desc: "資料在硬碟中真實的樣子。包含存取路徑、索引、雜湊位址等。當我們更換更快的硬碟或調整索引策略時，只需修改內部層，而不需要改動概念層或外部程式。這稱為「物理資料獨立性」。"
+            }
+        };
+
+        const sqlData = {
+            'DDL': [
+                { cmd: 'CREATE', desc: '建立全新的表格或索引結構。' },
+                { cmd: 'ALTER', desc: '修改已存在表格的欄位定義。' },
+                { cmd: 'DROP', desc: '刪除整個表格結構。' }
+            ],
+            'DML': [
+                { cmd: 'SELECT', desc: '查詢、擷取所需的資料。' },
+                { cmd: 'INSERT', desc: '新增一筆記錄到表格中。' },
+                { cmd: 'UPDATE / DELETE', desc: '修改內容或刪除特定記錄。' }
+            ],
+            'DCL': [
+                { cmd: 'GRANT', desc: '賦予使用者存取權限。' },
+                { cmd: 'REVOKE', desc: '收回使用者的存取權限。' },
+                { cmd: 'COMMIT', desc: '確認並永久儲存交易變更。' }
+            ]
+        };
+
+        function showLayer(layer) {
+            ['external', 'conceptual', 'internal'].forEach(l => {
+                document.getElementById(`layer-${l}`).classList.toggle('layer-active', l === layer);
+            });
+            const detail = layerData[layer];
+            document.getElementById('layer-title').innerText = detail.title;
+            document.getElementById('layer-desc').innerText = detail.desc;
+        }
+
+        function filterSQL(type) {
+            ['DDL', 'DML', 'DCL'].forEach(t => {
+                const btn = document.getElementById(`btn-${t}`);
+                btn.classList.toggle('border-secondary', t === type);
+                btn.classList.toggle('bg-secondary/10', t === type);
+                btn.classList.toggle('text-secondary', t === type);
+            });
+            const content = document.getElementById('sql-content');
+            content.innerHTML = '';
+            sqlData[type].forEach(item => {
+                const div = document.createElement('div');
+                div.className = "p-4 rounded-2xl bg-slate-900 border border-slate-800 animate-fadeIn";
+                div.innerHTML = `
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-sm font-black text-white font-mono">${item.cmd}</span>
+                        <span class="text-[8px] px-2 py-0.5 bg-slate-800 rounded-full text-slate-500 font-bold">${type}</span>
+                    </div>
+                    <p class="text-[10px] text-slate-400 leading-relaxed">${item.desc}</p>
+                `;
+                content.appendChild(div);
+            });
+        }
+
+        // INIT
+        showLayer('conceptual');
+        filterSQL('DML');
+
+        // Flashcards
+        let currentCard = 0;
+        const flashcard = document.getElementById('flashcard');
+        function updateCard() {
+            flashcard.classList.remove('flipped');
+            setTimeout(() => {
+                document.getElementById('card-front').innerText = data.flashcards[currentCard].front;
+                document.getElementById('card-back').innerText = data.flashcards[currentCard].back;
+            }, 300);
+        }
+        flashcard.onclick = () => flashcard.classList.toggle('flipped');
+        function nextCard() { currentCard = (currentCard + 1) % data.flashcards.length; updateCard(); }
+        function prevCard() { currentCard = (currentCard - 1 + data.flashcards.length) % data.flashcards.length; updateCard(); }
+        updateCard();
+
+        // Scenarios
+        const scenariosList = document.getElementById('scenarios-list');
+        data.scenario_checks.forEach((sc, idx) => {
+            const div = document.createElement('div');
+            div.className = "p-4 rounded-3xl bg-slate-900/50 border border-slate-800";
+            div.innerHTML = `
+                <p class="text-xs font-bold text-slate-300 mb-4">${sc.statement}</p>
+                <div class="flex gap-4">
+                    <button onclick="checkScenario(${idx}, 'O')" id="sc-${idx}-O" class="flex-1 py-1 text-[10px] rounded-xl border border-slate-700 hover:border-accent hover:text-accent font-black transition-all">是 (O)</button>
+                    <button onclick="checkScenario(${idx}, 'X')" id="sc-${idx}-X" class="flex-1 py-1 text-[10px] rounded-xl border border-slate-700 hover:border-accent hover:text-accent font-black transition-all">否 (X)</button>
+                </div>
+                <div id="sc-ans-${idx}" class="mt-4 hidden p-3 rounded-2xl text-[10px] leading-relaxed animate-fadeIn"></div>
+            `;
+            scenariosList.appendChild(div);
+        });
+
+        function checkScenario(idx, choice) {
+            const sc = data.scenario_checks[idx];
+            const ansBox = document.getElementById(`sc-ans-${idx}`);
+            const correct = choice === sc.answer;
+            ansBox.classList.remove('hidden', 'bg-accent/10', 'text-accent', 'bg-red-500/10', 'text-red-500');
+            ansBox.classList.add(correct ? 'bg-accent/10' : 'bg-red-500/10');
+            ansBox.classList.add(correct ? 'text-accent' : 'text-red-500');
+            ansBox.innerHTML = `<b>${correct ? "Correct!" : "Mistake!"}</b><br>${sc.explanation}`;
+        }
+
+        // Feynman
+        document.getElementById('feynman-plain').innerText = data.feynman_explanation.one_sentence_plain;
+        document.getElementById('feynman-analogy').innerText = data.feynman_explanation.analogy;
+        document.getElementById('feynman-one-minute').innerText = data.feynman_rebuild.one_minute_version;
+        document.getElementById('raw-notes').innerText = data.original_notes_for_appendix;
+
+        const feynmanSteps = document.getElementById('feynman-steps');
+        data.feynman_rebuild.teach_flow.forEach((step, idx) => {
+            feynmanSteps.innerHTML += `
+                <div class="flex gap-4 items-start group">
+                    <div class="w-6 h-6 bg-slate-800 rounded-lg flex items-center justify-center shrink-0 text-xs font-black text-primary border border-slate-700 group-hover:bg-primary/20">${idx + 1}</div>
+                    <p class="text-xs text-slate-400 leading-relaxed font-bold">${step}</p>
+                </div>
+            `;
+        });
+
+        const triggerTags = document.getElementById('trigger-tags');
+        data.feynman_rebuild.exam_trigger_phrases.forEach(phrase => {
+            triggerTags.innerHTML += `<span class="px-3 py-1 bg-slate-900 border border-slate-800 text-[9px] font-black text-slate-600 rounded-full hover:text-white transition-all cursor-default"># ${phrase}</span>`;
+        });
+
+    </script>
+</body>
+
+</html>
