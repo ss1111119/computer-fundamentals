@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>05 XML 與資料交換 - 學習導論</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#10b981', // Emerald 500 (XML focus)
+                        secondary: '#ef4444', // Red 500 (HTML focus)
+                        darkBg: '#0f172a',
+                        cardBg: '#1e293b',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Outfit:wght@300;400;600;700;900&display=swap');
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #0f172a;
+            color: #f1f5f9;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .glass-card {
+            background: rgba(30, 41, 59, 0.5);
+            backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .duel-badge {
+            transition: all 0.3s ease;
+        }
+
+        .duel-active-xml {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: #10b981;
+            box-shadow: 0 0 25px rgba(16, 185, 129, 0.2);
+        }
+
+        .duel-active-html {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: #ef4444;
+            box-shadow: 0 0 25px rgba(239, 68, 68, 0.2);
+        }
+
+        @keyframes pulse-slow {
+
+            0%,
+            100% {
+                opacity: 0.8;
+            }
+
+            50% {
+                opacity: 1;
+            }
+        }
+
+        .animate-pulse-slow {
+            animation: pulse-slow 3s infinite;
+        }
+    </style>
+</head>
+
+<body class="p-4 md:p-10 lg:p-16">
+
+    <!-- Header -->
+    <header class="max-w-6xl mx-auto mb-20 relative">
+        <div class="absolute -top-10 -left-10 w-48 h-48 bg-primary/10 rounded-full blur-3xl"></div>
+        <div class="flex items-center gap-3 mb-6">
+            <span
+                class="px-4 py-1 text-[10px] font-black tracking-widest uppercase bg-primary/20 text-primary border border-primary/30 rounded-full">Section
+                05</span>
+            <span class="text-slate-600">|</span>
+            <span class="text-slate-400 font-bold text-xs">Chapter 05 電腦資料處理與電腦通信</span>
+        </div>
+        <h1 class="text-5xl md:text-8xl font-black text-white tracking-widest mb-8">XML <span
+                class="text-primary">&</span> 資料交換</h1>
+        <p class="text-xl text-slate-400 max-w-4xl leading-relaxed font-light">
+            網路時代的資料交換通用標準。當資料離開資料庫，XML 確保其跨平台、異質系統間的「語意一致性」。
+        </p>
+    </header>
+
+    <main class="max-w-6xl mx-auto space-y-16">
+
+        <!-- The Big Duel: HTML vs XML -->
+        <section class="glass-card p-12 rounded-[3rem] relative overflow-hidden">
+            <div class="absolute top-0 right-0 p-12 opacity-5">
+                <svg class="w-64 h-64 text-white" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M11 2h2v20h-2V2zM7 7h10v2H7V7zm0 4h10v2H7v-2zm0 4h10v2H7v-2z" />
+                </svg>
+            </div>
+
+            <div class="text-center mb-16">
+                <h2 class="text-3xl font-black text-white mb-4">標記語言定位對決 (The Great Duel)</h2>
+                <p class="text-slate-500 text-sm">點擊下方按鈕，切換查看標記語言的本質差異。</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
+                <!-- Dual Switch Area -->
+                <div class="lg:col-span-12 flex justify-center gap-4 mb-4">
+                    <button onclick="toggleDuel('html')" id="btn-html"
+                        class="px-8 py-3 rounded-2xl border border-slate-700 bg-slate-800 text-sm font-black transition-all">顯示主導：HTML</button>
+                    <button onclick="toggleDuel('xml')" id="btn-xml"
+                        class="px-8 py-3 rounded-2xl border border-slate-700 bg-slate-800 text-sm font-black transition-all">描述主導：XML</button>
+                </div>
+
+                <!-- Comparison Matrix -->
+                <div class="lg:col-span-7 overflow-hidden rounded-[2rem] border border-slate-800">
+                    <table class="w-full text-left text-sm border-collapse">
+                        <thead class="bg-slate-900">
+                            <tr>
+                                <th class="p-6 text-[10px] font-black text-slate-500 uppercase">特性</th>
+                                <th class="p-6 text-[10px] font-black text-slate-500 uppercase">狀態描述</th>
+                            </tr>
+                        </thead>
+                        <tbody id="duel-table" class="bg-slate-950/30 divide-y divide-slate-800">
+                            <!-- Injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Visual Comparison Lab -->
+                <div
+                    class="lg:col-span-5 p-8 bg-slate-950 rounded-[2rem] border border-slate-800 flex flex-col justify-center">
+                    <h4 id="lab-label"
+                        class="text-xs font-black text-slate-500 uppercase mb-6 tracking-widest text-center">視角：瀏覽器 vs
+                        程式碼</h4>
+                    <div id="duel-visual"
+                        class="h-48 rounded-2xl bg-slate-900 border border-slate-800 p-8 flex items-center justify-center text-center">
+                        <!-- Injected visual -->
+                    </div>
+                    <p id="duel-caveat" class="mt-6 text-[10px] leading-relaxed text-center px-4"></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- XML Tag Playground -->
+        <section class="glass-card p-12 rounded-[3rem]">
+            <h2 class="text-3xl font-black mb-12 flex items-center gap-4 text-primary uppercase">
+                <span class="w-2 h-10 bg-primary rounded-full"></span>
+                XML 標籤實驗室 (Post-it Lab)
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
+                <div class="space-y-8">
+                    <div class="space-y-4">
+                        <label class="block text-xs font-black text-slate-500 uppercase tracking-widest">自定義標籤
+                            (如：寄件人)</label>
+                        <input type="text" id="playground-tag" value="Memo"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-2xl p-4 text-white font-black focus:border-primary outline-none transition-all"
+                            oninput="renderPlayground()">
+                    </div>
+                    <div class="space-y-4">
+                        <label class="block text-xs font-black text-slate-500 uppercase tracking-widest">標籤內容</label>
+                        <textarea id="playground-content" rows="3"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-2xl p-4 text-white font-medium focus:border-primary outline-none transition-all"
+                            oninput="renderPlayground()">Meeting at 10 AM regarding project architecture.</textarea>
+                    </div>
+                    <div class="p-6 bg-primary/5 rounded-3xl border border-primary/10">
+                        <h4 class="text-xs font-black text-primary uppercase mb-2">可延伸性 (Extensibility)</h4>
+                        <p class="text-xs text-slate-500 leading-relaxed">
+                            在 XML 世界裡，你是語義的造物主。標籤不再由標準規範限制，而是根據你的業務邏輯自由延伸。
+                        </p>
+                    </div>
+                </div>
+
+                <div class="relative group">
+                    <div
+                        class="absolute -top-3 -right-3 px-3 py-1 bg-primary text-[8px] font-black text-white rounded-lg z-10 shadow-lg uppercase tracking-widest">
+                        Self-Describing</div>
+                    <div
+                        class="h-full bg-slate-950 rounded-[2rem] border border-slate-800 p-10 mono text-xs leading-relaxed overflow-hidden">
+                        <div id="playground-output" class="text-primary"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- The Universal Language Map -->
+        <section class="glass-card p-12 rounded-[3rem] bg-gradient-to-br from-cardBg to-slate-900">
+            <h2
+                class="text-3xl font-black mb-12 text-center text-white italic underline decoration-primary decoration-4 underline-offset-8">
+                異質系統溝通的「世界語」</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
+                <div
+                    class="text-center p-8 bg-slate-950 rounded-3xl border border-slate-800 transition-all hover:border-primary">
+                    <div class="text-4xl mb-4">🖥️</div>
+                    <h3 class="text-sm font-black text-white mb-2 uppercase">Windows Server</h3>
+                    <p class="text-[10px] text-slate-500">使用 C# / SQL Server</p>
+                </div>
+                <div class="text-center relative">
+                    <div
+                        class="p-10 bg-primary/20 rounded-full inline-block border-2 border-primary border-dashed animate-pulse-slow">
+                        <span class="text-2xl font-black text-primary">XML</span>
+                    </div>
+                    <div class="absolute top-1/2 left-0 w-full h-0.5 bg-primary/20 -z-10 hidden md:block"></div>
+                </div>
+                <div
+                    class="text-center p-8 bg-slate-950 rounded-3xl border border-slate-800 transition-all hover:border-primary">
+                    <div class="text-4xl mb-4">📱</div>
+                    <h3 class="text-sm font-black text-white mb-2 uppercase">Android Client</h3>
+                    <p class="text-[10px] text-slate-500">使用 Kotlin / Java</p>
+                </div>
+            </div>
+            <p class="mt-12 text-center text-sm text-slate-400 max-w-2xl mx-auto leading-relaxed italic">
+                「XML 是純文字且自我描述的特性，使其成為分散式處理中，解決不同廠牌、不同系統溝通最理想的中介格式。」
+            </p>
+        </section>
+
+        <!-- Flashcards & Scenario Checks -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+            <section class="glass-card p-10 rounded-[2.5rem]">
+                <h2 class="text-2xl font-black mb-10 flex justify-between items-center text-white">
+                    Recall Flashcards
+                    <span id="card-index" class="text-[10px] font-bold text-slate-500 tracking-widest">1 / 5</span>
+                </h2>
+                <div class="flip-card h-56 cursor-pointer" id="flashcard">
+                    <div class="flip-card-inner h-full w-full relative">
+                        <div
+                            class="flip-card-front absolute inset-0 bg-slate-900 rounded-[2rem] border border-slate-800 flex items-center justify-center p-10 text-center">
+                            <h3 id="card-front" class="text-xl font-bold text-white tracking-tight"></h3>
+                        </div>
+                        <div
+                            class="flip-card-back absolute inset-0 bg-primary/20 rounded-[2rem] border border-primary/40 flex items-center justify-center p-10 text-center overflow-hidden">
+                            <p id="card-back" class="text-sm leading-relaxed font-bold text-slate-200"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-center gap-8 mt-10">
+                    <button onclick="prevCard()"
+                        class="p-3 rounded-full hover:bg-slate-800 text-slate-500 transition-all active:scale-95"><svg
+                            class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7">
+                            </path>
+                        </svg></button>
+                    <button onclick="nextCard()"
+                        class="p-3 rounded-full hover:bg-slate-800 text-slate-500 transition-all active:scale-95"><svg
+                            class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7">
+                            </path>
+                        </svg></button>
+                </div>
+            </section>
+
+            <section class="glass-card p-10 rounded-[2.5rem]">
+                <h2 class="text-2xl font-black mb-10 text-white">戰略情境演練 (Scenario Logic)</h2>
+                <div id="scenarios-list" class="space-y-6">
+                    <!-- Injected by JS -->
+                </div>
+            </section>
+        </div>
+
+        <!-- Feynman Rebuild -->
+        <section class="glass-card p-12 rounded-[3.5rem] bg-gradient-to-tl from-cardBg to-slate-900 border-none">
+            <h2
+                class="text-3xl font-black mb-12 tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-primary to-green-300 uppercase">
+                費曼學習法：XML 的標籤哲學</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-16">
+                <div>
+                    <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-6">解析語義核心 (Parsing)
+                    </h3>
+                    <p id="feynman-plain" class="text-3xl font-black text-white mb-10 leading-snug"></p>
+                    <div class="p-10 bg-slate-950 rounded-[2.5rem] border border-slate-800 relative">
+                        <div
+                            class="absolute -top-5 left-8 px-4 py-1 bg-secondary text-[8px] font-black text-white rounded-full">
+                            ANALOGY</div>
+                        <p id="feynman-analogy" class="text-slate-400 italic leading-relaxed text-sm"></p>
+                    </div>
+                </div>
+                <div class="space-y-10">
+                    <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-6">攻心教案 (Teach Flow)
+                    </h3>
+                    <div id="feynman-steps" class="space-y-6">
+                        <!-- Injected by JS -->
+                    </div>
+                </div>
+            </div>
+            <div class="mt-16 pt-10 border-t border-slate-800/50 flex flex-wrap gap-4 items-center justify-center">
+                <div id="trigger-tags" class="flex flex-wrap gap-2"></div>
+                <div class="hidden lg:block w-px h-8 bg-slate-800"></div>
+                <p id="feynman-one-minute" class="text-xs font-bold text-primary max-w-xl text-center leading-relaxed">
+                </p>
+            </div>
+        </section>
+
+        <!-- Appendix -->
+        <section class="mt-20">
+            <button onclick="document.getElementById('appendix-box').classList.toggle('hidden')"
+                class="w-full text-center py-4 text-[10px] font-bold text-slate-700 hover:text-slate-100 uppercase tracking-widest transition-all">
+                SHOW ORIGINAL SECTION NOTES
+            </button>
+            <div id="appendix-box"
+                class="hidden mt-6 p-10 bg-slate-950 rounded-[2rem] border border-slate-900 overflow-x-auto shadow-2xl">
+                <pre id="raw-notes"
+                    class="text-slate-700 font-mono text-[10px] leading-relaxed whitespace-pre-wrap"></pre>
+            </div>
+        </section>
+
+    </main>
+
+    <footer
+        class="max-w-6xl mx-auto mt-24 mb-16 text-center text-slate-700 text-[10px] font-black tracking-[0.4em] uppercase">
+        <p>© Section 05 - XML Exchange | Part of Chapter 5 Series</p>
+    </footer>
+
+    <script>
+        const data = {
+            "chapter_positioning": {
+                "one_sentence": "本節探討 XML 作為網路資料交換的通用標準，強調其「描述資料」而非「顯示資料」的核心地位。",
+                "prerequisites": ["5-1 資料與資訊", "5-3 處理型態"],
+                "downstream_links": ["電子商務系統", "Web Services 應用"]
+            },
+            "keywords": [
+                {
+                    "term": "XML (可延伸標記語言)",
+                    "why_important": "資料交換的通用標準，具備自定義標籤的能力。",
+                    "common_exam_angle": "與 HTML 的對比，強調描述資料的功能。"
+                },
+                {
+                    "term": "HTML (超文件標記語言)",
+                    "why_important": "用於「顯示資料」與控制瀏覽器外觀。",
+                    "common_exam_angle": "標籤預先定義，側重於視覺呈現。"
+                },
+                {
+                    "term": "後設語言 (Meta-language)",
+                    "why_important": "XML 本身是一套規則，允許自定義新語言。",
+                    "common_exam_angle": "XML 的延伸性 (Extensibility) 與結構化特點。"
+                },
+                {
+                    "term": "自我描述 (Self-describing)",
+                    "why_important": "標籤本身即包含資料的語意意義。",
+                    "common_exam_angle": "機器如何透過 XML 標籤理解內容而非外觀。"
+                },
+                {
+                    "term": "異質系統溝通",
+                    "why_important": "XML 純文字特性使其能在不同平台間自由傳輸。",
+                    "common_exam_angle": "XML 作為跨平台資料交換的中介角色。"
+                }
+            ],
+            "weighting": {
+                "basis": "estimate",
+                "items": [
+                    {
+                        "topic": "XML vs HTML 本質區別",
+                        "weight": 50,
+                        "reason": "這是本節最核心的分類學觀點，也是考題中最常見的對比。"
+                    },
+                    {
+                        "topic": "XML 的可延伸性與結構",
+                        "weight": 30,
+                        "reason": "考查 XML 標籤自定義與標記語言的階層性。"
+                    },
+                    {
+                        "topic": "資料交換與跨平台應用",
+                        "weight": 20,
+                        "reason": "理解 XML 如何解決網路通訊中的語意理解問題。"
+                    }
+                ]
+            },
+            "comparison_matrix": {
+                "title": "標記語言定位對決表",
+                "dimensions": ["核心功用", "標籤定義", "焦點", "分離度"],
+                "rows": [
+                    {
+                        "name": "HTML",
+                        "values": {
+                            "核心功用": "顯示資料 (Display)",
+                            "標籤定義": "預先定義 (Predefined)",
+                            "焦點": "外觀呈現 (Look)",
+                            "分離度": "混淆內容與外觀"
+                        },
+                        "pitfall": "機器難以從 HTML 中提取精確的語意資料。",
+                        "rule_of_thumb": "「化妝師」：決定網頁看起來有多漂亮。"
+                    },
+                    {
+                        "name": "XML",
+                        "values": {
+                            "核心功用": "描述資料 (Describe)",
+                            "標籤定義": "自由創造 (Customizable)",
+                            "焦點": "資料意義 (Meaning)",
+                            "分離度": "成功分離內容與呈現"
+                        },
+                        "pitfall": "XML 本身不包含任何顯示指令，需要 XSLT 轉換。",
+                        "rule_of_thumb": "「翻譯官」：告訴所有人這筆資料到底代表什麼。"
+                    }
+                ]
+            },
+            "feynman_explanation": {
+                "one_sentence_plain": "XML 就像是幫你的資料貼上標籤，告訴全世界這堆數字是什麼，而不是這堆數字要長什麼樣子。",
+                "analogy": "HTML 像是百貨公司的「宣傳單」，字要大、圖要亮，吸引人看；XML 則是商品的「規格標籤」，寫著重量、產地、條碼，方便電腦掃描進貨。",
+                "forbidden_terms_used": ["後設語言", "異質系統", "自律語意"]
+            },
+            "feynman_rebuild": {
+                "teach_flow": [
+                    "首先，XML 反對混淆：HTML 什麼都管（顏色、字體、換行），導致電腦看不懂內容。XML 把資料內容獨立出來。",
+                    "接著，標籤自由：在 XML 裡你是造物主，你可以定義 <價格> 而不是只有 <h1>。",
+                    "最後，網路世界的通用語：跨平台交換時，大家規格不同，XML 純文字且自我描述的特性成了最強大的橋樑。"
+                ],
+                "one_minute_version": "XML 讓資料具備語意，解決了 HTML 只能管顯示的缺陷。透過自定義標籤與後設語言的特性，XML 將內容與外觀完全分離，成為不同作業系統與網路之間交換資訊的標準。機器能自動解析 XML 標籤提取精確數據，這是現代電子商務與 Web Services 的技術基石。",
+                "exam_trigger_phrases": [
+                    "描述資料 (Describe Data)",
+                    "可延伸性 (Extensibility)",
+                    "顯示資料 (Display Data)",
+                    "自我描述 (Self-describing)"
+                ]
+            },
+            "flashcards": [
+                {
+                    "front": "XML 的全稱與中文名稱？",
+                    "back": "Extensible Markup Language (可延伸標記語言)。"
+                },
+                {
+                    "front": "哪種標記語言的標籤是預先定義好的？",
+                    "back": "HTML (超文件標記語言)。"
+                },
+                {
+                    "front": "XML 被稱為「後設語言」的原因？",
+                    "back": "因為它提供了一套規則，允許使用者自行定義標籤，進而創造符合需求的特定語言。"
+                },
+                {
+                    "front": "XML 主要負責的是「資料顯示」還是「資料描述」？",
+                    "back": "資料描述 (Describe Data)。"
+                },
+                {
+                    "front": "為什麼 XML 適合用於網路資料交換？",
+                    "back": "因為它是純文字、自我描述、且跨平台的，任何系統都能輕易解析其內容。"
+                }
+            ],
+            "scenario_checks": [
+                {
+                    "statement": "如果我想讓網頁上的標題看起來是紅色的，最適合直接在 XML 標籤裡寫 CSS 顏色屬性。",
+                    "answer": "X",
+                    "explanation": "錯誤。XML 重點在於「資料意義」，外觀控制應由 CSS 或 XSLT 處理，不建議直接混雜在 XML 內容中。"
+                },
+                {
+                    "statement": "HTML 的最大缺陷在於內容與外觀混淆，導致機器難以自動處理資料。",
+                    "answer": "O",
+                    "explanation": "正確。這正是 XML 誕生的主要動機，旨在實現內容與呈現的完全分離。"
+                }
+            ],
+            "original_notes_for_appendix": "在「第五章 電腦資料處理與電腦通信」的宏觀架構下，來源資料將**「XML (可延伸標記語言)」視為網路時代資料交換的通用標準與結構化描述工具**。\n如果說 5-1 定義了資料的本質，5-4 介紹了集中管理的資料庫，那麼 5-6 的 XML 就是在解決**「當資料離開了資料庫，如何在不同的電腦系統與網路之間被正確理解與傳輸」**的問題。\n1. 功能的二分法：展示 (Display) vs. 描述 (Description)\nHTML 顯示資料 (Display Data)，標籤預先定義。 XML 描述資料 (Describe Data)，標籤由使用者自訂。 分離資料內容與外觀呈現。\n2. 結構化的自由：可延伸性 (Extensibility)\nXML 是後設語言 (Meta-language)，允許創造自己的語言。 自我描述 (Self-describing) 特性讓電腦解析語意。\n3. 系統間的通用語：跨平台交換\n異質系統溝通的世界語，純文字、跨平台、跨廠牌。 分散式處理理想中介格式。"
+        };
+
+        // Duel Toggle Logic
+        function toggleDuel(mode) {
+            const btnHtml = document.getElementById('btn-html');
+            const btnXml = document.getElementById('btn-xml');
+            const table = document.getElementById('duel-table');
+            const visual = document.getElementById('duel-visual');
+            const caveat = document.getElementById('duel-caveat');
+
+            btnHtml.classList.remove('duel-active-html');
+            btnXml.classList.remove('duel-active-xml');
+
+            table.innerHTML = '';
+            const htmlRow = data.comparison_matrix.rows[0];
+            const xmlRow = data.comparison_matrix.rows[1];
+
+            if (mode === 'html') {
+                btnHtml.classList.add('duel-active-html');
+                data.comparison_matrix.dimensions.forEach(dim => {
+                    table.innerHTML += `<tr class="animate-fadeIn"><td class="p-6 font-bold text-slate-300 italic">${dim}</td><td class="p-6 text-secondary font-black">${htmlRow.values[dim]}</td></tr>`;
+                });
+                visual.innerHTML = `<div class="text-secondary font-black text-3xl animate-pulse">HELLO WORLD (<h1>)</div>`;
+                caveat.innerText = `HTML 專注於顯示。標籤是預設好的化妝術，目標是「好看」。`;
+                caveat.className = "mt-6 text-[10px] leading-relaxed text-center px-4 text-secondary font-bold";
+            } else {
+                btnXml.classList.add('duel-active-xml');
+                data.comparison_matrix.dimensions.forEach(dim => {
+                    table.innerHTML += `<tr class="animate-fadeIn"><td class="p-6 font-bold text-slate-300 italic">${dim}</td><td class="p-6 text-primary font-black">${xmlRow.values[dim]}</td></tr>`;
+                });
+                visual.innerHTML = `<div class="mono text-primary font-black text-sm"><span class="text-slate-600">&lt;Message&gt;</span>HELLO WORLD<span class="text-slate-600">&lt;/Message&gt;</span></div>`;
+                caveat.innerText = `XML 專注於描述。標籤是你自定義的語句，目標是讓機器「看懂」。`;
+                caveat.className = "mt-6 text-[10px] leading-relaxed text-center px-4 text-primary font-bold";
+            }
+        }
+
+        // Playground Logic
+        function renderPlayground() {
+            const tag = document.getElementById('playground-tag').value.replace(/\s+/g, '');
+            const content = document.getElementById('playground-content').value;
+            const output = document.getElementById('playground-output');
+
+            output.innerHTML = `
+                <div class="animate-fadeIn">
+                    <span class="text-slate-600">&lt;?xml version="1.0" encoding="UTF-8"?&gt;</span><br>
+                    <span class="text-slate-500">&lt;</span><span class="text-primary font-bold">${tag}</span><span class="text-slate-500">&gt;</span><br>
+                    <span class="pl-6 text-white font-medium">${content}</span><br>
+                    <span class="text-slate-500">&lt;/</span><span class="text-primary font-bold">${tag}</span><span class="text-slate-500">&gt;</span>
+                </div>
+            `;
+        }
+
+        // Flashcards Logic
+        let currentCard = 0;
+        const flashcard = document.getElementById('flashcard');
+        function updateCard() {
+            flashcard.classList.remove('flipped');
+            setTimeout(() => {
+                document.getElementById('card-front').innerText = data.flashcards[currentCard].front;
+                document.getElementById('card-back').innerText = data.flashcards[currentCard].back;
+                document.getElementById('card-index').innerText = `${currentCard + 1} / ${data.flashcards.length}`;
+            }, 300);
+        }
+        flashcard.onclick = () => flashcard.classList.toggle('flipped');
+        function nextCard() { currentCard = (currentCard + 1) % data.flashcards.length; updateCard(); }
+        function prevCard() { currentCard = (currentCard - 1 + data.flashcards.length) % data.flashcards.length; updateCard(); }
+
+        // Scenarios Logic
+        function renderScenarios() {
+            const list = document.getElementById('scenarios-list');
+            data.scenario_checks.forEach((sc, idx) => {
+                const div = document.createElement('div');
+                div.className = "p-6 rounded-3xl bg-slate-900 border border-slate-800 animate-fadeIn";
+                div.innerHTML = `
+                    <p class="text-xs font-bold text-slate-300 mb-6 leading-relaxed">${sc.statement}</p>
+                    <div class="flex gap-4">
+                        <button onclick="checkScenario(${idx}, 'O')" id="sc-${idx}-O" class="flex-1 py-2 text-[10px] font-black rounded-xl border border-slate-700 hover:border-primary transition-all">是 (O)</button>
+                        <button onclick="checkScenario(${idx}, 'X')" id="sc-${idx}-X" class="flex-1 py-2 text-[10px] font-black rounded-xl border border-slate-700 hover:border-primary transition-all">否 (X)</button>
+                    </div>
+                    <div id="sc-res-${idx}" class="mt-4 hidden p-4 rounded-2xl text-[10px] leading-relaxed transition-all"></div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function checkScenario(idx, choice) {
+            const sc = data.scenario_checks[idx];
+            const res = document.getElementById(`sc-res-${idx}`);
+            const correct = choice === sc.answer;
+            res.classList.remove('hidden', 'bg-primary/10', 'text-primary', 'bg-red-500/10', 'text-red-500');
+            res.classList.add(correct ? 'bg-primary/10' : 'bg-red-500/10');
+            res.classList.add(correct ? 'text-primary' : 'text-red-500');
+            res.innerHTML = `<b>${correct ? "CORRECT!" : "MISTAKE!"}</b><br>${sc.explanation}`;
+        }
+
+        // Feynman Components
+        function renderFeynman() {
+            document.getElementById('feynman-plain').innerText = data.feynman_explanation.one_sentence_plain;
+            document.getElementById('feynman-analogy').innerText = data.feynman_explanation.analogy;
+            document.getElementById('feynman-one-minute').innerText = data.feynman_rebuild.one_minute_version;
+            document.getElementById('raw-notes').innerText = data.original_notes_for_appendix;
+
+            const steps = document.getElementById('feynman-steps');
+            data.feynman_rebuild.teach_flow.forEach((step, idx) => {
+                steps.innerHTML += `
+                    <div class="flex gap-6 items-start group">
+                        <div class="w-8 h-8 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0 text-xs font-black text-primary group-hover:bg-primary group-hover:text-white transition-all shadow-xl">${idx + 1}</div>
+                        <p class="text-sm text-slate-400 leading-relaxed font-bold pt-1">${step}</p>
+                    </div>
+                `;
+            });
+
+            const triggers = document.getElementById('trigger-tags');
+            data.feynman_rebuild.exam_trigger_phrases.forEach(p => {
+                triggers.innerHTML += `<span class="px-3 py-1 bg-slate-900 border border-slate-800 text-[9px] font-black text-slate-500 rounded-lg hover:text-white cursor-default uppercase"># ${p}</span>`;
+            });
+        }
+
+        // INIT ALL
+        toggleDuel('xml');
+        renderPlayground();
+        updateCard();
+        renderScenarios();
+        renderFeynman();
+
+    </script>
+</body>
+
+</html>
