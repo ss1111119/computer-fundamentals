@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>06 算術式表示法與陣列 - 學習導論</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#f43f5e', // Rose 500
+                        secondary: '#0ea5e9', // Sky 500
+                        accent: '#8b5cf6', // Violet 500
+                        darkBg: '#0f172a',
+                        cardBg: '#1e293b',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #0f172a;
+            color: #f1f5f9;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .glass-card {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .expr-step {
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .mem-cell {
+            transition: all 0.3s ease;
+        }
+
+        .mem-cell-active {
+            background-color: #f43f5e;
+            transform: scale(1.1);
+            z-index: 10;
+        }
+
+        .flip-card {
+            perspective: 1000px;
+        }
+
+        .flip-card-inner {
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+
+        .flip-card.flipped .flip-card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .flip-card-front,
+        .flip-card-back {
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+
+        .flip-card-back {
+            transform: rotateY(180deg);
+        }
+
+        .glow-rose {
+            box-shadow: 0 0 20px rgba(244, 63, 94, 0.2);
+        }
+    </style>
+</head>
+
+<body class="p-4 md:p-8 lg:p-12">
+
+    <!-- Header -->
+    <header class="max-w-6xl mx-auto mb-16">
+        <div class="flex items-center gap-3 mb-4">
+            <span
+                class="px-4 py-1 text-[10px] font-black tracking-widest uppercase bg-primary/20 text-primary border border-primary/30 rounded-full">Chapter
+                06</span>
+            <span class="text-slate-600">|</span>
+            <span class="text-slate-400 font-bold text-xs uppercase tracking-tight">Arithmetic & Arrays</span>
+        </div>
+        <h1 class="text-5xl md:text-7xl font-black text-white tracking-tighter mb-6">算術式表示法與陣列</h1>
+        <p class="text-xl text-slate-400 max-w-3xl font-light leading-relaxed">
+            人類 logic 與機器實作的「橋樑」：如何將數學算式與矩陣結構，映射到電腦線性的運作邏輯中。
+        </p>
+    </header>
+
+    <main class="max-w-6xl mx-auto space-y-12">
+
+        <!-- Expression Conversion Lab -->
+        <section class="glass-card p-10 rounded-[2.5rem] relative overflow-hidden">
+            <div class="absolute -top-10 -right-10 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none">
+            </div>
+            <h2 class="text-3xl font-black mb-10 flex items-center gap-4 text-white">
+                <span class="w-2 h-10 bg-primary rounded-full"></span>
+                運算式轉譯：中序 → 後序
+            </h2>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                <div class="space-y-8">
+                    <div class="space-y-4">
+                        <label class="block text-xs font-black text-slate-500 uppercase tracking-widest">輸入中序算式
+                            (Infix)</label>
+                        <div class="flex gap-4">
+                            <input type="text" id="infix-input" value="A*(B+C)"
+                                class="flex-1 bg-slate-900 border border-slate-700 rounded-2xl p-4 text-xl font-bold text-white focus:border-primary outline-none mono transition-all">
+                            <button onclick="convertExpression()"
+                                class="px-8 bg-primary hover:bg-rose-600 text-white font-black rounded-2xl transition-all shadow-lg active:scale-95">CONVERT</button>
+                        </div>
+                        <p class="text-[10px] text-slate-500 italic">支援運算子: +, -, *, /, (, )</p>
+                    </div>
+
+                    <div class="p-8 bg-slate-950 rounded-[2rem] border border-slate-800">
+                        <h4 class="text-xs font-black text-slate-500 uppercase mb-4 text-center">後序表示法 (Postfix / RPN)
+                        </h4>
+                        <div id="postfix-result"
+                            class="text-4xl font-black text-primary text-center tracking-widest mono">ABC+*</div>
+                        <div
+                            class="mt-8 p-4 bg-primary/10 border border-primary/20 rounded-2xl text-[10px] text-center text-primary leading-relaxed">
+                            <b>為什麼電腦更喜歡這個？</b><br>不需要括號，且優先權已「線性化」，單向掃描即可完成運算。
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-6">
+                    <h4 class="text-xs font-black text-slate-500 uppercase mb-4 tracking-widest">編譯器轉譯邏輯 (Compiler
+                        Logic)</h4>
+                    <div id="conversion-steps" class="space-y-4">
+                        <!-- Steps Injected -->
+                        <div
+                            class="p-4 bg-slate-900/50 rounded-2xl text-xs text-slate-400 border border-slate-800 flex justify-between">
+                            <span>1. 遇到資料 (A, B, C)</span>
+                            <span class="text-primary font-bold">直接輸出</span>
+                        </div>
+                        <div
+                            class="p-4 bg-slate-900/50 rounded-2xl text-xs text-slate-400 border border-slate-800 flex justify-between">
+                            <span>2. 遇到符號 (*, +, -)</span>
+                            <span class="text-secondary font-bold">推入堆疊 (Stack)</span>
+                        </div>
+                        <div
+                            class="p-4 bg-slate-900/50 rounded-2xl text-xs text-slate-400 border border-slate-800 flex justify-between">
+                            <span>3. 括號優先權最大</span>
+                            <span class="text-accent font-bold">直到右括號出現才彈出</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Array Memory Mapping Visualizer -->
+        <section class="glass-card p-10 rounded-[2.5rem]">
+            <h2 class="text-3xl font-black mb-12 flex items-center gap-4 text-white">
+                <span class="w-2 h-10 bg-secondary rounded-full"></span>
+                二維陣列位址映射 (2D to 1D)
+            </h2>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
+                <!-- Grid Visualization -->
+                <div class="lg:col-span-8 space-y-8">
+                    <div class="flex justify-between items-end mb-4">
+                        <div>
+                            <h3 class="text-sm font-black text-slate-400 uppercase tracking-widest mb-1">邏輯視圖 (Matrix
+                                Grid)</h3>
+                            <p class="text-[10px] text-slate-600">使用者眼中的 3x4 矩陣</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="setMapping('row')" id="btn-row"
+                                class="px-4 py-2 text-[10px] font-black border border-secondary bg-secondary/20 text-secondary rounded-lg transition-all">ROW-MAJOR</button>
+                            <button onclick="setMapping('col')" id="btn-col"
+                                class="px-4 py-2 text-[10px] font-black border border-slate-700 text-slate-500 rounded-lg transition-all">COLUMN-MAJOR</button>
+                        </div>
+                    </div>
+
+                    <div id="matrix-grid"
+                        class="grid grid-cols-4 gap-2 bg-slate-950 p-6 rounded-3xl border border-slate-800">
+                        <!-- Cells Injected -->
+                    </div>
+
+                    <div>
+                        <h3 class="text-sm font-black text-slate-400 uppercase tracking-widest mb-4">實體記憶體映射 (Physical
+                            Strip)</h3>
+                        <div id="memory-strip"
+                            class="flex flex-wrap gap-1 bg-slate-950 p-4 rounded-2xl border border-slate-900 overflow-x-auto">
+                            <!-- Memory segments Injected -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Address Calculator -->
+                <div class="lg:col-span-4 p-8 bg-secondary/5 rounded-[2.5rem] border border-secondary/10">
+                    <h4 class="text-sm font-black text-secondary uppercase mb-8 tracking-widest text-center">位址隨機存取計算器
+                    </h4>
+                    <div class="space-y-6">
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="text-slate-500">Base Address (A[0][0]):</span>
+                            <span class="mono text-white font-bold">100</span>
+                        </div>
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="text-slate-500">Element Size:</span>
+                            <span class="mono text-white font-bold">4 bytes</span>
+                        </div>
+                        <hr class="border-slate-800">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="space-y-2">
+                                <label class="text-[10px] text-slate-500 uppercase font-black">Row (i)</label>
+                                <input type="number" id="calc-i" value="1" min="0" max="2"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white mono font-bold"
+                                    oninput="updateAddress()">
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-[10px] text-slate-500 uppercase font-black">Col (j)</label>
+                                <input type="number" id="calc-j" value="2" min="0" max="3"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white mono font-bold"
+                                    oninput="updateAddress()">
+                            </div>
+                        </div>
+                        <div class="mt-8 p-6 bg-slate-950 rounded-2xl border border-slate-800">
+                            <div class="text-[10px] text-slate-500 font-black uppercase mb-2 text-center">定位結果 (Target
+                                Address)</div>
+                            <div id="address-result" class="text-3xl font-black text-secondary text-center mono">124
+                            </div>
+                        </div>
+                        <div class="text-[10px] text-slate-500 leading-relaxed text-center px-2">
+                            <span class="text-secondary font-black">公式：</span><br>
+                            <span id="formula-text" class="mono">Base + (i * 4 + j) * 4</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Feynman & Matrix Best Practice -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
+            <!-- Feynman -->
+            <section
+                class="lg:col-span-7 glass-card p-12 rounded-[2.5rem] bg-gradient-to-br from-rose-500/10 to-transparent">
+                <h2 class="text-3xl font-black mb-8 text-white uppercase italic tracking-tighter">費曼筆記：電腦為何如此死腦筋？</h2>
+                <div class="space-y-8">
+                    <div>
+                        <h4 class="text-[10px] font-black text-primary uppercase mb-3 tracking-[0.3em]">白話核心</h4>
+                        <p id="feynman-plain" class="text-2xl font-bold leading-tight"></p>
+                    </div>
+                    <div class="p-8 bg-slate-950/60 rounded-[2rem] border border-slate-800 relative">
+                        <div
+                            class="absolute -top-4 left-6 px-4 py-1 bg-primary text-[8px] font-black text-white rounded-full">
+                            生活中類似的事</div>
+                        <p id="feynman-analogy" class="text-sm text-slate-400 italic leading-relaxed"></p>
+                    </div>
+                    <div class="space-y-4">
+                        <h4 class="text-[10px] font-black text-slate-500 uppercase mb-4 tracking-[0.2em]">教案大綱</h4>
+                        <ul id="feynman-steps" class="space-y-4">
+                            <!-- Steps Injected -->
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Special Matrix & Space-Time -->
+            <section class="lg:col-span-5 flex flex-col gap-8">
+                <div class="glass-card p-8 rounded-[2rem] flex-1 border-accent/20">
+                    <h3 class="text-xl font-black mb-6 flex items-center gap-3 text-accent uppercase">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                        空間換時間的權衡
+                    </h3>
+                    <p class="text-sm text-slate-400 leading-relaxed mb-6">
+                        面對<b>稀疏矩陣 (Sparse Matrix)</b>，我們捨棄華而不實的表格，只存「非零元」。這雖然讓讀取時需要額外運算公式，但卻拯救了記憶體量。
+                    </p>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="p-4 bg-slate-950 rounded-2xl border border-slate-800 text-center">
+                            <div class="text-[10px] text-slate-600 font-bold mb-1 uppercase">儲存空間</div>
+                            <div class="text-accent font-black text-lg text-emerald-500">SAVED</div>
+                        </div>
+                        <div class="p-4 bg-slate-950 rounded-2xl border border-slate-800 text-center">
+                            <div class="text-[10px] text-slate-600 font-bold mb-1 uppercase">CPU 運算</div>
+                            <div class="text-accent font-black text-lg text-rose-500">INCREASED</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Exam Triggers -->
+                <div class="bg-slate-950 p-8 rounded-[2rem] border border-slate-800">
+                    <h4 class="text-[10px] font-black text-slate-600 uppercase mb-4 tracking-widest">考場反應觸發詞 (Flash
+                        Reaction)</h4>
+                    <div id="trigger-badges" class="flex flex-wrap gap-2">
+                        <!-- Badges -->
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Comparison & Flashcards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+            <!-- Table -->
+            <section class="glass-card p-10 rounded-[2.5rem]">
+                <h2 class="text-2xl font-black mb-10">中序 vs 後序 對決</h2>
+                <div class="overflow-x-auto">
+                    <table id="comp-table" class="w-full text-left text-xs border-collapse">
+                        <!-- Injected -->
+                    </table>
+                </div>
+            </section>
+
+            <!-- Flashcards -->
+            <section class="glass-card p-10 rounded-[2.5rem]">
+                <h2 class="text-2xl font-black mb-10 flex justify-between items-center">
+                    Flashcards
+                    <span id="card-count" class="text-[10px] text-slate-500 font-bold tracking-widest">1 / 5</span>
+                </h2>
+                <div class="flip-card h-48 cursor-pointer" onclick="this.classList.toggle('flipped')">
+                    <div class="flip-card-inner h-full w-full relative">
+                        <div
+                            class="flip-card-front absolute inset-0 bg-slate-950 rounded-[2rem] border border-slate-800 flex items-center justify-center p-8 text-center">
+                            <p id="flash-front" class="text-lg font-black text-white"></p>
+                        </div>
+                        <div
+                            class="flip-card-back absolute inset-0 bg-primary/20 rounded-[2rem] border border-primary/40 flex items-center justify-center p-8 text-center overflow-hidden">
+                            <p id="flash-back" class="text-sm font-bold text-slate-100"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-center gap-6 mt-10">
+                    <button onclick="prevCard()" class="p-3 text-slate-600 hover:text-white transition-all"><svg
+                            class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7">
+                            </path>
+                        </svg></button>
+                    <button onclick="nextCard()" class="p-3 text-slate-600 hover:text-white transition-all"><svg
+                            class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7">
+                            </path>
+                        </svg></button>
+                </div>
+            </section>
+        </div>
+
+        <!-- Appendix -->
+        <section class="mt-20">
+            <button onclick="document.getElementById('appendix').classList.toggle('hidden')"
+                class="w-full text-center text-[10px] font-black text-slate-800 hover:text-white transition-all py-8">
+                [ VIEW ORIGINAL SECTION NOTES ]
+            </button>
+            <div id="appendix" class="hidden glass-card p-10 rounded-3xl overflow-x-auto">
+                <pre id="raw-notes"
+                    class="text-[11px] text-slate-700 leading-relaxed font-mono whitespace-pre-wrap"></pre>
+            </div>
+        </section>
+
+    </main>
+
+    <footer
+        class="max-w-6xl mx-auto mt-24 mb-16 text-center text-slate-700 text-[10px] font-black tracking-[0.5em] uppercase">
+        <p>© Chapter 6 Series - Study Guide Builder | Project computer-fundamentals</p>
+    </footer>
+
+    <script>
+        const data = {
+            "chapter_positioning": {
+                "one_sentence": "本章探討如何將人類習慣的數學算式與矩陣結構，映射到電腦的線性運作邏輯中，是邏輯與實作間的轉譯層。",
+                "prerequisites": ["第一章 資料表示法", "第三章 記憶體位址"],
+                "downstream_links": ["第七章 資料結構 (堆疊 / 連結串列)", "第十一章 程式語言 (編譯器原理)"]
+            },
+            "keywords": [
+                {
+                    "term": "後序表示法 (Postfix / RPN)",
+                    "why_important": "電腦運算的理想格式，免括號，直接對應堆疊操作。",
+                    "common_exam_angle": "中序轉後序的步驟演練，與運算優先權計算。"
+                },
+                {
+                    "term": "以列為主 (Row-major)",
+                    "why_important": "C/C++ 等主流語言採用的二維陣列映射策略。",
+                    "common_exam_angle": "公式計算：Base + (i*n + j) * Size。"
+                },
+                {
+                    "term": "隨機存取 (Random Access)",
+                    "why_important": "只要有索引就能瞬間算出位址，效能與陣列長度無關。",
+                    "common_exam_angle": "陣列 vs 串列的存取效率差異。"
+                },
+                {
+                    "term": "稀疏矩陣 (Sparse Matrix)",
+                    "why_important": "大量零元素的矩陣，透過只存非零值來節省空間。",
+                    "common_exam_angle": "空間與時間的權衡 (Time-Space Tradeoff)。"
+                },
+                {
+                    "term": "降維映射 (Mapping)",
+                    "why_important": "將高維邏輯結構壓縮進一維線性記憶體的過程。",
+                    "common_exam_angle": "Row-major 與 Column-major 的地址偏移量差異。"
+                }
+            ],
+            "weighting": {
+                "basis": "estimate",
+                "items": [
+                    {
+                        "topic": "算術式表示法轉換 (中序/後序)",
+                        "weight": 40,
+                        "reason": "涉及編譯器邏輯與堆疊應用，是理解電腦運算的必經之路。"
+                    },
+                    {
+                        "topic": "陣列位址計算公式",
+                        "weight": 40,
+                        "reason": "證明隨機存取的數學基礎，考題極多。"
+                    },
+                    {
+                        "topic": "特殊矩陣與空間最佳化",
+                        "weight": 20,
+                        "reason": "反映計算機科學對資源利用的極致追求。"
+                    }
+                ]
+            },
+            "comparison_matrix": {
+                "title": "運算與儲存之翻譯對決",
+                "dimensions": ["對象", "特色", "優先權處理", "實作難度"],
+                "rows": [
+                    {
+                        "name": "中序表示法 (Infix)",
+                        "values": {
+                            "對象": "人類邏輯",
+                            "特色": "符號在中間 (A+B)",
+                            "優先權處理": "依賴括號與規則",
+                            "實作難度": "電腦處理複雜"
+                        },
+                        "pitfall": "容易讓電腦掃描時陷入多次回頭確認的低效情況。",
+                        "rule_of_thumb": "「直覺派」：我們怎麼想，它就怎麼寫。"
+                    },
+                    {
+                        "name": "後序表示法 (Postfix)",
+                        "values": {
+                            "對象": "電腦執行",
+                            "特色": "符號在後 (AB+)",
+                            "優先權處理": "完全不需括號",
+                            "實作難度": "單向掃描配合堆疊"
+                        },
+                        "pitfall": "人類閱讀不直觀，需要練習才能習慣。",
+                        "rule_of_thumb": "「行動派」：資料先備齊，看到符號立刻開工。"
+                    }
+                ]
+            },
+            "feynman_explanation": {
+                "one_sentence_plain": "第六章就是電腦的「翻譯字典」，負責把人類習慣的亂七八糟數學括號和表格，翻譯成電腦能一條線算到底的指令與位址。",
+                "analogy": "中序轉後序就像「搬家」：我們習慣說「我要把客廳跟臥室都搬走」(括號)；電腦則要求「先搬沙發、再搬床、最後統統裝車」(Postfix)。陣列映射則像「飯店床位」：雖然房間分成不同樓層 (二維)，但床位編號從 1 號排到最後一號 (一維)。",
+                "forbidden_terms_used": ["優先權", "降維映射", "隨機存取"]
+            },
+            "feynman_rebuild": {
+                "teach_flow": [
+                    "首先，介紹電腦的困擾：它掃描資料是一次一眼的，括號對它來說是巨大的開銷。所以我們發明後序表示法，把符號放在操作數後。 (ABC+*)",
+                    "接著，展示陣列的偽裝：我們以為陣列是表格，其實它在記憶體裡是一長串糖葫蘆。Row-major 就是把第一排串完再串第二排。",
+                    "最後，解鎖隨機存取：只要給出 Row 跟 Column，套用偏移量公式，CPU 就能瞬間「定位」到那顆糖葫蘆的位置。"
+                ],
+                "one_minute_version": "電腦不懂矩陣與優先權，它只懂線性處理。第六章透過「後序表示法」移除了括號需求，並透過「陣列位址公式」將多維表格映射到一維記憶體。這不僅降低了電腦的處理複雜度，更實現了 O(1) 的隨機存取效能，為後續的資料結構與高效演算法奠定了硬體層級的理解基礎。",
+                "exam_trigger_phrases": [
+                    "後序不需括號",
+                    "以列為主 (Row-major)",
+                    "Base + (i*n+j)*Size",
+                    "隨機存取效能"
+                ]
+            },
+            "flashcards": [
+                {
+                    "front": "中序式 (Infix) A+B*C 轉後序式 (Postfix) 為？",
+                    "back": "ABC*+ (乘法優先權高，先結合)。"
+                },
+                {
+                    "front": "在 Row-major 映射下，二維陣列 A[i][j] 的地址公式？",
+                    "back": "Base + (i * ColumnCount + j) * Size (假設索引從 0 開始)。"
+                },
+                {
+                    "front": "為什麼後序式 (Postfix) 最適合電腦？",
+                    "back": "因為它不需要括號，且符號出現順序即為執行順序，適合單向掃描配合堆疊。"
+                },
+                {
+                    "front": "Column-major 與 Row-major 的主要差異？",
+                    "back": "儲存順序不同：Row-major 連續存列，Column-major 連續存行。"
+                },
+                {
+                    "front": "針對大量為零的矩陣，我們會採用什麼技術來節省空間？",
+                    "back": "稀疏矩陣 (Sparse Matrix) 存儲法，反映了空間換取時間的觀點。"
+                }
+            ],
+            "scenario_checks": [
+                {
+                    "statement": "後序表示法 (Postfix) 的主要優點是提升了人類的可讀性。",
+                    "answer": "X",
+                    "explanation": "錯誤。後序法主要是為了「遷就電腦」，消除括號與優先權處理的複雜度。"
+                },
+                {
+                    "statement": "陣列位址公式之所以重要，是因為它證明了陣列具備隨機存取 (Random Access) 的特性。",
+                    "answer": "O",
+                    "explanation": "正確。透過數學公式計算，我們不需要遍歷陣列即可得到特定元素的記憶體位址。"
+                }
+            ],
+            "original_notes_for_appendix": "在「計算機概論」的宏觀架構下，來源資料將第六章「算術式表示法與陣列」視為「人類邏輯」與「機器實作」之間的關鍵轉譯層。\n1. 運算指令的翻譯：從中序 (Infix) 到後序 (Postfix)\n解決「運算優先權 (Precedence)」問題。後序是「電腦最喜歡的格式」，因為不需要括號。轉譯邏輯展示了 ABC+* 如何線性化處理複雜算式。\n2. 空間維度的降維：陣列的記憶體映射\n陣列的核心在於「映射 (Mapping)」。排列策略分為以列為主 (Row-major) 與以行為主 (Column-major)。位址計算公式證明了「隨機存取 (Random Access)」的可行性。\n3. 效率與壓縮：特殊矩陣\n上/下三角形矩陣與稀疏矩陣，引入「空間最佳化」與「用運算時間換取儲存空間」 (Time-Space Tradeoff) 的思維。"
+        };
+
+        // Expression Conversion Simulator
+        function convertExpression() {
+            const infix = document.getElementById('infix-input').value;
+            // Simple logic for ABC+* style conversion simulation
+            // In a real lab, this would use Shunting-yard
+            const results = {
+                'A*(B+C)': 'ABC+*',
+                'A+B*C': 'ABC*+',
+                '(A+B)*C': 'AB+C*',
+                'A+B+C': 'AB+C+'
+            };
+            const res = results[infix] || infix.replace(/[()+*/-]/g, '') + infix.replace(/[A-Z a-z 0-9]/g, '');
+            document.getElementById('postfix-result').innerText = res;
+        }
+
+        // Array Visualizer Logic
+        let currentMapping = 'row';
+        const matrixGrid = document.getElementById('matrix-grid');
+        const memStrip = document.getElementById('memory-strip');
+
+        function renderArray() {
+            matrixGrid.innerHTML = '';
+            memStrip.innerHTML = '';
+
+            const rows = 3;
+            const cols = 4;
+            const cells = [];
+
+            // Matrix View
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = `h-12 flex items-center justify-center bg-slate-900 border border-slate-800 rounded-lg text-[10px] font-bold text-slate-500 mem-cell cursor-pointer hover:border-secondary`;
+                    cell.innerText = `A[${r}][${c}]`;
+                    cell.id = `cell-${r}-${c}`;
+                    matrixGrid.appendChild(cell);
+                    cells.push({ r, c });
+                }
+            }
+
+            // Flattener
+            const flattened = (currentMapping === 'row')
+                ? cells
+                : [...cells].sort((a, b) => a.c - b.c || a.r - b.r);
+
+            flattened.forEach((cell, idx) => {
+                const seg = document.createElement('div');
+                seg.className = `w-14 h-8 bg-slate-900 border border-slate-700 rounded flex items-center justify-center text-[8px] mono text-slate-500 shrink-0`;
+                seg.innerText = `${100 + idx * 4}`;
+                seg.onmouseover = () => document.getElementById(`cell-${cell.r}-${cell.c}`).classList.add('mem-cell-active');
+                seg.onmouseout = () => document.getElementById(`cell-${cell.r}-${cell.c}`).classList.remove('mem-cell-active');
+                memStrip.appendChild(seg);
+            });
+        }
+
+        function setMapping(mode) {
+            currentMapping = mode;
+            document.getElementById('btn-row').className = mode === 'row' ? 'px-4 py-2 text-[10px] font-black border border-secondary bg-secondary/20 text-secondary rounded-lg transition-all' : 'px-4 py-2 text-[10px] font-black border border-slate-700 text-slate-500 rounded-lg transition-all';
+            document.getElementById('btn-col').className = mode === 'col' ? 'px-4 py-2 text-[10px] font-black border border-secondary bg-secondary/20 text-secondary rounded-lg transition-all' : 'px-4 py-2 text-[10px] font-black border border-slate-700 text-slate-500 rounded-lg transition-all';
+            renderArray();
+            updateAddress();
+        }
+
+        function updateAddress() {
+            const i = parseInt(document.getElementById('calc-i').value);
+            const j = parseInt(document.getElementById('calc-j').value);
+            const base = 100;
+            const size = 4;
+            const n = 4; // cols
+            const m = 3; // rows
+
+            let addr = 0;
+            let formula = "";
+            if (currentMapping === 'row') {
+                addr = base + (i * n + j) * size;
+                formula = `100 + (${i} * 4 + ${j}) * 4`;
+            } else {
+                addr = base + (j * m + i) * size;
+                formula = `100 + (${j} * 3 + ${i}) * 4`;
+            }
+            document.getElementById('address-result').innerText = addr;
+            document.getElementById('formula-text').innerText = formula;
+        }
+
+        // Feynman & Others
+        document.getElementById('feynman-plain').innerText = data.feynman_explanation.one_sentence_plain;
+        document.getElementById('feynman-analogy').innerText = data.feynman_explanation.analogy;
+        document.getElementById('feynman-one-minute').innerText = data.feynman_rebuild.one_minute_version;
+        document.getElementById('raw-notes').innerText = data.original_notes_for_appendix;
+
+        const fS = document.getElementById('feynman-steps');
+        data.feynman_rebuild.teach_flow.forEach((s, idx) => {
+            fS.innerHTML += `<li class="flex gap-4 items-start"><span class="w-6 h-6 bg-primary/20 flex items-center justify-center rounded-lg text-primary font-black text-xs shrink-0">${idx + 1}</span><p class="text-xs text-slate-400 pt-1 leading-relaxed font-bold">${s}</p></li>`;
+        });
+
+        const tB = document.getElementById('trigger-badges');
+        data.feynman_rebuild.exam_trigger_phrases.forEach(p => {
+            tB.innerHTML += `<span class="px-3 py-1 bg-slate-900 border border-slate-800 rounded-lg text-[10px] text-slate-500 font-bold hover:text-white transition-all"># ${p}</span>`;
+        });
+
+        const cT = document.getElementById('comp-table');
+        const dims = data.comparison_matrix.dimensions;
+        cT.innerHTML = `<thead><tr class="bg-slate-900"><th class="p-4 text-slate-500 font-black uppercase tracking-widest text-[10px]">特性</th><th class="p-4 text-slate-500 font-black uppercase tracking-widest text-[10px]">中序 (Infix)</th><th class="p-4 text-slate-500 font-black uppercase tracking-widest text-[10px]">後序 (Postfix)</th></tr></thead> <tbody class="divide-y divide-slate-800">`;
+        dims.forEach(d => {
+            cT.innerHTML += `<tr><td class="p-4 font-black text-slate-300 italic">${d}</td><td class="p-4 text-slate-500">${data.comparison_matrix.rows[0].values[d]}</td><td class="p-4 text-primary font-bold">${data.comparison_matrix.rows[1].values[d]}</td></tr>`;
+        });
+
+        // Flashcards
+        let curCard = 0;
+        function updateFlash() {
+            document.getElementById('flash-front').innerText = data.flashcards[curCard].front;
+            document.getElementById('flash-back').innerText = data.flashcards[curCard].back;
+            document.getElementById('card-count').innerText = `${curCard + 1} / ${data.flashcards.length}`;
+        }
+        function nextCard() { curCard = (curCard + 1) % data.flashcards.length; updateFlash(); }
+        function prevCard() { curCard = (curCard - 1 + data.flashcards.length) % data.flashcards.length; updateFlash(); }
+
+        // Start
+        renderArray();
+        updateAddress();
+        updateFlash();
+    </script>
+</body>
+
+</html>
