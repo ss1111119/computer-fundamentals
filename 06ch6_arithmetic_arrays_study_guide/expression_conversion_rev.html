@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>01 運算指令的翻譯工程 - 學習導論</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#a855f7', // Purple 500
+                        secondary: '#3b82f6', // Blue 500
+                        accent: '#10b981', // Emerald 500
+                        darkBg: '#0f172a',
+                        cardBg: '#1e293b',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #0f172a;
+            color: #f1f5f9;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .glass-card {
+            background: rgba(30, 41, 59, 0.5);
+            backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .step-active {
+            border-color: #a855f7;
+            background-color: rgba(168, 85, 247, 0.1);
+            transform: scale(1.02);
+        }
+
+        .tree-node {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .operator-slide {
+            animation: slideIn 0.8s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(-50px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .flip-card {
+            perspective: 1000px;
+        }
+
+        .flip-card-inner {
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+
+        .flip-card.flipped .flip-card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .flip-card-front,
+        .flip-card-back {
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+
+        .flip-card-back {
+            transform: rotateY(180deg);
+        }
+    </style>
+</head>
+
+<body class="p-4 md:p-8 lg:p-12">
+
+    <!-- Header -->
+    <header class="max-w-6xl mx-auto mb-16 relative">
+        <div class="absolute -top-10 -left-10 w-48 h-48 bg-primary/10 rounded-full blur-3xl"></div>
+        <div class="flex items-center gap-3 mb-6">
+            <span
+                class="px-4 py-1 text-[10px] font-black tracking-widest uppercase bg-primary/20 text-primary border border-primary/30 rounded-full">Section
+                01</span>
+            <span class="text-slate-600">|</span>
+            <span class="text-slate-400 font-bold text-xs uppercase">Chapter 06 算術式表示法與陣列</span>
+        </div>
+        <h1 class="text-5xl md:text-8xl font-black text-white tracking-widest mb-8 italic">轉譯工程 <span
+                class="text-primary">/</span> Parsing</h1>
+        <p class="text-xl text-slate-400 max-w-4xl leading-relaxed font-light">
+            解決「人類數學習慣」與「電腦線性能力」的衝突。本節將算術式轉換視為精密指令工程，探討中序、前序與後序的翻譯機制。
+        </p>
+    </header>
+
+    <main class="max-w-6xl mx-auto space-y-16">
+
+        <!-- Bracketing Method Lab -->
+        <section class="glass-card p-12 rounded-[3.5rem] relative overflow-hidden">
+            <div class="flex justify-between items-start mb-12">
+                <div>
+                    <h2 class="text-3xl font-black text-white mb-2 uppercase tracking-tighter">括號法：平移實驗室</h2>
+                    <p class="text-slate-500 text-sm">體驗運算子如何跨越括號邊緣完成轉譯。</p>
+                </div>
+                <div class="flex bg-slate-900 p-1 rounded-2xl border border-slate-800">
+                    <button id="btn-prefix" onclick="setConversion('prefix')"
+                        class="px-6 py-2 text-[10px] font-black rounded-xl transition-all text-slate-500">轉為前序</button>
+                    <button id="btn-postfix" onclick="setConversion('postfix')"
+                        class="px-6 py-2 text-[10px] font-black rounded-xl transition-all bg-primary text-white shadow-lg">轉為後序</button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+                <div class="lg:col-span-12 space-y-4 mb-4">
+                    <select id="lab-expr-select" onchange="renderLab()"
+                        class="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 text-white font-bold outline-none focus:border-primary transition-all cursor-pointer">
+                        <option value="A+B*C">A + B * C (優先權演練)</option>
+                        <option value="A*(B+C)">A * (B + C) (括號強制轉向)</option>
+                        <option value="(A+B)*(C-D)">(A + B) * (C - D) (對等結合)</option>
+                        <option value="H=A+B*(C+D*(E+F))">H = A + B * (C + D * (E + F)) (巢狀挑戰)</option>
+                    </select>
+                </div>
+
+                <div
+                    class="lg:col-span-7 bg-slate-950 p-10 rounded-[3rem] border border-slate-900 border shadow-2xl relative">
+                    <div
+                        class="absolute -top-3 left-10 px-4 py-1 bg-slate-800 text-[10px] font-black text-slate-400 rounded-full tracking-widest uppercase">
+                        Visual Trace</div>
+                    <div id="lab-visual-area" class="space-y-8 mt-4">
+                        <!-- Step 1 -->
+                        <div class="flex items-center gap-6 group">
+                            <span
+                                class="w-6 h-6 flex items-center justify-center rounded-full bg-slate-900 text-[10px] font-black text-slate-600 group-hover:bg-primary group-hover:text-white transition-all">1</span>
+                            <div class="p-6 bg-slate-900/50 rounded-2xl border border-slate-800 flex-1">
+                                <p class="text-[10px] text-slate-500 uppercase font-black mb-2">步驟一：完全括號化</p>
+                                <div id="step-1-out" class="text-xl mono font-bold text-slate-400"></div>
+                            </div>
+                        </div>
+                        <!-- Step 2 -->
+                        <div class="flex items-center gap-6 group">
+                            <span
+                                class="w-6 h-6 flex items-center justify-center rounded-full bg-slate-900 text-[10px] font-black text-slate-600 group-hover:bg-primary group-hover:text-white transition-all">2</span>
+                            <div
+                                class="p-6 bg-slate-900/50 rounded-2xl border border-slate-800 flex-1 relative overflow-hidden">
+                                <p class="text-[10px] text-slate-500 uppercase font-black mb-2">步驟二：運算子平移</p>
+                                <div id="step-2-out" class="text-xl mono font-bold text-primary"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-5 space-y-8">
+                    <div class="p-8 bg-primary/5 rounded-[2.5rem] border border-primary/20">
+                        <h4 class="text-xs font-black text-primary uppercase mb-4 tracking-widest">轉譯鐵律：相對位置</h4>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            不論符號怎麼搬移，<b>字母 (A, B, C) 的相對順序必須嚴格維持不變</b>。這保證了減法與除法在轉換後的邏輯正確性。
+                        </p>
+                    </div>
+                    <div class="p-8 bg-slate-950 rounded-[2.5rem] border border-slate-900">
+                        <p class="text-[10px] text-slate-600 uppercase font-black mb-4">最終轉譯結果</p>
+                        <div id="final-result-box"
+                            class="text-3xl font-black text-white text-center mono tracking-widest bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                            ABC*+</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Variable Substitution Explorer -->
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+            <div
+                class="glass-card p-12 rounded-[3rem] bg-gradient-to-br from-cardBg to-slate-900 overflow-hidden relative">
+                <div class="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
+                    <svg class="w-48 h-48 text-white" fill="currentColor" viewBox="0 0 24 24">
+                        <path
+                            d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" />
+                        <path d="M13 7h-2v4H7v2h4v4h2v-4h4v-2h-4z" />
+                    </svg>
+                </div>
+                <h2 class="text-2xl font-black mb-8 text-white uppercase italic tracking-tight">變數代換：分而治之</h2>
+                <p class="text-sm text-slate-400 leading-relaxed mb-10">
+                    面對「巢狀多層括號」的難題，教材推薦將運算結果暫時視為一個變數，由內而外擴展。
+                </p>
+                <div class="space-y-6">
+                    <div class="flex items-center gap-4 bg-slate-950 p-4 rounded-2xl border border-slate-800">
+                        <div class="px-3 py-1 bg-accent text-[8px] font-black text-white rounded-lg">Inner</div>
+                        <span class="mono text-xs text-slate-300">(E+F) → <span
+                                class="text-accent font-bold font-black">X</span></span>
+                    </div>
+                    <div class="flex items-center gap-4 bg-slate-950 p-4 rounded-2xl border border-slate-800">
+                        <div class="px-3 py-1 bg-secondary text-[8px] font-black text-white rounded-lg">Mid</div>
+                        <span class="mono text-xs text-slate-300">(C+D*<span class="text-accent">X</span>) → <span
+                                class="text-secondary font-bold font-black">Y</span></span>
+                    </div>
+                    <div
+                        class="flex items-center gap-4 bg-slate-950 p-4 rounded-2xl border border-slate-800 opacity-60">
+                        <div class="px-3 py-1 bg-primary text-[8px] font-black text-white rounded-lg">Target</div>
+                        <span class="mono text-xs text-slate-300">A+B*<span class="text-secondary">Y</span> → <span
+                                class="text-primary font-bold font-black">Success!</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Expression Tree Visualizer -->
+            <div class="glass-card p-12 rounded-[3rem] border-secondary/20">
+                <h2 class="text-2xl font-black mb-8 text-white flex items-center gap-3">
+                    <span class="text-secondary tracking-widest uppercase">同構性</span>
+                    <span class="text-slate-700 text-xs">Isomorphism</span>
+                </h2>
+                <div
+                    class="flex flex-col items-center justify-center h-48 bg-slate-950 rounded-[2rem] border border-slate-900 mb-8 overflow-hidden relative">
+                    <!-- Tree Drawing -->
+                    <div class="flex flex-col items-center pointer-events-none">
+                        <div
+                            class="w-10 h-10 rounded-full border-2 border-secondary bg-secondary/10 flex items-center justify-center font-black text-secondary mb-2">
+                            *</div>
+                        <div class="flex gap-16">
+                            <div
+                                class="w-8 h-8 rounded-full border border-slate-700 flex items-center justify-center text-xs font-bold text-slate-500">
+                                A</div>
+                            <div
+                                class="w-8 h-8 rounded-full border-2 border-primary bg-primary/10 flex items-center justify-center font-black text-primary">
+                                +</div>
+                        </div>
+                    </div>
+                    <svg class="absolute inset-0 w-full h-full pointer-events-none">
+                        <line x1="50%" y1="35%" x2="38%" y2="55%" stroke="#334155" stroke-width="1" />
+                        <line x1="50%" y1="35%" x2="62%" y2="55%" stroke="#334155" stroke-width="1" />
+                    </svg>
+                </div>
+                <div class="grid grid-cols-3 gap-4 text-center">
+                    <div class="p-4 bg-slate-900 rounded-2xl border border-slate-800">
+                        <div class="text-[8px] font-black text-slate-600 uppercase mb-2">Pre-order</div>
+                        <div class="mono text-[10px] text-white">*A+BC</div>
+                    </div>
+                    <div class="p-4 bg-slate-900 rounded-2xl border border-slate-800">
+                        <div class="text-[8px] font-black text-slate-600 uppercase mb-2">In-order</div>
+                        <div class="mono text-[10px] text-white">A*(B+C)</div>
+                    </div>
+                    <div class="p-4 bg-slate-900 rounded-2xl border border-slate-800">
+                        <div class="text-[8px] font-black text-slate-600 uppercase mb-2">Post-order</div>
+                        <div class="mono text-[10px] text-white">ABC+*</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Flashcards & Scenarios -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+            <section class="glass-card p-10 rounded-[3rem]">
+                <h2 class="text-2xl font-black mb-10 flex justify-between items-center text-white">
+                    Recall Flashcards
+                    <span id="card-index" class="text-[10px] font-bold text-slate-500 tracking-widest uppercase">1 /
+                        5</span>
+                </h2>
+                <div class="flip-card h-56 cursor-pointer" id="flashcard">
+                    <div class="flip-card-inner h-full w-full relative">
+                        <div
+                            class="flip-card-front absolute inset-0 bg-slate-900 rounded-[2.5rem] border border-slate-800 flex items-center justify-center p-10 text-center">
+                            <h3 id="card-front" class="text-xl font-bold text-white tracking-tight leading-snug"></h3>
+                        </div>
+                        <div
+                            class="flip-card-back absolute inset-0 bg-primary/20 rounded-[2.5rem] border border-primary/40 flex items-center justify-center p-10 text-center">
+                            <p id="card-back" class="text-base font-bold text-slate-200 leading-relaxed"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-center gap-8 mt-10">
+                    <button onclick="prevCard()"
+                        class="p-3 rounded-full hover:bg-slate-800 text-slate-500 transition-all active:scale-95"><svg
+                            class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7">
+                            </path>
+                        </svg></button>
+                    <button onclick="nextCard()"
+                        class="p-3 rounded-full hover:bg-slate-800 text-slate-500 transition-all active:scale-95"><svg
+                            class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7">
+                            </path>
+                        </svg></button>
+                </div>
+            </section>
+
+            <!-- Scenario Checks -->
+            <section class="glass-card p-10 rounded-[3rem]">
+                <h2 class="text-2xl font-black mb-10 text-white uppercase italic tracking-tighter">真偽辨正 (Scenario Check)
+                </h2>
+                <div id="scenarios-list" class="space-y-6">
+                    <!-- Injected -->
+                </div>
+            </section>
+        </div>
+
+        <!-- Feynman Rebuild -->
+        <section
+            class="glass-card p-12 rounded-[4rem] bg-gradient-to-tr from-cardBg via-slate-900 to-primary/10 border-none shadow-3xl">
+            <h2
+                class="text-3xl font-black mb-12 text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary uppercase tracking-tighter italic font-black">
+                費曼學習法：標點語言的階級制度</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-16">
+                <div class="space-y-12">
+                    <div>
+                        <h4 class="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mb-6">解析語義核心</h4>
+                        <p id="feynman-plain" class="text-4xl font-black text-white leading-[1.1]"></p>
+                    </div>
+                    <div class="p-10 bg-slate-950 rounded-[3rem] border border-slate-800 shadow-inner">
+                        <div class="flex items-center gap-4 mb-4">
+                            <span
+                                class="px-3 py-1 bg-primary text-[8px] font-black text-white rounded-full uppercase tracking-widest">Analogy</span>
+                        </div>
+                        <p id="feynman-analogy" class="text-slate-400 italic leading-relaxed text-sm font-light"></p>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mb-8">攻心教案 (Teach Flow)
+                    </h4>
+                    <div id="feynman-steps" class="space-y-8">
+                        <!-- Injected -->
+                    </div>
+                </div>
+            </div>
+            <div
+                class="mt-20 pt-10 border-t border-slate-800/50 flex flex-col md:flex-row gap-8 items-center justify-center">
+                <div id="trigger-tags" class="flex flex-wrap gap-2 justify-center"></div>
+                <div class="hidden md:block w-px h-10 bg-slate-800"></div>
+                <p id="feynman-one-minute"
+                    class="text-xs font-bold text-primary max-w-lg text-center leading-relaxed tracking-wider"></p>
+            </div>
+        </section>
+
+    </main>
+
+    <footer
+        class="max-w-6xl mx-auto mt-24 mb-16 text-center text-slate-700 text-[10px] font-black tracking-[0.5em] uppercase">
+        <p>© Section 01 - Expression Conversion | Part of Chapter 6 Series</p>
+    </footer>
+
+    <script>
+        const data = {
+            "chapter_positioning": {
+                "one_sentence": "本節探討如何將人類習慣的中序算式，過渡到電腦高效執行的前序與後序格式，並建立運算指令的轉譯觀點。",
+                "prerequisites": ["第六章 算術式表示法簡介"],
+                "downstream_links": ["第七章 堆疊應用", "第八章 算術二元樹"]
+            },
+            "keywords": [
+                {
+                    "term": "中序表示法 (Infix)",
+                    "why_important": "人類最熟悉的格式，適合閱讀但電腦處理複雜。",
+                    "common_exam_angle": "判斷括號與優先權對電腦掃描的挑戰。"
+                },
+                {
+                    "term": "前序 / 後序 (Prefix / Postfix)",
+                    "why_important": "電腦高效執行的格式，完全不需要括號。",
+                    "common_exam_angle": "轉換後運算元相對順序不變的鐵律。"
+                },
+                {
+                    "term": "括號法 (Bracketing Method)",
+                    "why_important": "手算轉換最穩健的方法，透過平移運算子達成轉譯。",
+                    "common_exam_angle": "多層括號算式的轉換步驟。"
+                },
+                {
+                    "term": "變數代換法 (Variable Substitution)",
+                    "why_important": "處理複雜巢狀算式的分治策略。",
+                    "common_exam_angle": "內層往外逐步簡化的邏輯演示。"
+                },
+                {
+                    "term": "算術樹 (Expression Tree)",
+                    "why_important": "資料結構與算術式的跨領域同構性。",
+                    "common_exam_angle": "樹的遍歷方式與表示法的對應關係。"
+                }
+            ],
+            "weighting": {
+                "basis": "estimate",
+                "items": [
+                    {
+                        "topic": "三種表示法本質與優劣",
+                        "weight": 25,
+                        "reason": "理解人類 vs. 機器的設計衝突。"
+                    },
+                    {
+                        "topic": "轉換法則 (優先權與括號平移)",
+                        "weight": 40,
+                        "reason": "最核心的實作技能，包含前序與後序的反覆切換。"
+                    },
+                    {
+                        "topic": "變數代換與複雜算式拆解",
+                        "weight": 20,
+                        "reason": "對付多層巢狀考題的殺手鐧。"
+                    },
+                    {
+                        "topic": "算術樹同構概念",
+                        "weight": 15,
+                        "reason": "章節聯動的高階觀念題。"
+                    }
+                ]
+            },
+            "comparison_matrix": {
+                "title": "表示法特性全對照",
+                "dimensions": ["運算子位置", "適合對象", "是否需括號", "對應樹遍歷"],
+                "rows": [
+                    {
+                        "name": "中序 (Infix)",
+                        "values": {
+                            "運算子位置": "中間 (A+B)",
+                            "適合對象": "人類閱讀",
+                            "是否需括號": "是 (依賴優先權)",
+                            "對應樹遍歷": "中序遍歷 (In-order)"
+                        },
+                        "pitfall": "掃描括號與判斷優先權的高額運算成本。",
+                        "rule_of_thumb": "「直覺」：看懂是第一要務。"
+                    },
+                    {
+                        "name": "前序 (Prefix)",
+                        "values": {
+                            "運算子位置": "前面 (+AB)",
+                            "適合對象": "電腦處理",
+                            "是否需括號": "否",
+                            "對應樹遍歷": "前序遍歷 (Pre-order)"
+                        },
+                        "pitfall": "人類極度不習慣從後往前推論。",
+                        "rule_of_thumb": "「波蘭式」：看到符號就準備好下一步。"
+                    },
+                    {
+                        "name": "後序 (Postfix)",
+                        "values": {
+                            "運算子位置": "後面 (AB+)",
+                            "適合對象": "電腦處理 (最佳)",
+                            "是否需括號": "否",
+                            "對應樹遍歷": "後序遍歷 (Post-order)"
+                        },
+                        "pitfall": "與人類平時講話順序相反。",
+                        "rule_of_thumb": "「逆波蘭式」：最適合堆疊實作。"
+                    }
+                ]
+            },
+            "feynman_explanation": {
+                "one_sentence_plain": "這就是把「人話數學」翻譯成「電腦速讀版」的工程，解決電腦想一氣呵成掃完、不想被括號打斷的問題。",
+                "analogy": "中序就像讀「小說」：括號是伏筆，一定要看完整段才知道主角要做什麼；後序就像看「食譜」：材料 A, B 攤開，出現『加』的動作就直接攪拌，簡單暴力。",
+                "forbidden_terms_used": ["轉譯工程", "同構性", "分而治之"]
+            },
+            "feynman_rebuild": {
+                "teach_flow": [
+                    "首先，確立立場：電腦很不聰明，由左至右看過去，看到括號就要回頭找範圍，太累了。我們必須訓練出不需要括號也能精確表達優先權的方法。",
+                    "接著，展示括號法：把你視為「打包員」，先鎖定優先度最高的，裝進括號箱子，再把符號搬到箱子最前或最後。",
+                    "最後，應對複雜：如果括號太多，就用「變數代換」，把內層裝好的箱子取個名字 X，世界就清爽了。"
+                ],
+                "one_minute_version": "表示法轉換是編譯器的核心技術。人類的中序表示法雖然直觀，但處理成本高。透過「括號法」與「變數代換」，我們將算式階層化地轉譯為前序或後序，消除了對括號的依賴。這不僅對應資料結構中的二元樹遍歷，更與堆疊操作完美同構，是實現高效程式運算的理論基石。",
+                "exam_trigger_phrases": [
+                    "運算元順序不變",
+                    "括號法 (Bracketing Method)",
+                    "後序不需括號",
+                    "優先權順序 () > ^ > *,/ > +,-"
+                ]
+            },
+            "flashcards": [
+                {
+                    "front": "中序轉前/後序時，哪一類元素絕對不能改變相對位置？",
+                    "back": "運算元 (Operand)，如 A, B, C。"
+                },
+                {
+                    "front": "優先權最高的算術符號是？",
+                    "back": "括號 ()，若無括號則為指數 ^ (Exp)。"
+                },
+                {
+                    "front": "為什麼後序法又稱為「逆波蘭式」(RPN)？",
+                    "back": "它是因應波蘭數學家提出的波蘭式（前序）反轉而來，因最適合電腦堆疊架構而盛行。"
+                },
+                {
+                    "front": "算術表示法與哪一種資料結構具備「同構性」？",
+                    "back": "算術二元樹 (Expression Tree)。"
+                },
+                {
+                    "front": "遇到巢狀多層括號算式，教材推薦哪種教學法？",
+                    "back": "變數代換法 (Variable Substitution/Variable Pre/Post Method)。"
+                }
+            ],
+            "scenario_checks": [
+                {
+                    "statement": "中序式 A+B*C 轉為前序式為 +A*BC。",
+                    "answer": "O",
+                    "explanation": "正確。括號法：A+(B*C) -> A+(*BC) -> +A*BC。B, C 的乘法優先權高。"
+                },
+                {
+                    "statement": "後序法之所以強大，是因為它在運算時仍然需要由編譯器動態尋找括號配對。",
+                    "answer": "X",
+                    "explanation": "錯誤。後序法的核心優勢就是「不需要任何括號」，單向掃描即可完成複雜運算。"
+                }
+            ]
+        };
+
+        let currentConv = 'postfix';
+
+        function setConversion(type) {
+            currentConv = type;
+            document.getElementById('btn-prefix').className = type === 'prefix' ? "px-6 py-2 text-[10px] font-black rounded-xl transition-all bg-primary text-white shadow-lg" : "px-6 py-2 text-[10px] font-black rounded-xl transition-all text-slate-500";
+            document.getElementById('btn-postfix').className = type === 'postfix' ? "px-6 py-2 text-[10px] font-black rounded-xl transition-all bg-primary text-white shadow-lg" : "px-6 py-2 text-[10px] font-black rounded-xl transition-all text-slate-500";
+            renderLab();
+        }
+
+        const stepsData = {
+            'prefix': {
+                'A+B*C': ['(A+(B*C))', '(A+(*BC))', '+A*BC'],
+                'A*(B+C)': ['(A*(B+C))', '(*(A(+BC)))', '*A+BC'],
+                '(A+B)*(C-D)': ['((A+B)*(C-D))', '(*( (+AB)(-CD) ))', '*+AB-CD'],
+                'H=A+B*(C+D*(E+F))': ['(H=(A+(B*(C+(D*(E+F))))))', '(=H(+A(*B(+C(*D(+EF))))))', '=H+A*B+C*D+EF']
+            },
+            'postfix': {
+                'A+B*C': ['(A+(B*C))', '(A+(BC*))', 'ABC*+'],
+                'A*(B+C)': ['(A*(B+C))', '((A(BC+))*)', 'ABC+*'],
+                '(A+B)*(C-D)': ['((A+B)*(C-D))', '((AB+)(CD-)*)', 'AB+CD-*'],
+                'H=A+B*(C+D*(E+F))': ['(H=(A+(B*(C+(D*(E+F))))))', '(H(A(B(C(D(EF+)*)+)*)+)=)', 'HABCD EF+*+*+=']
+            }
+        };
+
+        function renderLab() {
+            const select = document.getElementById('lab-expr-select');
+            const val = select.value;
+            const steps = stepsData[currentConv][val];
+            document.getElementById('step-1-out').innerText = steps[0];
+            document.getElementById('step-2-out').innerText = steps[1];
+            document.getElementById('final-result-box').innerText = steps[2];
+        }
+
+        // INIT
+        let curCard = 0;
+        const flashcard = document.getElementById('flashcard');
+        function updateCard() {
+            flashcard.classList.remove('flipped');
+            setTimeout(() => {
+                document.getElementById('card-front').innerText = data.flashcards[curCard].front;
+                document.getElementById('card-back').innerText = data.flashcards[curCard].back;
+                document.getElementById('card-index').innerText = `${curCard + 1} / ${data.flashcards.length}`;
+            }, 300);
+        }
+        flashcard.onclick = () => flashcard.classList.toggle('flipped');
+        function nextCard() { curCard = (curCard + 1) % data.flashcards.length; updateCard(); }
+        function prevCard() { curCard = (curCard - 1 + data.flashcards.length) % data.flashcards.length; updateCard(); }
+
+        function renderScenarios() {
+            const list = document.getElementById('scenarios-list');
+            data.scenario_checks.forEach((sc, idx) => {
+                const div = document.createElement('div');
+                div.className = "p-8 rounded-[2rem] bg-slate-950 border border-slate-900 shadow-xl transition-all hover:border-slate-700 group";
+                div.innerHTML = `
+                    <p class="text-[11px] font-bold text-slate-300 mb-8 leading-relaxed tracking-wide">${sc.statement}</p>
+                    <div class="flex gap-4">
+                        <button onclick="checkScenario(${idx}, 'O')" id="sc-${idx}-O" class="flex-1 py-3 text-[10px] font-black rounded-2xl border border-slate-800 hover:border-primary transition-all">是 (O)</button>
+                        <button onclick="checkScenario(${idx}, 'X')" id="sc-${idx}-X" class="flex-1 py-3 text-[10px] font-black rounded-2xl border border-slate-800 hover:border-primary transition-all">否 (X)</button>
+                    </div>
+                    <div id="sc-res-${idx}" class="mt-6 hidden p-6 rounded-2xl text-[10px] italic leading-relaxed"></div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function checkScenario(idx, choice) {
+            const sc = data.scenario_checks[idx];
+            const res = document.getElementById(`sc-res-${idx}`);
+            const correct = choice === sc.answer;
+            res.classList.remove('hidden', 'bg-primary/20', 'text-primary', 'bg-red-500/20', 'text-red-500');
+            res.classList.add(correct ? 'bg-primary/10' : 'bg-red-500/10');
+            res.classList.add(correct ? 'text-primary' : 'text-red-500');
+            res.innerHTML = `<b>${correct ? "Bingo!" : "Wait..."}</b><br>${sc.explanation}`;
+        }
+
+        function renderFeynman() {
+            document.getElementById('feynman-plain').innerText = data.feynman_explanation.one_sentence_plain;
+            document.getElementById('feynman-analogy').innerText = data.feynman_explanation.analogy;
+            document.getElementById('feynman-one-minute').innerText = data.feynman_rebuild.one_minute_version;
+            const steps = document.getElementById('feynman-steps');
+            data.feynman_rebuild.teach_flow.forEach((s, idx) => {
+                steps.innerHTML += `
+                    <div class="flex gap-6 items-start group">
+                        <div class="w-8 h-8 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0 text-[10px] font-black text-primary group-hover:bg-primary group-hover:text-white transition-all">${idx + 1}</div>
+                        <p class="text-sm text-slate-400 font-bold leading-relaxed pt-1">${s}</p>
+                    </div>
+                `;
+            });
+            const triggers = document.getElementById('trigger-tags');
+            data.feynman_rebuild.exam_trigger_phrases.forEach(p => {
+                triggers.innerHTML += `<span class="px-3 py-1 bg-slate-900 border border-slate-800 text-[10px] font-black text-slate-600 rounded-lg hover:text-white cursor-default"># ${p}</span>`;
+            });
+        }
+
+        // BOOT
+        renderLab();
+        updateCard();
+        renderScenarios();
+        renderFeynman();
+
+    </script>
+</body>
+
+</html>
