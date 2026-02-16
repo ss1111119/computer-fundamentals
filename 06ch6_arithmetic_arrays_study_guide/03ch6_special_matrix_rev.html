@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>03 特殊矩陣儲存：空間效率的高階應用 - 學習導論</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#10b981', // Emerald 500
+                        secondary: '#8b5cf6', // Violet 500
+                        accent: '#f59e0b', // Amber 500
+                        darkBg: '#0f172a',
+                        cardBg: '#1e293b',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #0f172a;
+            color: #f1f5f9;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .glass-card {
+            background: rgba(30, 41, 59, 0.5);
+            backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .matrix-cell {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .matrix-cell.nonzero {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.3);
+            color: #10b981;
+        }
+
+        .matrix-cell.active {
+            background: #10b981;
+            color: #0f172a;
+            transform: scale(1.1);
+            z-index: 10;
+        }
+
+        .compressed-cell {
+            transition: all 0.3s ease;
+        }
+
+        .compressed-cell.active {
+            background: #10b981;
+            border-color: #10b981;
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(16, 185, 129, 0.4);
+        }
+
+        .flip-card {
+            perspective: 1000px;
+        }
+
+        .flip-card-inner {
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+
+        .flip-card.flipped .flip-card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .flip-card-front,
+        .flip-card-back {
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+
+        .flip-card-back {
+            transform: rotateY(180deg);
+        }
+    </style>
+</head>
+
+<body class="p-4 md:p-8 lg:p-12">
+
+    <!-- Header -->
+    <header class="max-w-6xl mx-auto mb-16 relative">
+        <div class="absolute -top-10 -left-10 w-48 h-48 bg-primary/10 rounded-full blur-3xl"></div>
+        <div class="flex items-center gap-3 mb-6">
+            <span
+                class="px-4 py-1 text-[10px] font-black tracking-widest uppercase bg-primary/20 text-primary border border-primary/30 rounded-full">Section
+                03</span>
+            <span class="text-slate-600">|</span>
+            <span class="text-slate-400 font-bold text-xs uppercase">Chapter 06 算術式表示法與陣列</span>
+        </div>
+        <h1 class="text-5xl md:text-8xl font-black text-white tracking-widest mb-8 italic">特殊矩陣 <span
+                class="text-primary">/</span> Special</h1>
+        <p class="text-xl text-slate-400 max-w-4xl leading-relaxed font-light">
+            空間效率的極大化工程。透過等差級數公式，將對稱或三角形規律的資料「壓扁」存入一維陣列，體現「軟體優化硬體」的設計觀點。
+        </p>
+    </header>
+
+    <main class="max-w-6xl mx-auto space-y-16">
+
+        <!-- Triangular Mapping Simulator -->
+        <section class="glass-card p-12 rounded-[3.5rem] relative overflow-hidden">
+            <div class="absolute -top-10 -right-10 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none">
+            </div>
+            <div class="flex flex-col lg:flex-row justify-between items-end gap-8 mb-16">
+                <div>
+                    <h2 class="text-3xl font-black text-white mb-2 uppercase tracking-tighter italic">壓縮映射模擬器</h2>
+                    <p class="text-slate-500 text-sm">點擊 2D 座標，觀察它如何映射至 1D 緊湊序列。</p>
+                </div>
+                <div class="flex bg-slate-950 p-2 rounded-2xl border border-slate-800 shadow-xl">
+                    <button id="btn-lower" onclick="setMatrixType('lower')"
+                        class="px-8 py-3 text-[10px] font-black rounded-xl transition-all bg-primary text-white shadow-lg">下三角
+                        (Lower)</button>
+                    <button id="btn-upper" onclick="setMatrixType('upper')"
+                        class="px-8 py-3 text-[10px] font-black rounded-xl transition-all text-slate-500">上三角
+                        (Upper)</button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-20">
+                <!-- 2D View -->
+                <div class="space-y-8">
+                    <div
+                        class="flex justify-between items-center text-[10px] font-black text-slate-600 uppercase tracking-widest">
+                        <span>Logical 2D View (n=5)</span>
+                        <span id="tri-coord-label" class="text-primary">Hover a cell</span>
+                    </div>
+                    <div id="tri-matrix-grid" class="grid grid-cols-5 gap-2">
+                        <!-- Injected -->
+                    </div>
+                    <div class="p-6 bg-slate-950 rounded-2xl border border-slate-900 border-dashed border-2">
+                        <div class="text-[10px] font-black text-slate-700 uppercase mb-4 tracking-widest">幾何判定條件</div>
+                        <p id="condition-text" class="text-xs font-bold text-slate-400 italic font-black"></p>
+                    </div>
+                </div>
+
+                <!-- 1D View & Math -->
+                <div class="space-y-10">
+                    <div class="space-y-6">
+                        <div
+                            class="flex justify-between items-center text-[10px] font-black text-slate-600 uppercase tracking-widest">
+                            <span>Compressed 1D View</span>
+                            <span class="text-slate-500">Total: 15 items</span>
+                        </div>
+                        <div id="tri-linear-strip"
+                            class="flex flex-wrap gap-1 p-4 bg-slate-950 rounded-2xl border border-slate-900 min-h-[8rem] items-center justify-center">
+                            <!-- Injected -->
+                        </div>
+                    </div>
+
+                    <div class="space-y-6">
+                        <div class="text-[10px] font-black text-slate-600 uppercase tracking-widest">映射推導軌跡 (Math Trace)
+                        </div>
+                        <div id="math-trace-area"
+                            class="p-8 bg-slate-950 rounded-[2.5rem] border border-slate-800 relative shadow-2xl overflow-hidden">
+                            <div
+                                class="absolute -top-3 left-10 px-4 py-1 bg-slate-800 text-[10px] font-black text-slate-400 rounded-full tracking-widest uppercase">
+                                Stepping Logic</div>
+                            <div id="trace-content" class="space-y-6">
+                                <div class="text-sm font-bold text-slate-500 italic">點擊格子開始推導...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Dynamic Summary & Tradeoff -->
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-10">
+            <!-- Space Efficiency -->
+            <div
+                class="lg:col-span-2 glass-card p-12 rounded-[3.5rem] flex flex-col justify-center items-center text-center relative group">
+                <div
+                    class="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                </div>
+                <h3 class="text-xs font-black text-slate-500 uppercase tracking-[0.6em] mb-10">空間節省效益</h3>
+                <div class="flex items-end gap-4 mb-8">
+                    <div class="flex flex-col items-center">
+                        <div
+                            class="w-20 h-48 bg-slate-900 border border-slate-800 rounded-t-2xl relative overflow-hidden">
+                            <div class="absolute bottom-0 w-full h-full bg-slate-700 animate-pulse"></div>
+                            <span class="absolute top-4 text-[10px] font-black text-white/50 uppercase">Full</span>
+                        </div>
+                        <span class="text-[8px] mt-2 font-black text-slate-600">Standard (n²)</span>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <div
+                            class="w-20 h-48 bg-slate-900 border border-slate-800 rounded-t-2xl relative overflow-hidden">
+                            <div
+                                class="absolute bottom-0 w-full h-[55%] bg-primary shadow-[0_0_20px_rgba(16,185,129,0.5)]">
+                            </div>
+                            <span class="absolute top-4 text-[10px] font-black text-white/50 uppercase">Saved</span>
+                        </div>
+                        <span class="text-[8px] mt-2 font-black text-slate-600">Compressed</span>
+                    </div>
+                </div>
+                <div class="text-6xl font-black text-white italic tracking-tighter">45% <span
+                        class="text-primary">OFF</span></div>
+                <p class="mt-6 text-sm text-slate-400 font-light">空間需求從 <span class="mono">n²</span> 降至 <span
+                        class="mono">n(n+1)/2</span>。</p>
+            </div>
+
+            <!-- Time-Space Gauge -->
+            <div class="glass-card p-12 rounded-[3.5rem] border-accent/20 flex flex-col justify-between">
+                <div>
+                    <h2 class="text-2xl font-black mb-6 text-accent uppercase italic tracking-tighter">時空權衡</h2>
+                    <p class="text-[10px] text-slate-500 leading-relaxed font-bold uppercase tracking-widest mb-8">
+                        Time-Space Tradeoff
+                    </p>
+                    <div class="space-y-6">
+                        <div class="p-4 bg-slate-950 rounded-2xl border border-slate-900">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-[10px] font-black text-green-500 uppercase">Memory Saved</span>
+                                <span class="text-xs mono text-green-500 font-black">+45%</span>
+                            </div>
+                            <div class="w-full h-1 bg-slate-900 rounded-full">
+                                <div class="w-[45%] h-full bg-green-500"></div>
+                            </div>
+                        </div>
+                        <div class="p-4 bg-slate-950 rounded-2xl border border-slate-900">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-[10px] font-black text-red-500 uppercase">CPU Overhead</span>
+                                <span class="text-xs mono text-red-500 font-black">+300%</span>
+                            </div>
+                            <div class="w-full h-1 bg-slate-900 rounded-full">
+                                <div class="w-[80%] h-full bg-red-500"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-[10px] text-slate-600 mt-8 italic leading-relaxed text-center">
+                    用「複雜的數學跳轉」<br>換取「寶貴的硬體位元」。
+                </p>
+            </div>
+        </section>
+
+        <!-- Flashcards & Scenarios -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+            <section class="glass-card p-10 rounded-[3rem]">
+                <h2 class="text-2xl font-black mb-10 flex justify-between items-center text-white">
+                    Recall Flashcards
+                    <span id="card-index" class="text-[10px] font-bold text-slate-500 tracking-widest uppercase">1 /
+                        5</span>
+                </h2>
+                <div class="flip-card h-56 cursor-pointer" id="flashcard">
+                    <div class="flip-card-inner h-full w-full relative">
+                        <div
+                            class="flip-card-front absolute inset-0 bg-slate-900 rounded-[2.5rem] border border-slate-800 flex items-center justify-center p-10 text-center">
+                            <h3 id="card-front" class="text-xl font-bold text-white tracking-tight leading-snug"></h3>
+                        </div>
+                        <div
+                            class="flip-card-back absolute inset-0 bg-secondary/20 rounded-[2.5rem] border border-secondary/40 flex items-center justify-center p-10 text-center">
+                            <p id="card-back" class="text-base font-bold text-slate-200 leading-relaxed"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-center gap-8 mt-10">
+                    <button onclick="prevCard()"
+                        class="p-3 rounded-full hover:bg-slate-800 text-slate-500 transition-all active:scale-95"><svg
+                            class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7">
+                            </path>
+                        </svg></button>
+                    <button onclick="nextCard()"
+                        class="p-3 rounded-full hover:bg-slate-800 text-slate-500 transition-all active:scale-95"><svg
+                            class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7">
+                            </path>
+                        </svg></button>
+                </div>
+            </section>
+
+            <!-- Scenario Checks -->
+            <section class="glass-card p-10 rounded-[3rem]">
+                <h2 class="text-2xl font-black mb-10 text-white uppercase italic tracking-tighter">真偽辨正 (Scenario Check)
+                </h2>
+                <div id="scenarios-list" class="space-y-6">
+                    <!-- Injected -->
+                </div>
+            </section>
+        </div>
+
+        <!-- Feynman Rebuild -->
+        <section
+            class="glass-card p-12 rounded-[4rem] bg-gradient-to-tr from-cardBg via-slate-900 to-primary/10 border-none shadow-3xl">
+            <h2
+                class="text-3xl font-black mb-12 text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary uppercase tracking-tighter italic font-black">
+                費曼學習法：摺疊家具與等差級數</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-16">
+                <div class="space-y-12">
+                    <div>
+                        <h4 class="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mb-6">解析語義核心</h4>
+                        <p id="feynman-plain" class="text-4xl font-black text-white leading-[1.1]"></p>
+                    </div>
+                    <div class="p-10 bg-slate-950 rounded-[3rem] border border-slate-800 shadow-inner">
+                        <div class="flex items-center gap-4 mb-4">
+                            <span
+                                class="px-3 py-1 bg-primary text-[8px] font-black text-white rounded-full uppercase tracking-widest">Analogy</span>
+                        </div>
+                        <p id="feynman-analogy" class="text-slate-400 italic leading-relaxed text-sm font-light"></p>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mb-8">攻心教案 (Teach Flow)
+                    </h4>
+                    <div id="feynman-steps" class="space-y-8">
+                        <!-- Injected -->
+                    </div>
+                </div>
+            </div>
+            <div
+                class="mt-20 pt-10 border-t border-slate-800/50 flex flex-col md:flex-row gap-8 items-center justify-center">
+                <div id="trigger-tags" class="flex flex-wrap gap-2 justify-center"></div>
+                <div class="hidden md:block w-px h-10 bg-slate-800"></div>
+                <p id="feynman-one-minute"
+                    class="text-xs font-bold text-primary max-w-lg text-center leading-relaxed tracking-wider"></p>
+            </div>
+        </section>
+
+    </main>
+
+    <footer
+        class="max-w-6xl mx-auto mt-24 mb-16 text-center text-slate-700 text-[10px] font-black tracking-[0.5em] uppercase">
+        <p>© Section 03 - Special Matrix | Part of Chapter 6 Series</p>
+    </footer>
+
+    <script>
+        const data = {
+            "chapter_positioning": {
+                "one_sentence": "本節探討如何利用數學規律壓縮特定分佈的矩陣，達成儲存空間極大化的「空間換時間」設計。",
+                "prerequisites": ["6-2 陣列定址基礎", "等差級數求和公式"],
+                "downstream_links": ["大型科學運算 (Sparse BLAS)", "資料庫索引壓縮"]
+            },
+            "keywords": [
+                {
+                    "term": "特殊矩陣 (Special Matrix)",
+                    "why_important": "資料分佈具有規規，是壓縮技術的最佳實驗場。",
+                    "common_exam_angle": "判斷上/下三角矩陣的幾何邊界條件 ($i<j$ 或 $i>j$)。"
+                },
+                {
+                    "term": "壓縮儲存 (Compression)",
+                    "why_important": "將 $n^2$ 空間縮減為 $n(n+1)/2$，節省近一半資源。",
+                    "common_exam_angle": "計算壓縮後所需的一維陣列長度。"
+                },
+                {
+                    "term": "映射公式 (Mapping Formula)",
+                    "why_important": "將二維座標 $(i, j)$ 精確轉換為一維索引 $k$ 的橋樑。",
+                    "common_exam_angle": "推導「跨過多少個非零元素」的數學過程。"
+                },
+                {
+                    "term": "時空權衡 (Time-Space Tradeoff)",
+                    "why_important": "計算機科學的核心思維：節省空間通常伴隨著計算成本的提升。",
+                    "common_exam_angle": "分析壓縮矩陣在存取效率上的代價。"
+                }
+            ],
+            "comparison_matrix": {
+                "title": "三角矩陣壓縮對照",
+                "dimensions": ["定義條件", "非零分布", "列主排列跨越邏輯", "一維空間長度"],
+                "rows": [
+                    {
+                        "name": "下三角 (Lower Triangular)",
+                        "values": {
+                            "定義條件": "i < j 時 A_ij = 0",
+                            "非零分布": "主對角線及其下方",
+                            "列主排列跨越邏輯": "前 i-1 列元素數遞增 (1, 2, 3...)",
+                            "一維空間長度": "n(n+1)/2"
+                        }
+                    },
+                    {
+                        "name": "上三角 (Upper Triangular)",
+                        "values": {
+                            "定義條件": "i > j 時 A_ij = 0",
+                            "非零分布": "主對角線及其上方",
+                            "列主排列跨越邏輯": "前 i-1 列元素數遞減 (n, n-1...)",
+                            "一維空間長度": "n(n+1)/2"
+                        }
+                    }
+                ]
+            },
+            "feynman_explanation": {
+                "one_sentence_plain": "把一塊有很多洞 (零) 的乳酪，把乳酪的部分切下來重新排緊，不存那些洞，但要記住切開的對應規則。",
+                "analogy": "特殊矩陣儲存就像「摺疊家具」：平常二維展開很佔位子，我們把它摺疊壓縮成一條線（一維）。要用的時候（存取），雖然要多花力氣「算公式」打開，但省下了客廳空間。",
+                "forbidden_terms_used": ["壓縮", "映射", "等差級數"]
+            },
+            "feynman_rebuild": {
+                "teach_flow": [
+                    "首先，直視浪費：畫一個 10x10 矩陣，圈出零的部分。告訴學生：儲存這些 0 是在謀殺記憶體。",
+                    "接著，引入級數思維：展示下三角矩陣，每一層多一個。搬運它們到一維竹籤時，公式就是算出『我上面疊了幾層』。",
+                    "最後，解析權衡代價：空間省了，但原本 CPU 只要做個加法 (Offset)，現在要做乘法和除法。這是典型的『勞力換空間』。"
+                ],
+                "one_minute_version": "特殊矩陣儲存是陣列定址的高階應用，核心在於透過「等差級數」公式將具有對稱規律的資料壓縮。對於三角形矩陣，我們捨棄大半的零元素，將 n² 空間減半至 n(n+1)/2。這反映了計算機科學中軟體演算法對硬體資源的優化，雖然增加了 CPU 指令複雜度（時空權衡），但在處理大規模資料時是不可或缺的節能技巧。",
+                "exam_trigger_phrases": [
+                    "n(n+1)/2",
+                    "i(i-1)/2 + j",
+                    "空間換時間 (Time-Space Tradeoff)",
+                    "只存非零元"
+                ]
+            },
+            "flashcards": [
+                {
+                    "front": "下三角矩陣 (Lower Triangular) 的幾何判定條件？",
+                    "back": "當 i < j 時，A_ij = 0。"
+                },
+                {
+                    "front": "壓縮 n 維方陣為對稱/三角矩陣後，所需的一維陣列空間大小？",
+                    "back": "n(n+1)/2。"
+                },
+                {
+                    "front": "在 Row-major 下，下三角矩陣 A[i, j] 壓縮後的索引 k (i, j 從 1 開始)？",
+                    "back": "k = i(i-1)/2 + j。"
+                },
+                {
+                    "front": "為什麼特殊矩陣會提升 CPU 的運算負擔？",
+                    "back": "因為位址計算從簡單的線性座標變成了需要涉及乘、除法的級數公式運算。"
+                },
+                {
+                    "front": "教材中提到特殊矩陣是哪兩章知識的橋樑？",
+                    "back": "第六章 (算術與陣列) 與 之後的 稀疏矩陣資料結構。"
+                }
+            ],
+            "scenario_checks": [
+                {
+                    "statement": "壓縮儲存後，矩陣依然具備 O(1) 的隨機存取效能。",
+                    "answer": "O",
+                    "explanation": "正確。雖然計算變複雜了，但只要座標確定，依然能「直接算出」位址，與遍歷無關。"
+                },
+                {
+                    "statement": "上三角矩陣的壓縮公式比下三角簡單，因為它從第一列開始就是滿的。",
+                    "answer": "X",
+                    "explanation": "錯誤。上三角矩陣每列的元素數遞減，計算「跳過的前 i-1 列」總數時需處理遞減級數，通常更易出錯。"
+                }
+            ]
+        };
+
+        let currentType = 'lower';
+        const n = 5;
+
+        function renderMatrix() {
+            const grid = document.getElementById('tri-matrix-grid');
+            const linearStrip = document.getElementById('tri-linear-strip');
+            grid.innerHTML = '';
+            linearStrip.innerHTML = '';
+
+            const nonzeroCells = [];
+            for (let i = 1; i <= n; i++) {
+                for (let j = 1; j <= n; j++) {
+                    const isNonzero = currentType === 'lower' ? i >= j : j >= i;
+                    const cell = document.createElement('div');
+                    cell.className = `h-12 flex items-center justify-center border border-slate-800 rounded-lg text-[10px] font-black matrix-cell ${isNonzero ? 'nonzero cursor-pointer' : 'text-slate-800 opacity-20'}`;
+                    cell.innerText = isNonzero ? `V(${i},${j})` : '0';
+
+                    if (isNonzero) {
+                        nonzeroCells.push({ i, j });
+                        cell.onmouseover = () => highlightMapping(i, j);
+                        cell.id = `m-${i}-${j}`;
+                    }
+                    grid.appendChild(cell);
+                }
+            }
+
+            nonzeroCells.forEach((c, idx) => {
+                const div = document.createElement('div');
+                div.className = "w-10 h-10 bg-slate-900 border border-slate-800 rounded-lg flex items-center justify-center text-[8px] mono text-slate-500 compressed-cell";
+                div.innerText = `[${idx + 1}]`;
+                div.id = `l-${idx + 1}`;
+                linearStrip.appendChild(div);
+            });
+
+            document.getElementById('condition-text').innerText = currentType === 'lower' ? "i >= j (主對角線及其下方)" : "j >= i (主對角線及其上方)";
+        }
+
+        function highlightMapping(i, j) {
+            document.querySelectorAll('.matrix-cell').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.compressed-cell').forEach(c => c.classList.remove('active'));
+
+            document.getElementById(`m-${i}-${j}`).classList.add('active');
+            document.getElementById('tri-coord-label').innerText = `Target: A(${i}, ${j})`;
+
+            let index = 0;
+            let traceHTML = "";
+            if (currentType === 'lower') {
+                index = (i * (i - 1) / 2) + j;
+                const rowsBefore = i - 1;
+                const sumBefore = rowsBefore * (rowsBefore + 1) / 2;
+                traceHTML = `
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center"><span class="text-xs text-slate-500">當前列 (Row i)</span> <span class="text-white mono">${i}</span></div>
+                        <div class="flex justify-between items-center"><span class="text-xs text-slate-500">跨過前 ${rowsBefore} 列總和</span> <span class="text-white mono">1+2+...+ ${rowsBefore} = ${sumBefore}</span></div>
+                        <div class="flex justify-between items-center"><span class="text-xs text-slate-500">當前列偏移 (Column j)</span> <span class="text-white mono">${j}</span></div>
+                        <hr class="border-slate-800">
+                        <div class="text-center font-black text-primary text-xl mono italic tracking-widest">Index = ${sumBefore} + ${j} = ${index}</div>
+                    </div>
+                `;
+            } else {
+                // Upper Triangular Row-major logic: skipping rows of size n, n-1, n-2...
+                // Row 1: n items, Row 2: n-1 items...
+                // Index = sum of items in row 1 to i-1 + offset in row i
+                // Total items in row 1..i-1: i-1 items from n down: n + (n-1) + ... + (n-i+2)
+                let sumBefore = 0;
+                for (let k = 1; k < i; k++) sumBefore += (n - k + 1);
+                const offsetInRow = j - i + 1;
+                index = sumBefore + offsetInRow;
+                traceHTML = `
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center"><span class="text-xs text-slate-500">當前列 (Row i)</span> <span class="text-white mono">${i}</span></div>
+                        <div class="flex justify-between items-center"><span class="text-xs text-slate-500">跨過前 ${i - 1} 列</span> <span class="text-white mono">累計 ${sumBefore} 個</span></div>
+                        <div class="flex justify-between items-center"><span class="text-xs text-slate-500">當前列偏移 (j - i + 1)</span> <span class="text-white mono">${offsetInRow}</span></div>
+                        <hr class="border-slate-800">
+                        <div class="text-center font-black text-primary text-xl mono italic tracking-widest">Index = ${index}</div>
+                    </div>
+                `;
+            }
+
+            document.getElementById(`l-${index}`).classList.add('active');
+            document.getElementById('trace-content').innerHTML = traceHTML;
+        }
+
+        function setMatrixType(type) {
+            currentType = type;
+            document.getElementById('btn-lower').className = type === 'lower' ? "px-8 py-3 text-[10px] font-black rounded-xl transition-all bg-primary text-white shadow-lg" : "px-8 py-3 text-[10px] font-black rounded-xl transition-all text-slate-500";
+            document.getElementById('btn-upper').className = type === 'upper' ? "px-8 py-3 text-[10px] font-black rounded-xl transition-all bg-primary text-white shadow-lg" : "px-8 py-3 text-[10px] font-black rounded-xl transition-all text-slate-500";
+            renderMatrix();
+            document.getElementById('trace-content').innerHTML = '<div class="text-sm font-bold text-slate-500 italic">點擊格子開始推導...</div>';
+            document.getElementById('tri-coord-label').innerText = "Hover a cell";
+        }
+
+        // FLASHCARDS
+        let curCard = 0;
+        const flashcard = document.getElementById('flashcard');
+        function updateCard() {
+            flashcard.classList.remove('flipped');
+            setTimeout(() => {
+                document.getElementById('card-front').innerText = data.flashcards[curCard].front;
+                document.getElementById('card-back').innerText = data.flashcards[curCard].back;
+                document.getElementById('card-index').innerText = `${curCard + 1} / ${data.flashcards.length}`;
+            }, 300);
+        }
+        flashcard.onclick = () => flashcard.classList.toggle('flipped');
+        function nextCard() { curCard = (curCard + 1) % data.flashcards.length; updateCard(); }
+        function prevCard() { curCard = (curCard - 1 + data.flashcards.length) % data.flashcards.length; updateCard(); }
+
+        function renderScenarios() {
+            const list = document.getElementById('scenarios-list');
+            data.scenario_checks.forEach((sc, idx) => {
+                const div = document.createElement('div');
+                div.className = "p-8 rounded-[2rem] bg-slate-950 border border-slate-900 shadow-xl transition-all hover:border-slate-700 group";
+                div.innerHTML = `
+                    <p class="text-[11px] font-bold text-slate-300 mb-8 leading-relaxed tracking-wide">${sc.statement}</p>
+                    <div class="flex gap-4">
+                        <button onclick="checkScenario(${idx}, 'O')" class="flex-1 py-3 text-[10px] font-black rounded-2xl border border-slate-800 hover:border-primary transition-all">是 (O)</button>
+                        <button onclick="checkScenario(${idx}, 'X')" class="flex-1 py-3 text-[10px] font-black rounded-2xl border border-slate-800 hover:border-primary transition-all">否 (X)</button>
+                    </div>
+                    <div id="sc-res-${idx}" class="mt-6 hidden p-6 rounded-2xl text-[10px] italic leading-relaxed"></div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function checkScenario(idx, choice) {
+            const sc = data.scenario_checks[idx];
+            const res = document.getElementById(`sc-res-${idx}`);
+            const correct = choice === sc.answer;
+            res.classList.remove('hidden', 'bg-primary/20', 'text-primary', 'bg-red-500/20', 'text-red-500');
+            res.classList.add(correct ? 'bg-primary/10' : 'bg-red-500/10');
+            res.classList.add(correct ? 'text-primary' : 'text-red-500');
+            res.innerHTML = `<b>${correct ? "Bingo!" : "Wait..."}</b><br>${sc.explanation}`;
+        }
+
+        function renderFeynman() {
+            document.getElementById('feynman-plain').innerText = data.feynman_explanation.one_sentence_plain;
+            document.getElementById('feynman-analogy').innerText = data.feynman_explanation.analogy;
+            document.getElementById('feynman-one-minute').innerText = data.feynman_rebuild.one_minute_version;
+            const steps = document.getElementById('feynman-steps');
+            data.feynman_rebuild.teach_flow.forEach((s, idx) => {
+                steps.innerHTML += `
+                    <div class="flex gap-6 items-start group">
+                        <div class="w-8 h-8 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0 text-[10px] font-black text-primary group-hover:bg-primary group-hover:text-white transition-all">${idx + 1}</div>
+                        <p class="text-sm text-slate-400 font-bold leading-relaxed pt-1">${s}</p>
+                    </div>
+                `;
+            });
+            const triggers = document.getElementById('trigger-tags');
+            data.feynman_rebuild.exam_trigger_phrases.forEach(p => {
+                triggers.innerHTML += `<span class="px-3 py-1 bg-slate-900 border border-slate-800 text-[10px] font-black text-slate-600 rounded-lg hover:text-white cursor-default"># ${p}</span>`;
+            });
+        }
+
+        // BOOT
+        setMatrixType('lower');
+        updateCard();
+        renderScenarios();
+        renderFeynman();
+
+    </script>
+</body>
+
+</html>
