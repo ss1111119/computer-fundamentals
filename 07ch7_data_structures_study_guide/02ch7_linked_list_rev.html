@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>02 彈性之源：鏈結串列的動態思考 - 學習導論</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#06b6d4', // Cyan 500
+                        secondary: '#8b5cf6', // Violet 500
+                        accent: '#f59e0b', // Amber 500
+                        darkBg: '#0f172a',
+                        cardBg: '#1e293b',
+                    },
+                    fontFamily: {
+                        sans: ['Outfit', 'Inter', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
+
+        body {
+            background-color: #0f172a;
+            color: #f1f5f9;
+        }
+
+        .glass-card {
+            background: rgba(30, 41, 59, 0.5);
+            backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        .glass-card:hover {
+            border: 1px solid rgba(6, 182, 212, 0.2);
+        }
+
+        .flip-card {
+            perspective: 1000px;
+        }
+
+        .flip-card-inner {
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+
+        .flip-card.flipped .flip-card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .flip-card-front,
+        .flip-card-back {
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+
+        .flip-card-back {
+            transform: rotateY(180deg);
+        }
+
+        .node {
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .arrow {
+            transition: all 0.5s ease;
+        }
+
+        @keyframes pulse-cyan {
+            0% {
+                box-shadow: 0 0 0 0 rgba(6, 182, 212, 0.4);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(6, 182, 212, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(6, 182, 212, 0);
+            }
+        }
+
+        .active-pulse {
+            animation: pulse-cyan 2s infinite;
+        }
+
+        .dimension-chip.active {
+            background-color: #06b6d4;
+            color: white;
+            box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);
+        }
+
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+
+<body class="p-4 md:p-8 lg:p-12">
+
+    <!-- Header -->
+    <header class="max-w-6xl mx-auto mb-16 relative">
+        <div class="absolute -top-10 -left-10 w-48 h-48 bg-primary/10 rounded-full blur-3xl text-primary"></div>
+        <div class="flex items-center gap-3 mb-6">
+            <span
+                class="px-4 py-1 text-[10px] font-black tracking-widest uppercase bg-primary/20 text-primary border border-primary/30 rounded-full">Section
+                02</span>
+            <span class="text-slate-600">|</span>
+            <span class="text-slate-400 font-bold text-xs uppercase italic">Chapter 07 資料結構導論</span>
+        </div>
+        <h1 class="text-5xl md:text-8xl font-black text-white tracking-widest mb-8 italic">彈性之源 <span
+                class="text-primary">/</span> Dynamic</h1>
+        <p id="chapter-one-sentence"
+            class="text-xl text-slate-400 max-w-4xl leading-relaxed font-light italic border-l-4 border-primary/30 pl-6">
+            <!-- Injected -->
+        </p>
+    </header>
+
+    <main class="max-w-6xl mx-auto space-y-20">
+
+        <!-- Dashboard -->
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-10">
+            <!-- Important Weighting -->
+            <div class="lg:col-span-2 glass-card p-10 rounded-[3rem]">
+                <h3 class="text-sm font-black text-slate-500 uppercase tracking-widest mb-10 flex items-center gap-2">
+                    <span class="w-2 h-2 bg-primary rounded-full"></span> 出題佔比分析
+                </h3>
+                <div id="weighting-container" class="space-y-8">
+                    <!-- Injected -->
+                </div>
+            </div>
+
+            <!-- Keywords Cloud -->
+            <div class="glass-card p-10 rounded-[3rem] flex flex-col">
+                <h3 class="text-sm font-black text-slate-500 uppercase tracking-widest mb-10 flex items-center gap-2">
+                    <span class="w-2 h-2 bg-secondary rounded-full"></span> 核心關鍵字
+                </h3>
+                <div id="keywords-container" class="flex flex-wrap gap-3">
+                    <!-- Injected -->
+                </div>
+                <div id="keyword-detail" class="mt-8 p-6 bg-slate-900/50 rounded-2xl hidden border border-slate-800">
+                    <h4 id="detail-term" class="text-primary font-bold text-lg mb-2"></h4>
+                    <p id="detail-why" class="text-slate-300 text-sm mb-4 leading-relaxed"></p>
+                    <div class="text-[10px] text-slate-500 font-black uppercase tracking-tighter">Exam Angle: <span
+                            id="detail-angle" class="text-slate-400 normal-case font-normal text-xs ml-2"></span></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Comparison Matrix -->
+        <section class="glass-card p-12 rounded-[4rem]">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-8 mb-12">
+                <div>
+                    <h2 id="matrix-title" class="text-3xl font-black text-white uppercase italic tracking-tighter">
+                        科技對決：連續 vs. 分散</h2>
+                    <p class="text-slate-500 text-sm mt-2">點擊維度標籤，透視特定的效能權衡。</p>
+                </div>
+                <div id="dimension-chips" class="flex flex-wrap gap-2 justify-center">
+                    <!-- Injected -->
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr id="matrix-header" class="border-b border-slate-800">
+                            <th class="py-5 px-4 text-slate-500 text-[10px] font-black uppercase tracking-widest">對象
+                            </th>
+                            <!-- Dimensions injected -->
+                        </tr>
+                    </thead>
+                    <tbody id="matrix-body" class="text-sm">
+                        <!-- Rows injected -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Core Concept Lab: Insertion Flow -->
+        <section class="glass-card p-12 rounded-[4rem] relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-[100px]"></div>
+
+            <div class="mb-16">
+                <h2 class="text-3xl font-black text-white uppercase italic tracking-tighter">觀念實驗室：指標的舞蹈</h2>
+                <p class="text-slate-500 text-sm mt-2">模擬「插入 (Insertion)」邏輯，體驗不搬移資料的效率感。</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-16">
+                <div class="space-y-10">
+                    <div class="flex gap-4">
+                        <div class="flex-1">
+                            <label
+                                class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 block">插入位置</label>
+                            <input type="number" id="lab-pos" value="2"
+                                class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-primary outline-none">
+                        </div>
+                        <div class="flex flex-[2]">
+                            <label
+                                class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 block">資料內容</label>
+                            <input type="text" id="lab-data" value="G"
+                                class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-primary outline-none">
+                        </div>
+                    </div>
+
+                    <div id="lab-controls" class="flex gap-4">
+                        <button onclick="startLab()"
+                            class="px-8 py-4 bg-primary text-white text-[10px] font-black rounded-2xl hover:scale-105 transition-all shadow-lg active:scale-95">START
+                            SIMULATION</button>
+                    </div>
+
+                    <div id="lab-steps" class="space-y-4">
+                        <!-- Step blocks injected here -->
+                    </div>
+
+                    <div id="lab-mistakes" class="hidden p-8 bg-accent/10 border border-accent/20 rounded-[2.5rem]">
+                        <h4 class="text-accent text-[10px] font-black uppercase tracking-widest mb-4">⚠️ 避雷針 (Common
+                            Mistakes)</h4>
+                        <div id="mistakes-list" class="space-y-4"></div>
+                    </div>
+                </div>
+
+                <div
+                    class="flex flex-col justify-center items-center bg-slate-950/50 rounded-[3rem] p-10 border border-slate-900 border-dashed">
+                    <div id="sim-visual" class="flex flex-wrap items-center justify-center gap-4">
+                        <!-- Nodes injected here -->
+                    </div>
+                    <div id="sim-info" class="mt-12 text-slate-500 text-xs italic text-center">設定參數後點擊開始</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Exam Drill -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+            <!-- Flashcards -->
+            <section class="glass-card p-10 rounded-[3rem]">
+                <h2 class="text-2xl font-black mb-10 flex justify-between items-center text-white italic">
+                    Recall Flashcards
+                    <span id="card-index"
+                        class="text-[10px] font-bold text-slate-500 tracking-widest uppercase italic">1 / 5</span>
+                </h2>
+                <div class="flip-card h-64 cursor-pointer" id="flashcard">
+                    <div class="flip-card-inner h-full w-full relative">
+                        <div
+                            class="flip-card-front absolute inset-0 bg-slate-900 rounded-[2.5rem] border border-slate-800 flex items-center justify-center p-12 text-center shadow-2xl">
+                            <h3 id="card-front" class="text-2xl font-black text-white italic tracking-tight"></h3>
+                        </div>
+                        <div
+                            class="flip-card-back absolute inset-0 bg-primary/20 rounded-[2.5rem] border border-primary/40 flex items-center justify-center p-12 text-center shadow-2xl">
+                            <p id="card-back" class="text-lg font-bold text-slate-200 leading-relaxed"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-center gap-8 mt-10">
+                    <button onclick="prevCard()"
+                        class="p-4 rounded-full hover:bg-slate-800 text-slate-500 transition-all active:scale-90"><svg
+                            class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7">
+                            </path>
+                        </svg></button>
+                    <button onclick="nextCard()"
+                        class="p-4 rounded-full hover:bg-slate-800 text-slate-500 transition-all active:scale-90"><svg
+                            class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7">
+                            </path>
+                        </svg></button>
+                </div>
+            </section>
+
+            <!-- Scenario Checks -->
+            <section class="glass-card p-10 rounded-[3rem]">
+                <h2 class="text-2xl font-black mb-10 text-white uppercase italic tracking-tighter">真偽辨正 (Scenario)</h2>
+                <div id="scenarios-list" class="space-y-6">
+                    <!-- Injected -->
+                </div>
+            </section>
+        </div>
+
+        <!-- Feynman Rebuild -->
+        <section class="glass-card p-12 rounded-[4rem] bg-gradient-to-br from-cardBg via-slate-900 to-primary/5">
+            <h2
+                class="text-3xl font-black mb-12 text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary uppercase tracking-tighter italic">
+                費曼學習法：分散的智慧</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-16">
+                <div class="space-y-12">
+                    <div>
+                        <h4 class="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mb-6">核心語義</h4>
+                        <p id="feynman-plain" class="text-4xl font-black text-white leading-tight italic"></p>
+                    </div>
+                    <div class="p-10 bg-slate-950/80 rounded-[3rem] border border-slate-800 shadow-2xl">
+                        <div class="flex items-center gap-4 mb-4">
+                            <span
+                                class="px-3 py-1 bg-primary text-[8px] font-black text-white rounded-full uppercase tracking-widest">生活類比</span>
+                        </div>
+                        <p id="feynman-analogy" class="text-slate-400 italic leading-relaxed text-base font-light"></p>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mb-8">攻心教案 (Teach Flow)
+                    </h4>
+                    <div id="feynman-steps" class="space-y-10">
+                        <!-- Injected -->
+                    </div>
+                </div>
+            </div>
+            <div
+                class="mt-20 pt-10 border-t border-slate-800/50 flex flex-col md:flex-row gap-8 items-center justify-between">
+                <div id="trigger-tags" class="flex flex-wrap gap-2"></div>
+                <p id="feynman-one-minute"
+                    class="text-xs font-bold text-primary max-w-lg text-right italic leading-relaxed"></p>
+            </div>
+        </section>
+
+        <!-- Appendix -->
+        <section class="mt-20">
+            <button onclick="toggleAppendix()"
+                class="w-full flex justify-between items-center py-6 px-10 glass-card rounded-3xl text-sm font-black text-slate-500 uppercase tracking-widest hover:text-white transition-all">
+                附錄：我的原始筆記 (Appendix)
+                <span id="appendix-icon">↓</span>
+            </button>
+            <div id="appendix-content"
+                class="hidden mt-4 p-10 glass-card rounded-[2.5rem] text-xs text-slate-400 font-mono leading-relaxed overflow-auto max-h-96">
+                <!-- Injected -->
+            </div>
+        </section>
+
+    </main>
+
+    <footer
+        class="max-w-6xl mx-auto mt-24 mb-16 text-center text-slate-700 text-[10px] font-black tracking-[0.5em] uppercase italic">
+        <p>© Section 02 - Dynamic Data Structures | Part of Chapter 7 series</p>
+    </footer>
+
+    <script>
+        const chapterData = {
+            "chapter_positioning": {
+                "one_sentence": "本章探討鏈結串列（Linked List）如何透過「指標」打破陣列的物理限制，實現動態記憶體管理，並作為複雜資料結構（如樹、圖）的基石。",
+                "prerequisites": ["第七章 資料結構導論", "陣列（Array）的概念", "記憶體位址/指標基礎"],
+                "downstream_links": ["堆疊（Stack）與佇列（Queue）的鏈結實作", "第八章 樹狀結構（Tree）", "第九章 圖形結構（Graph）"]
+            },
+
+            "keywords": [
+                {
+                    "term": "鏈結串列 (Linked List)",
+                    "why_important": "解決陣列靜態且缺乏彈性的限制，是動態資料結構的基礎。",
+                    "common_exam_angle": "常考其與陣列的效率權衡（存取 vs 異動）。"
+                },
+                {
+                    "term": "指標 (Pointer/Link)",
+                    "why_important": "串聯分散節點的核心資訊，儲存下一個資料的位址。",
+                    "common_exam_angle": "理解 ptr -> next 的邏輯操作。"
+                },
+                {
+                    "term": "節點 (Node)",
+                    "why_important": "鏈結串列的基本單位，包含資料（Data）與鏈結（Link）兩部分。",
+                    "common_exam_angle": "計算節點所需的額外空間成本。"
+                },
+                {
+                    "term": "循序存取 (Sequential Access)",
+                    "why_important": "鏈結串列尋找資料的唯一方式，必須從頭（Head）開始逐一找尋。",
+                    "common_exam_angle": "與陣列的隨機存取（Random Access）做對比。"
+                }
+            ],
+
+            "weighting": {
+                "basis": "estimate",
+                "items": [
+                    { "topic": "陣列與鏈結串列之效率比較", "weight": 90, "reason": "這是最核心的考點，通常以填空或選擇題出現。" },
+                    { "topic": "動態記憶體管理特性", "weight": 70, "reason": "理解 Linked List 為什麼能任意調整長度。" },
+                    { "topic": "鏈結串列的變體 (雙向、環狀)", "weight": 60, "reason": "考察對結構靈活性的認知。" }
+                ]
+            },
+
+            "comparison_matrix": {
+                "title": "陣列 (Array) vs. 鏈結串列 (Linked List) 對照表",
+                "dimensions": ["儲存空間", "存取方式", "插入/刪除", "空間利用"],
+                "rows": [
+                    {
+                        "name": "陣列 (Array)",
+                        "values": {
+                            "儲存空間": "連續記憶體位址",
+                            "存取方式": "隨機存取 (Random Access)，快",
+                            "插入/刪除": "需移動大量資料，慢",
+                            "空間利用": "事先決定，易浪費或不足"
+                        },
+                        "pitfall": "容易誤以為陣列在所有情況下都比鏈結串列慢。",
+                        "rule_of_thumb": "陣列就像「固定置物櫃」，定位快但換位難。"
+                    },
+                    {
+                        "name": "鏈結串列 (Linked List)",
+                        "values": {
+                            "儲存空間": "分散記憶體位址",
+                            "存取方式": "循序存取 (Sequential Access)，慢",
+                            "插入/刪除": "只需改指標，不需搬資料，快",
+                            "空間利用": "動態調整，隨取隨用，更靈靈活"
+                        },
+                        "pitfall": "常忘記「指標」本身也會佔用額外的記憶體。 (空間換彈性)",
+                        "rule_of_thumb": "串列就像「尋寶遊戲」，知道下一站去哪，但找中間那站很累。"
+                    }
+                ]
+            },
+
+            "core_concept_lab": {
+                "chosen_concept": "鏈結串列的插入 (Insertion)",
+                "type": "flow",
+                "learning_objective": "理解如何透過「改變指標指向」而非「搬移資料」來完成結構異動。",
+                "inputs": [
+                    { "id": "insert_pos", "label": "插入位置", "type": "number", "default": "2" },
+                    { "id": "new_data", "label": "新資料內容", "type": "text", "default": "G" }
+                ],
+                "interaction_logic": [
+                    "使用者設定插入點 → 視覺呈現 A -> B (斷開指標) -> C → 系統指引：(1) 新節點 G 指向 C (2) 節點 B 指向 G → 最終呈現 A -> B -> G -> C"
+                ],
+                "outputs": [
+                    { "id": "process_visual", "label": "指標異動過程", "format": "chart" },
+                    { "id": "efficiency_note", "label": "異動效率說明", "format": "text" }
+                ],
+                "common_mistakes": [
+                    {
+                        "mistake": "忘記更新前一個節點的指標",
+                        "why_wrong": "會導致新節點與舊鏈結斷掉。",
+                        "how_to_fix": "務必確認「前驅節點 -> next」有指向「新節點」。"
+                    },
+                    {
+                        "mistake": "先改前驅指標再掛新節點",
+                        "why_wrong": "若先斷開前驅與後續的連結，會找不到後面的節點位址。",
+                        "how_to_fix": "應先讓「新節點 -> next」接上後續，再更新前驅指標。"
+                    }
+                ]
+            },
+
+            "feynman_explanation": {
+                "one_sentence_plain": "鏈結串列就是一場尋寶遊戲：資料散落在各地，但每個資料都附有一張告訴你『下一個在哪裡』的小紙條。",
+                "analogy": "陣列像是大樓裡編號相鄰的信箱（必須在一起且數量固定）；鏈結串列則像是在森林裡玩大地遊戲，你每到一個關卡（節點），關主會告訴你下一關要去哪座山（下一個位址）。兩者不需要在相鄰的位置，只要有線索就能連起來。",
+                "forbidden_terms_used": ["指標 (Pointer)", "動態 (Dynamic)", "循序存取 (Sequential Access)"]
+            },
+
+            "feynman_rebuild": {
+                "teach_flow": [
+                    "首先，想像你要存一群學生的姓名。如果用陣列，你得先去租一排連續的置物櫃，如果後來學生變多，你得換一整排更大的櫃子，很不方便。",
+                    "接著，我們換個法子：學生可以隨便坐在教室任何位置，但老師要求每個學生都要記住下一個座號是誰、坐在哪。這樣就算位置亂跳，老師也能一個接一個點名。這就是『鏈結串列』。",
+                    "最後，考試最愛問：那找人（存取）跟加人（插入）哪個划算？因為要一個問一個，找第 50 個人就很慢；但要加一個人時，只要讓他記住原本的人並告訴前一個人你是新來的（改指標），就完成了，超快！"
+                ],
+                "one_minute_version": "鏈結串列用『空間換取彈性』。它不要求連續記憶體，而是透過『指標』記錄下一個資料的位置。優點是長度可隨時調整，且插入/刪除資料不需要搬移整排資料（只需改箭頭）；缺點是找特定位置很慢，且指標也會佔用額外空間。適合用在資料變動頻繁、總量不確定的場景。",
+                "exam_trigger_phrases": [
+                    "改變鏈結號碼即可",
+                    "以空間換取彈性",
+                    "不需要搬移資料",
+                    "必須從頭找起 (循序存取)",
+                    "長度可任意調整"
+                ]
+            },
+
+            "flashcards": [
+                { "front": "什麼是『指標 (Pointer)』？", "back": "儲存另一個變數（節點）記憶體位址的變數，是串連資料的關鍵。" },
+                { "front": "陣列與串列：誰能隨機存取？", "back": "陣列。鏈結串列只能循序存取（必須從頭找）。" },
+                { "front": "鏈結串列如何處理插入？", "back": "改變指標指向即可，無需移動資料，時間複雜度優於陣列。" },
+                { "front": "鏈結串列的空間缺點？", "back": "需要額外記憶體來儲存指標（鏈結變數）。" }
+            ],
+
+            "scenario_checks": [
+                {
+                    "statement": "鏈結串列的長度在程式執行前必須先宣告固定。",
+                    "answer": "X",
+                    "explanation": "那是陣列的限制。鏈結串列可以動態增加，『用多少、拿多少』。"
+                },
+                {
+                    "statement": "因為鏈結串列可以分散存放，所以它比陣列更節省記憶體空間。",
+                    "answer": "X",
+                    "explanation": "錯！鏈結串列需要額外存『指標』，是有額外負擔的，這就是『以空間換彈性』。"
+                },
+                {
+                    "statement": "如果要存取鏈結串列的最後一個節點，必須從第一個節點開始沿著指標找下去。",
+                    "answer": "O",
+                    "explanation": "正確。它是循序存取，沒有索引可以直接定位。"
+                }
+            ],
+
+            "original_notes_for_appendix": "在「第七章 資料結構導論」的宏觀架構下，來源資料將**「鏈結串列 (Linked List)」視為解決傳統陣列（Array）「靜態與缺乏彈性」**物理限制的完美方案。 如果說陣列是「一整排固定大小的置物櫃」（必須連續且事先決定數量），那麼鏈結串列在教材的觀點中，就是**「尋寶遊戲中的線索卡」**——每個箱子（節點）不一定放在一起，但箱子裡會有一張紙條（指標）告訴你下一個箱子在哪裡。 根據來源資料（特別是 7-2 節與比較表），我們可以從以下四個核心層面來探討其對鏈結串列的看法： 1. 物理儲存的觀點：從「連續」走向「分散」 來源資料指出，鏈結串列的核心精神在於**「指標 (Pointer/Link)」**的運用。 • 看法：教材明確表示，如果我們把資料分散在「不連續」或沒有一定順序的記憶體位址，就必須仰賴額外的資訊來標示資料的順序。這形成了一種 A -> C -> E -> D -> B 的邏輯鏈條。 • 代價 (Trade-off)：這種自由是有成本的。來源資料特別強調，鏈結串列雖然不需要連續的記憶體，但它必須要額外的記憶體空間來儲存「鏈結變數（指標）」。 2. 運作效率的權衡：存取慢 vs. 異動快 來源資料透過一份詳細的「陣列串列與鏈結串列之比較表」，展示了在時間複雜度上的權衡觀點： • 資料存取的弱點（存取）： ◦ 看法：因為節點分散且只靠單向或雙向指標連接，如果要找特定的資料，「必須從頭找起」（循序存取）。它無法像陣列那樣透過索引瞬間定位（隨機存取）。 • 資料異動的絕對優勢（插入與刪除）： ◦ 看法：這是鏈結串列最大的存在價值。教材指出，當需要插入或刪除資料時，陣列需要大費周章地「移動大量資料」以騰出或填補空間；而鏈結串列**「只要改變鏈結號碼（箭頭指向）即可」**，完全不需要搬動資料本身。 3. 系統資源的動態管理：長度與共享 在系統層面上，來源資料賦賦予了鏈結串列極高的**「動態性 (Dynamic)」**評價： • 長度彈性：陣列的長度必須事先宣告（固定），但鏈結串列的長度可以「任意調整」，用多少拿多少，不會有浪費或裝不下的問題。 • 結構的重組與共享：教材認為，鏈結串列可以「輕易地結合或分割」，甚至不同的鏈結串列可以「共用相同鏈結串列的部分」（例如兩個串列在尾端匯合），這是陣列無法做到的。 4. 資料結構的底層建材 在題庫的應用觀點中，鏈結串列被視為一種**「萬用建材」**。 • 多變的型態：教材在測驗題中提到，它不僅限於單向，還可以發展出雙向鏈結串列 (Doubly Linked List) 以及首尾相連的環狀鏈結串列 (Circular Linked List)。 • 應用的基石：它與陣列一樣，都是用來實作更高階資料結構（如前一節提到的 堆疊 Stack 與 佇列 Queue，以及第八章的 樹 Tree）的基礎工具。 總結 在第七章的脈絡中，來源資料對「鏈結串列」的看法是：它是「以空間換取彈性」的動態資料結構代表。 教材要求學生建立一種「箭頭」的邏輯思維——資料的物理位置不再重要，重要的是「誰指向誰」。理解這種指標操作的邏輯（如 ptr -> next），是跨越基礎程式設計，進入高階動態記憶體管理與樹狀/圖形結構（Ch.8, 9）的必經之路。"
+        };
+
+        // --- DASHBOARD ---
+        function initDashboard() {
+            document.getElementById('chapter-one-sentence').innerText = chapterData.chapter_positioning.one_sentence;
+
+            const wCont = document.getElementById('weighting-container');
+            chapterData.weighting.items.forEach(item => {
+                const div = document.createElement('div');
+                div.innerHTML = `
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs font-bold text-slate-400">${item.topic}</span>
+                        <span class="text-[10px] font-black text-primary">${item.weight}%</span>
+                    </div>
+                    <div class="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-primary to-secondary" style="width: ${item.weight}%"></div>
+                    </div>
+                    <p class="text-[10px] text-slate-600 mt-2">${item.reason}</p>
+                `;
+                wCont.appendChild(div);
+            });
+
+            const kCont = document.getElementById('keywords-container');
+            chapterData.keywords.forEach((k, idx) => {
+                const span = document.createElement('button');
+                span.className = "px-4 py-2 bg-slate-950 border border-slate-800 text-xs text-slate-400 rounded-xl hover:border-primary hover:text-white transition-all";
+                span.innerText = k.term;
+                span.onclick = () => showKeyword(idx);
+                kCont.appendChild(span);
+            });
+        }
+
+        function showKeyword(idx) {
+            const k = chapterData.keywords[idx];
+            document.getElementById('detail-term').innerText = k.term;
+            document.getElementById('detail-why').innerText = k.why_important;
+            document.getElementById('detail-angle').innerText = k.common_exam_angle;
+            document.getElementById('keyword-detail').classList.remove('hidden');
+        }
+
+        // --- COMPARISON MATRIX ---
+        let activeDim = null;
+        function initMatrix() {
+            const chips = document.getElementById('dimension-chips');
+            chapterData.comparison_matrix.dimensions.forEach(dim => {
+                const btn = document.createElement('button');
+                btn.className = "dimension-chip px-4 py-1.5 bg-slate-900 border border-slate-800 text-[10px] font-black text-slate-500 rounded-lg transition-all hover:text-white";
+                btn.innerText = dim;
+                btn.onclick = () => highlightDimension(dim);
+                chips.appendChild(btn);
+            });
+
+            const header = document.getElementById('matrix-header');
+            chapterData.comparison_matrix.dimensions.forEach(dim => {
+                const th = document.createElement('th');
+                th.className = `py-5 px-4 text-slate-500 text-[10px] font-black uppercase tracking-widest dim-${dim.replace('/', '-')}`;
+                th.innerText = dim;
+                header.appendChild(th);
+            });
+
+            const body = document.getElementById('matrix-body');
+            chapterData.comparison_matrix.rows.forEach((row, rIdx) => {
+                const tr = document.createElement('tr');
+                tr.className = "group border-b border-slate-900 hover:bg-slate-900/30 transition-all";
+                let html = `<td class="py-6 px-4 font-black text-white italic">${row.name}</td>`;
+                chapterData.comparison_matrix.dimensions.forEach(dim => {
+                    html += `<td class="py-6 px-4 text-slate-400 font-light border-l border-slate-900/50 dim-cell-${dim.replace('/', '-')}">${row.values[dim]}</td>`;
+                });
+                tr.innerHTML = html;
+
+                // Add detail row (pitfall)
+                const detailTr = document.createElement('tr');
+                detailTr.className = "bg-slate-900/10";
+                detailTr.innerHTML = `
+                    <td colspan="${chapterData.comparison_matrix.dimensions.length + 1}" class="px-8 py-4">
+                        <div class="flex flex-col md:flex-row gap-8 opacity-40 group-hover:opacity-100 transition-all">
+                            <div class="flex-1"><span class="text-[9px] font-black text-accent uppercase tracking-widest block mb-1">陷阱 (Pitfall)</span><p class="text-[11px] text-slate-500 italic">${row.pitfall}</p></div>
+                            <div class="flex-1 border-l-2 border-slate-800/50 pl-6"><span class="text-[9px] font-black text-primary uppercase tracking-widest block mb-1">口訣 (Ref)</span><p class="text-[11px] text-slate-500 italic font-black">${row.rule_of_thumb}</p></div>
+                        </div>
+                    </td>
+                `;
+                body.appendChild(tr);
+                body.appendChild(detailTr);
+            });
+        }
+
+        function highlightDimension(dim) {
+            const safeDim = dim.replace('/', '-');
+            document.querySelectorAll('.dimension-chip').forEach(c => {
+                c.classList.toggle('active', c.innerText === dim);
+            });
+            document.querySelectorAll('[class*="dim-cell-"]').forEach(td => {
+                td.style.backgroundColor = "transparent";
+                td.style.color = "";
+            });
+            document.querySelectorAll(`.dim-cell-${safeDim}`).forEach(td => {
+                td.style.backgroundColor = "rgba(6, 182, 212, 0.05)";
+                td.style.color = "#06b6d4";
+            });
+        }
+
+        // --- CORE CONCEPT LAB: FLOW ---
+        let labStep = 0;
+        function initLab() {
+            renderSimNodes(['A', 'B', 'C']);
+        }
+
+        function renderSimNodes(nodes, activeIdx = -1, highlightArrow = -1) {
+            const container = document.getElementById('sim-visual');
+            container.innerHTML = '';
+            nodes.forEach((n, i) => {
+                const nodeDiv = document.createElement('div');
+                nodeDiv.className = `w-14 h-14 rounded-2xl flex items-center justify-center font-black text-sm border-2 ${activeIdx === i ? 'bg-primary text-white border-primary active-pulse' : 'bg-slate-900 text-slate-500 border-slate-800'} node`;
+                nodeDiv.innerText = n;
+                container.appendChild(nodeDiv);
+
+                if (i < nodes.length - 1) {
+                    const arrow = document.createElement('div');
+                    arrow.className = `text-lg ${highlightArrow === i ? 'text-primary scale-125' : 'text-slate-800'} arrow`;
+                    arrow.innerHTML = '➜';
+                    container.appendChild(arrow);
+                }
+            });
+        }
+
+        function startLab() {
+            const data = document.getElementById('lab-data').value || 'G';
+            const pos = parseInt(document.getElementById('lab-pos').value) || 2;
+            labStep = 0;
+            const stepsCont = document.getElementById('lab-steps');
+            const mistakesCont = document.getElementById('lab-mistakes');
+            const mistakesList = document.getElementById('mistakes-list');
+
+            stepsCont.innerHTML = '';
+            mistakesCont.classList.add('hidden');
+
+            // Step 1: Create Node
+            runStep(1, `建立新節點 [${data}]，目前它是孤立的。`, () => {
+                renderSimNodes(['A', 'B', 'C', data], 3);
+            });
+
+            // Step 2: Point New to Next
+            setTimeout(() => {
+                runStep(2, `步驟 1: 讓 [${data}] 指向位置 ${pos} 的後續節點 (C)。`, () => {
+                    renderSimNodes(['A', 'B', 'C', data], 3, 2);
+                    document.getElementById('sim-info').innerText = "關鍵：若此步先改前驅指標，則會丟失後續連結！";
+                });
+            }, 2000);
+
+            // Step 3: Point Prev to New
+            setTimeout(() => {
+                runStep(3, `步驟 2: 斷開 B -> C，改為讓 B 指向新節點 [${data}]。`, () => {
+                    renderSimNodes(['A', 'B', data, 'C'], 2, 1);
+                    document.getElementById('sim-info').innerText = "完成！成功串入鏈結。";
+
+                    // Show mistakes at the end
+                    mistakesCont.classList.remove('hidden');
+                    mistakesList.innerHTML = '';
+                    chapterData.core_concept_lab.common_mistakes.forEach(m => {
+                        mistakesList.innerHTML += `<div class="p-4 bg-slate-950/50 rounded-xl"><div class="text-accent text-[11px] font-black">${m.mistake}</div><div class="text-slate-400 text-[10px] mt-1">${m.why_wrong} ➔ ${m.how_to_fix}</div></div>`;
+                    });
+                });
+            }, 4000);
+        }
+
+        function runStep(num, text, callback) {
+            const cont = document.getElementById('lab-steps');
+            const div = document.createElement('div');
+            div.className = "p-4 bg-slate-900 border-l-4 border-primary rounded-r-xl animate-pulse";
+            div.innerHTML = `<span class="text-[10px] font-black text-primary uppercase block">Step ${num}</span><p class="text-xs text-slate-300">${text}</p>`;
+            cont.appendChild(div);
+            callback();
+            setTimeout(() => div.classList.remove('animate-pulse'), 1000);
+        }
+
+        // --- FLASHCARDS ---
+        let curCard = 0;
+        const flashcard = document.getElementById('flashcard');
+        function updateCard() {
+            flashcard.classList.remove('flipped');
+            setTimeout(() => {
+                document.getElementById('card-front').innerText = chapterData.flashcards[curCard].front;
+                document.getElementById('card-back').innerText = chapterData.flashcards[curCard].back;
+                document.getElementById('card-index').innerText = `${curCard + 1} / ${chapterData.flashcards.length}`;
+            }, 300);
+        }
+        flashcard.onclick = () => flashcard.classList.toggle('flipped');
+        function nextCard() { curCard = (curCard + 1) % chapterData.flashcards.length; updateCard(); }
+        function prevCard() { curCard = (curCard - 1 + chapterData.flashcards.length) % chapterData.flashcards.length; updateCard(); }
+
+        // --- SCENARIO CHECKS ---
+        function renderScenarios() {
+            const list = document.getElementById('scenarios-list');
+            chapterData.scenario_checks.forEach((sc, idx) => {
+                const div = document.createElement('div');
+                div.className = "p-8 rounded-[2.5rem] bg-slate-950/50 border border-slate-900 transition-all hover:border-slate-800 group";
+                div.innerHTML = `
+                    <p class="text-xs font-bold text-slate-300 mb-6 leading-relaxed">${sc.statement}</p>
+                    <div class="flex gap-4">
+                        <button onclick="checkScenario(${idx}, 'O')" class="flex-1 py-3 text-[10px] font-black rounded-xl border border-slate-800 hover:border-primary transition-all">是 (O)</button>
+                        <button onclick="checkScenario(${idx}, 'X')" class="flex-1 py-3 text-[10px] font-black rounded-xl border border-slate-800 hover:border-primary transition-all">否 (X)</button>
+                    </div>
+                    <div id="sc-res-${idx}" class="mt-6 hidden p-6 rounded-2xl text-[10px] leading-relaxed italic"></div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function checkScenario(idx, choice) {
+            const sc = chapterData.scenario_checks[idx];
+            const res = document.getElementById(`sc-res-${idx}`);
+            const correct = choice === sc.answer;
+            res.classList.remove('hidden', 'bg-primary/20', 'text-primary', 'bg-red-500/20', 'text-red-500');
+            res.classList.add(correct ? 'bg-primary/10' : 'bg-red-500/10');
+            res.classList.add(correct ? 'text-primary' : 'text-red-500');
+            res.innerHTML = `<b>${correct ? "BINGO!" : "WRONG."}</b><br>${sc.explanation}`;
+        }
+
+        // --- FEYNMAN ---
+        function renderFeynman() {
+            document.getElementById('feynman-plain').innerText = chapterData.feynman_explanation.one_sentence_plain;
+            document.getElementById('feynman-analogy').innerText = chapterData.feynman_explanation.analogy;
+            document.getElementById('feynman-one-minute').innerText = chapterData.feynman_rebuild.one_minute_version;
+            const steps = document.getElementById('feynman-steps');
+            chapterData.feynman_rebuild.teach_flow.forEach((s, idx) => {
+                steps.innerHTML += `
+                    <div class="flex gap-6 items-start group">
+                        <div class="w-10 h-10 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0 font-black text-primary italic group-hover:bg-primary group-hover:text-white transition-all shadow-xl">${idx + 1}</div>
+                        <p class="text-base text-slate-400 font-light leading-relaxed pt-1">${s}</p>
+                    </div>
+                `;
+            });
+            const tags = document.getElementById('trigger-tags');
+            chapterData.feynman_rebuild.exam_trigger_phrases.forEach(p => {
+                tags.innerHTML += `<span class="px-4 py-1.5 bg-slate-950 border border-slate-900 text-[10px] font-black text-slate-600 rounded-lg hover:text-primary transition-all cursor-default uppercase"># ${p}</span>`;
+            });
+        }
+
+        // --- APPENDIX ---
+        function initAppendix() {
+            document.getElementById('appendix-content').innerText = chapterData.original_notes_for_appendix;
+        }
+
+        function toggleAppendix() {
+            const content = document.getElementById('appendix-content');
+            const icon = document.getElementById('appendix-icon');
+            const isHidden = content.classList.contains('hidden');
+            content.classList.toggle('hidden');
+            icon.innerText = isHidden ? '↑' : '↓';
+        }
+
+        // --- BOOT ---
+        window.onload = () => {
+            initDashboard();
+            initMatrix();
+            initLab();
+            updateCard();
+            renderScenarios();
+            renderFeynman();
+            initAppendix();
+        };
+
+    </script>
+</body>
+
+</html>
