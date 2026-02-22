@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>01 線性邏輯：堆疊與佇列的秩序行為 - 學習導論</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#f97316', // Orange 500
+                        secondary: '#8b5cf6', // Violet 500
+                        accent: '#06b6d4', // Cyan 500
+                        darkBg: '#0f172a',
+                        cardBg: '#1e293b',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #0f172a;
+            color: #f1f5f9;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .glass-card {
+            background: rgba(30, 41, 59, 0.5);
+            backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .stack-item {
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .queue-item {
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .pop-animation {
+            transform: translateY(-100px) rotate(15deg);
+            opacity: 0;
+        }
+
+        .push-animation {
+            animation: pushIn 0.5s ease-out;
+        }
+
+        @keyframes pushIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .flip-card {
+            perspective: 1000px;
+        }
+
+        .flip-card-inner {
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+
+        .flip-card.flipped .flip-card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .flip-card-front,
+        .flip-card-back {
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+
+        .flip-card-back {
+            transform: rotateY(180deg);
+        }
+    </style>
+</head>
+
+<body class="p-4 md:p-8 lg:p-12">
+
+    <!-- Header -->
+    <header class="max-w-6xl mx-auto mb-16 relative">
+        <div class="absolute -top-10 -left-10 w-48 h-48 bg-primary/10 rounded-full blur-3xl"></div>
+        <div class="flex items-center gap-3 mb-6">
+            <span
+                class="px-4 py-1 text-[10px] font-black tracking-widest uppercase bg-primary/20 text-primary border border-primary/30 rounded-full">Section
+                01</span>
+            <span class="text-slate-600">|</span>
+            <span class="text-slate-400 font-bold text-xs uppercase">Chapter 07 資料結構導論</span>
+        </div>
+        <h1 class="text-5xl md:text-8xl font-black text-white tracking-widest mb-8 italic">線性邏輯 <span
+                class="text-primary">/</span> Linear</h1>
+        <p class="text-xl text-slate-400 max-w-4xl leading-relaxed font-light">
+            扮演「容器設計師」。資料不僅僅是放在記憶體裡，更需要依照使用的目的，選擇「洗盤子」式的堆疊（Stack）或「排隊」式的佇列（Queue）。
+        </p>
+    </header>
+
+    <main class="max-w-6xl mx-auto space-y-16">
+
+        <!-- Stack & Queue Simulator -->
+        <section class="glass-card p-12 rounded-[3.5rem] relative overflow-hidden">
+            <div class="absolute -top-10 -right-10 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none">
+            </div>
+
+            <div class="flex flex-col lg:flex-row justify-between items-end gap-8 mb-16">
+                <div>
+                    <h2 class="text-3xl font-black text-white mb-2 uppercase tracking-tighter italic">結構動力模擬器</h2>
+                    <p class="text-slate-500 text-sm">體驗 LIFO 與 FIFO 的動力學差異。</p>
+                </div>
+                <div class="flex bg-slate-950 p-2 rounded-2xl border border-slate-800 shadow-xl">
+                    <button id="btn-stack" onclick="setMode('stack')"
+                        class="px-8 py-3 text-[10px] font-black rounded-xl transition-all bg-primary text-white shadow-lg">Stack
+                        (LIFO)</button>
+                    <button id="btn-queue" onclick="setMode('queue')"
+                        class="px-8 py-3 text-[10px] font-black rounded-xl transition-all text-slate-500">Queue
+                        (FIFO)</button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-20">
+                <!-- Visual Container -->
+                <div class="relative flex flex-col items-center">
+                    <div id="sim-container"
+                        class="w-64 h-80 border-x-4 border-b-4 border-slate-800 rounded-b-3xl relative flex flex-col-reverse justify-start items-center p-4 gap-2 overflow-hidden bg-slate-950/30">
+                        <!-- Items injected here -->
+                    </div>
+                    <div id="queue-entrance" class="hidden absolute -right-20 top-20 w-16 h-1 bg-primary/30"></div>
+
+                    <div class="mt-12 flex gap-4">
+                        <button onclick="performOp('push')"
+                            class="px-8 py-4 bg-primary text-white text-xs font-black rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-lg shadow-primary/20">PUSH
+                            / ENQUEUE</button>
+                        <button onclick="performOp('pop')"
+                            class="px-8 py-4 border-2 border-slate-700 text-slate-400 text-xs font-black rounded-2xl hover:border-primary hover:text-white transition-all">POP
+                            / DEQUEUE</button>
+                    </div>
+                </div>
+
+                <!-- Analysis & Application -->
+                <div class="space-y-10">
+                    <div class="p-10 bg-slate-950 rounded-[3rem] border border-slate-900 relative">
+                        <div
+                            class="absolute top-6 left-10 text-[8px] font-black text-primary uppercase tracking-widest">
+                            當前規則 (Rule)</div>
+                        <div class="mt-4 space-y-4">
+                            <h3 id="mode-title" class="text-4xl font-black text-white tracking-widest uppercase">Stack
+                                Logic</h3>
+                            <p id="mode-desc" class="text-sm text-slate-500 leading-relaxed font-light italic"></p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div
+                            class="p-8 bg-slate-900/50 rounded-3xl border border-slate-800 group hover:border-accent transition-all">
+                            <div class="text-[9px] font-black text-accent uppercase mb-4 tracking-widest">實務比喻</div>
+                            <p id="mode-analogy" class="text-sm font-bold text-slate-400"></p>
+                        </div>
+                        <div
+                            class="p-8 bg-slate-900/50 rounded-3xl border border-slate-800 group hover:border-secondary transition-all">
+                            <div class="text-[9px] font-black text-secondary uppercase mb-4 tracking-widest">核心應用</div>
+                            <p id="mode-app" class="text-sm font-bold text-slate-400"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Comparison Matrix -->
+        <section class="glass-card p-12 rounded-[3.5rem]">
+            <h2 class="text-2xl font-black mb-12 text-white uppercase italic text-center tracking-widest">線性秩序對決：行為學觀點
+            </h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="border-b border-slate-800">
+                            <th class="py-6 px-4 text-[10px] font-black text-slate-600 uppercase tracking-widest">
+                                Dimension</th>
+                            <th class="py-6 px-4 text-[12px] font-black text-primary uppercase">Stack (堆疊)</th>
+                            <th class="py-6 px-4 text-[12px] font-black text-accent uppercase">Queue (佇列)</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-sm">
+                        <tr class="border-b border-slate-900 hover:bg-white/5 transition-all">
+                            <td class="py-6 px-4 font-black text-slate-500 uppercase text-[9px]">核心準則</td>
+                            <td class="py-6 px-4 font-bold text-slate-300">後進先出 (LIFO)</td>
+                            <td class="py-6 px-4 font-bold text-slate-300">先進先出 (FIFO)</td>
+                        </tr>
+                        <tr class="border-b border-slate-900 hover:bg-white/5 transition-all">
+                            <td class="py-6 px-4 font-black text-slate-500 uppercase text-[9px]">存取端點</td>
+                            <td class="py-6 px-4 font-bold text-slate-300 italic">同一端進出 (Top)</td>
+                            <td class="py-6 px-4 font-bold text-slate-300 italic">一端進 (Rear)，一端出 (Front)</td>
+                        </tr>
+                        <tr class="border-b border-slate-900 hover:bg-white/5 transition-all">
+                            <td class="py-6 px-4 font-black text-slate-500 uppercase text-[9px]">底層應用</td>
+                            <td class="py-6 px-4 text-slate-400">遞迴呼叫、算術運算 (Postfix)</td>
+                            <td class="py-6 px-4 text-slate-400">OS 行程排程、印表機緩衝</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Flashcards & Scenarios -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+            <section class="glass-card p-10 rounded-[3rem]">
+                <h2 class="text-2xl font-black mb-10 flex justify-between items-center text-white font-black">
+                    Recall Flashcards
+                    <span id="card-index" class="text-[10px] font-bold text-slate-500 tracking-widest uppercase">1 /
+                        5</span>
+                </h2>
+                <div class="flip-card h-56 cursor-pointer" id="flashcard">
+                    <div class="flip-card-inner h-full w-full relative">
+                        <div
+                            class="flip-card-front absolute inset-0 bg-slate-900 rounded-[2.5rem] border border-slate-800 flex items-center justify-center p-10 text-center">
+                            <h3 id="card-front" class="text-xl font-bold text-white tracking-tight leading-snug"></h3>
+                        </div>
+                        <div
+                            class="flip-card-back absolute inset-0 bg-primary/20 rounded-[2.5rem] border border-primary/40 flex items-center justify-center p-10 text-center">
+                            <p id="card-back" class="text-base font-bold text-slate-200 leading-relaxed"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-center gap-8 mt-10">
+                    <button onclick="prevCard()"
+                        class="p-3 rounded-full hover:bg-slate-800 text-slate-500 transition-all active:scale-95"><svg
+                            class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7">
+                            </path>
+                        </svg></button>
+                    <button onclick="nextCard()"
+                        class="p-3 rounded-full hover:bg-slate-800 text-slate-500 transition-all active:scale-95"><svg
+                            class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7">
+                            </path>
+                        </svg></button>
+                </div>
+            </section>
+
+            <!-- Scenario Checks -->
+            <section class="glass-card p-10 rounded-[3rem]">
+                <h2 class="text-2xl font-black mb-10 text-white uppercase italic tracking-tighter">真偽辨正 (Scenario Check)
+                </h2>
+                <div id="scenarios-list" class="space-y-6">
+                    <!-- Injected -->
+                </div>
+            </section>
+        </div>
+
+        <!-- Feynman Rebuild -->
+        <section
+            class="glass-card p-12 rounded-[4rem] bg-gradient-to-tr from-cardBg via-slate-900 to-primary/10 border-none shadow-3xl">
+            <h2
+                class="text-3xl font-black mb-12 text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary uppercase tracking-tighter italic font-black">
+                費曼學習法：搬運規則與容器設計</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-16">
+                <div class="space-y-12">
+                    <div>
+                        <h4 class="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mb-6">解析語義核心</h4>
+                        <p id="feynman-plain" class="text-4xl font-black text-white leading-[1.1]"></p>
+                    </div>
+                    <div class="p-10 bg-slate-950 rounded-[3rem] border border-slate-800 shadow-inner">
+                        <div class="flex items-center gap-4 mb-4">
+                            <span
+                                class="px-3 py-1 bg-primary text-[8px] font-black text-white rounded-full uppercase tracking-widest">Analogy</span>
+                        </div>
+                        <p id="feynman-analogy" class="text-slate-400 italic leading-relaxed text-sm font-light"></p>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mb-8">攻心教案 (Teach Flow)
+                    </h4>
+                    <div id="feynman-steps" class="space-y-8">
+                        <!-- Injected -->
+                    </div>
+                </div>
+            </div>
+            <div
+                class="mt-20 pt-10 border-t border-slate-800/50 flex flex-col md:flex-row gap-8 items-center justify-center">
+                <div id="trigger-tags" class="flex flex-wrap gap-2 justify-center"></div>
+                <div class="hidden md:block w-px h-10 bg-slate-800"></div>
+                <p id="feynman-one-minute"
+                    class="text-xs font-bold text-primary max-w-lg text-center leading-relaxed tracking-wider"></p>
+            </div>
+        </section>
+
+    </main>
+
+    <footer
+        class="max-w-6xl mx-auto mt-24 mb-16 text-center text-slate-700 text-[10px] font-black tracking-[0.5em] uppercase">
+        <p>© Section 01 - Linear Logic | Part of Chapter 7 Series</p>
+    </footer>
+
+    <script>
+        const data = {
+            "chapter_positioning": {
+                "one_sentence": "本節探討如何根據資料進出特性，設計「後進先出 (LIFO)」與「先進先出 (FIFO)」的線性儲存規則。",
+                "prerequisites": ["第六章 陣列基礎", "第三章 記憶體定址"],
+                "downstream_links": ["第八章 樹狀結構 (遞迴)", "第四章 作業系統行程排程"]
+            },
+            "keywords": [
+                {
+                    "term": "堆疊 (Stack)",
+                    "why_important": "處理「回溯」與「巢狀」邏輯的核心工具。",
+                    "common_exam_angle": "判斷 LIFO 行為與 Push/Pop 的操作序列。"
+                },
+                {
+                    "term": "後進先出 (LIFO)",
+                    "why_important": "Stack 的靈魂準則：最後進來的必須最先處理。",
+                    "common_exam_angle": "考題常比喻為洗盤子或疊羅漢。"
+                },
+                {
+                    "term": "佇列 (Queue)",
+                    "why_important": "建立「公平性」與「順序性」的基礎模型。",
+                    "common_exam_angle": "判斷 FIFO 行為與 Front/Rear 雙指標的操作。"
+                },
+                {
+                    "term": "先進先出 (FIFO)",
+                    "why_important": "Queue 的靈魂準則：先到者先行服務。",
+                    "common_exam_angle": "考題常比喻為排隊買票。"
+                }
+            ],
+            "feynman_explanation": {
+                "one_sentence_plain": "資料結構不是資料本身，而是「搬東西的規則」：你是要像疊盤子一樣最後放的先拿，還是像排隊一樣先來的先拿？",
+                "analogy": "它是「容器設計師」：記憶體是客廳空間，Stack 是收納箱 (只能從上面翻)，Queue 是隧道 (只能前進不能倒車)。不同的容器決定了家務處理的效率。",
+                "forbidden_terms_used": ["存取順序", "行為學", "線性擴展"]
+            },
+            "feynman_rebuild": {
+                "teach_flow": [
+                    "首先，理解「搬運規則」：資料進出不是亂排的，規則決定了結構的靈魂。",
+                    "接著，介紹兩大陣營：Stack 是『回憶的容器』(倒著走)，用於記住程式回傳地址；Queue 是『秩序的容器』(順著走)，用於 OS 排隊。",
+                    "最後，看向未來：這只是線性基礎，未來我們會把這些線連起來，變成樹 (Ch.8) 和圖 (Ch.9)。"
+                ],
+                "one_minute_version": "第七章是計算機科學的「容器設計學」。我們建立了線性資料結構的兩大聖經模型：堆疊 (Stack) 遵循後進先出 (LIFO)，核心應用於遞迴與副程式管理；佇列 (Queue) 遵循先進先出 (FIFO)，核心應用於 OS 行程排程。理解這些規則是從「管資料」晉升為「設計演算法」的第一步，為後續更複雜的樹與圖結構奠定邏輯基石。",
+                "exam_trigger_phrases": [
+                    "LIFO (Stack)",
+                    "FIFO (Queue)",
+                    "同一端進出",
+                    "後進先出就是回溯",
+                    "先進先出就是排隊"
+                ]
+            },
+            "flashcards": [
+                {
+                    "front": "哪種資料結構最適合處理「遞迴 (Recursion)」呼叫？",
+                    "back": "堆疊 (Stack)，因為它支援後進先出 (LIFO) 的環境保護機制。"
+                },
+                {
+                    "front": "佇列 (Queue) 的兩端分別稱為何？操作為何？",
+                    "back": "插入端為 Rear (Enqueue)，刪除端為 Front (Dequeue)。"
+                },
+                {
+                    "front": "洗盤子 (疊盤子) 對應到哪種線性結構？",
+                    "back": "堆疊 (Stack)。"
+                },
+                {
+                    "front": "作業系統中的印表機緩衝區 (Spooling) 採用什麼結構？為什麼？",
+                    "back": "佇列 (Queue)，為了確保工作依照提交的時間順序 (FIFO) 執行。"
+                },
+                {
+                    "front": "若操作序列為 Push(A), Push(B), Pop(), Push(C)，最後 Stack 內容？",
+                    "back": "A, C (B 被彈出了)。"
+                }
+            ],
+            "scenario_checks": [
+                {
+                    "statement": "在 Stack 中，最後進入的元素會最先離開。",
+                    "answer": "O",
+                    "explanation": "正確。這就是 LIFO (Last-In-First-Out) 的核心定義。"
+                },
+                {
+                    "statement": "Queue 的主要功能是記住程式呼叫的回傳地址。",
+                    "answer": "X",
+                    "explanation": "錯誤。那是 Stack 的功能。Queue 的主要功能是建立排隊秩序 (FIFO)。"
+                }
+            ]
+        };
+
+        let currentMode = 'stack';
+        let items = [];
+        let counter = 1;
+
+        function setMode(mode) {
+            currentMode = mode;
+            items = [];
+            counter = 1;
+            renderSim();
+            updateModeInfo();
+            const btnStack = document.getElementById('btn-stack');
+            const btnQueue = document.getElementById('btn-queue');
+            btnStack.className = mode === 'stack' ? "px-8 py-3 text-[10px] font-black rounded-xl transition-all bg-primary text-white shadow-lg" : "px-8 py-3 text-[10px] font-black rounded-xl transition-all text-slate-500";
+            btnQueue.className = mode === 'queue' ? "px-8 py-3 text-[10px] font-black rounded-xl transition-all bg-primary text-white shadow-lg" : "px-8 py-3 text-[10px] font-black rounded-xl transition-all text-slate-500";
+
+            const container = document.getElementById('sim-container');
+            container.className = mode === 'stack'
+                ? "w-64 h-80 border-x-4 border-b-4 border-slate-800 rounded-b-3xl relative flex flex-col-reverse justify-start items-center p-4 gap-2 overflow-hidden bg-slate-950/30"
+                : "w-80 h-32 border-y-4 border-slate-800 relative flex flex-row justify-start items-center p-4 gap-2 overflow-hidden bg-slate-950/30";
+        }
+
+        function updateModeInfo() {
+            const title = document.getElementById('mode-title');
+            const desc = document.getElementById('mode-desc');
+            const analogy = document.getElementById('mode-analogy');
+            const app = document.getElementById('mode-app');
+
+            if (currentMode === 'stack') {
+                title.innerText = "Stack Logic";
+                desc.innerText = "後進先出 (LIFO)。最後放下的資料，是為了能夠「完美回溯」至程式調用的原點。";
+                analogy.innerText = "疊羅漢：最後站上去的人，必須第一個下來，否則整組崩塌。";
+                app.innerText = "遞迴 (Recursion)：電腦必須在 Stack 裡記住每一層的分歧點，才能最後原路折返回家。";
+            } else {
+                title.innerText = "Queue Logic";
+                desc.innerText = "先進先出 (FIFO)。確保資源分配的公平與順序，先排隊的任務先執行。";
+                analogy.innerText = "買票排隊：遵守先來後到的隧道效應，不能中途離場，也不能插隊。";
+                app.innerText = "OS 行程排程：處理器依照各項任務進入佇列的順序，逐一配發時間片。";
+            }
+        }
+
+        function performOp(type) {
+            if (type === 'push') {
+                if (items.length >= 6) return;
+                const id = counter++;
+                items.push(id);
+                renderSim(id, 'push');
+            } else {
+                if (items.length === 0) return;
+                let poppedId;
+                if (currentMode === 'stack') {
+                    poppedId = items.pop();
+                } else {
+                    poppedId = items.shift();
+                }
+                renderSim(poppedId, 'pop');
+            }
+        }
+
+        function renderSim(targetId, animType) {
+            const container = document.getElementById('sim-container');
+            if (!animType) {
+                container.innerHTML = '';
+                items.forEach(id => addItem(container, id));
+                return;
+            }
+
+            if (animType === 'push') {
+                addItem(container, targetId, true);
+            } else {
+                const itemDiv = document.getElementById(`item-${targetId}`);
+                if (itemDiv) {
+                    itemDiv.classList.add('pop-animation');
+                    setTimeout(() => {
+                        renderSim();
+                    }, 400);
+                }
+            }
+        }
+
+        function addItem(container, id, isNew = false) {
+            const div = document.createElement('div');
+            div.id = `item-${id}`;
+            const size = currentMode === 'stack' ? "w-48 h-10" : "w-12 h-16";
+            const color = currentMode === 'stack' ? "bg-primary/20 border-primary/40 text-primary" : "bg-accent/20 border-accent/40 text-accent";
+            div.className = `${size} border-2 ${color} rounded-xl flex items-center justify-center font-black text-xs ${currentMode === 'stack' ? 'stack-item' : 'queue-item'} ${isNew ? 'push-animation' : ''}`;
+            div.innerText = `#${id}`;
+            container.appendChild(div);
+        }
+
+        // FLASHCARDS
+        let curCard = 0;
+        const flashcard = document.getElementById('flashcard');
+        function updateCard() {
+            flashcard.classList.remove('flipped');
+            setTimeout(() => {
+                document.getElementById('card-front').innerText = data.flashcards[curCard].front;
+                document.getElementById('card-back').innerText = data.flashcards[curCard].back;
+                document.getElementById('card-index').innerText = `${curCard + 1} / ${data.flashcards.length}`;
+            }, 300);
+        }
+        flashcard.onclick = () => flashcard.classList.toggle('flipped');
+        function nextCard() { curCard = (curCard + 1) % data.flashcards.length; updateCard(); }
+        function prevCard() { curCard = (curCard - 1 + data.flashcards.length) % data.flashcards.length; updateCard(); }
+
+        function renderScenarios() {
+            const list = document.getElementById('scenarios-list');
+            data.scenario_checks.forEach((sc, idx) => {
+                const div = document.createElement('div');
+                div.className = "p-8 rounded-[2rem] bg-slate-950 border border-slate-900 shadow-xl transition-all hover:border-slate-700 group";
+                div.innerHTML = `
+                    <p class="text-[11px] font-bold text-slate-300 mb-8 leading-relaxed tracking-wide">${sc.statement}</p>
+                    <div class="flex gap-4">
+                        <button onclick="checkScenario(${idx}, 'O')" class="flex-1 py-3 text-[10px] font-black rounded-2xl border border-slate-800 hover:border-primary transition-all">是 (O)</button>
+                        <button onclick="checkScenario(${idx}, 'X')" class="flex-1 py-3 text-[10px] font-black rounded-2xl border border-slate-800 hover:border-primary transition-all">否 (X)</button>
+                    </div>
+                    <div id="sc-res-${idx}" class="mt-6 hidden p-6 rounded-2xl text-[10px] italic leading-relaxed"></div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function checkScenario(idx, choice) {
+            const sc = data.scenario_checks[idx];
+            const res = document.getElementById(`sc-res-${idx}`);
+            const correct = choice === sc.answer;
+            res.classList.remove('hidden', 'bg-primary/20', 'text-primary', 'bg-red-500/20', 'text-red-500');
+            res.classList.add(correct ? 'bg-primary/10' : 'bg-red-500/10');
+            res.classList.add(correct ? 'text-primary' : 'text-red-500');
+            res.innerHTML = `<b>${correct ? "Bingo!" : "Wait..."}</b><br>${sc.explanation}`;
+        }
+
+        function renderFeynman() {
+            document.getElementById('feynman-plain').innerText = data.feynman_explanation.one_sentence_plain;
+            document.getElementById('feynman-analogy').innerText = data.feynman_explanation.analogy;
+            document.getElementById('feynman-one-minute').innerText = data.feynman_rebuild.one_minute_version;
+            const steps = document.getElementById('feynman-steps');
+            data.feynman_rebuild.teach_flow.forEach((s, idx) => {
+                steps.innerHTML += `
+                    <div class="flex gap-6 items-start group">
+                        <div class="w-8 h-8 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0 text-[10px] font-black text-primary group-hover:bg-primary group-hover:text-white transition-all">${idx + 1}</div>
+                        <p class="text-sm text-slate-400 font-bold leading-relaxed pt-1">${s}</p>
+                    </div>
+                `;
+            });
+            const triggers = document.getElementById('trigger-tags');
+            data.feynman_rebuild.exam_trigger_phrases.forEach(p => {
+                triggers.innerHTML += `<span class="px-3 py-1 bg-slate-900 border border-slate-800 text-[10px] font-black text-slate-600 rounded-lg hover:text-white cursor-default"># ${p}</span>`;
+            });
+        }
+
+        // BOOT
+        setMode('stack');
+        updateCard();
+        renderScenarios();
+        renderFeynman();
+
+    </script>
+</body>
+
+</html>
