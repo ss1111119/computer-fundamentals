@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>08 階層分鏡：樹狀結構 - 學習導論</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#10b981', // Emerald 500
+                        secondary: '#f59e0b', // Amber 500
+                        accent: '#3b82f6', // Blue 500
+                        darkBg: '#020617',
+                        cardBg: '#0f172a',
+                    },
+                    fontFamily: {
+                        sans: ['Outfit', 'Inter', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
+
+        body {
+            background-color: #020617;
+            color: #f1f5f9;
+        }
+
+        .glass-card {
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .glass-card:hover {
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            transform: translateY(-8px);
+            box-shadow: 0 40px 80px -20px rgba(0, 0, 0, 0.6);
+        }
+
+        .flip-card {
+            perspective: 1000px;
+        }
+
+        .flip-card-inner {
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+
+        .flip-card.flipped .flip-card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .flip-card-front,
+        .flip-card-back {
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+
+        .flip-card-back {
+            transform: rotateY(180deg);
+        }
+
+        .dimension-chip.active {
+            background-color: #10b981;
+            color: white;
+            box-shadow: 0 8px 16px rgba(16, 185, 129, 0.3);
+        }
+
+        @keyframes pulse-slow {
+
+            0%,
+            100% {
+                opacity: 0.3;
+            }
+
+            50% {
+                opacity: 0.6;
+            }
+        }
+
+        .pulse-slow {
+            animation: pulse-slow 4s ease-in-out infinite;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #020617;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+        }
+    </style>
+</head>
+
+<body class="p-4 md:p-12">
+
+    <!-- Header -->
+    <header class="max-w-6xl mx-auto mb-24 relative">
+        <div class="absolute -top-32 -right-32 w-96 h-96 bg-primary/10 rounded-full blur-[160px] pulse-slow"></div>
+        <div class="flex items-center gap-3 mb-6">
+            <span
+                class="px-4 py-1 text-[9px] font-black tracking-[0.2em] uppercase bg-primary/10 text-primary border border-primary/20 rounded-lg">Chapter
+                08</span>
+            <span class="text-slate-800">/</span>
+            <span class="text-slate-500 font-bold text-[10px] uppercase tracking-widest italic">樹狀結構之分鏡解析</span>
+        </div>
+        <h1 class="text-7xl md:text-[10rem] font-black text-white tracking-tighter mb-8 italic leading-none">二維秩序 <span
+                class="text-primary">.</span> HIERARCHY</h1>
+        <p id="chapter-one-sentence"
+            class="text-lg md:text-xl text-slate-500 max-w-4xl leading-relaxed font-light italic border-l-2 border-primary/30 pl-10">
+            <!-- Injected -->
+        </p>
+    </header>
+
+    <main class="max-w-6xl mx-auto space-y-32">
+
+        <!-- Dashboard -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-10">
+            <div class="lg:col-span-8 glass-card p-12 rounded-[3rem] relative overflow-hidden">
+                <h3
+                    class="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mb-12 flex items-center gap-2">
+                    <span class="w-1.5 h-1.5 bg-primary rounded-full"></span> 權衡分布與戰略指標
+                </h3>
+                <div id="weighting-container" class="space-y-10">
+                    <!-- Injected -->
+                </div>
+            </div>
+
+            <div class="lg:col-span-4 glass-card p-12 rounded-[3rem] flex flex-col">
+                <h3
+                    class="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mb-12 flex items-center gap-2">
+                    <span class="w-1.5 h-1.5 bg-secondary rounded-full"></span> 關鍵術語導航
+                </h3>
+                <div id="keywords-container" class="flex flex-wrap gap-3">
+                    <!-- Injected -->
+                </div>
+                <div id="keyword-detail"
+                    class="mt-10 p-8 bg-slate-900/40 rounded-3xl hidden border border-slate-800/50 backdrop-blur-md">
+                    <h4 id="detail-term" class="text-primary font-black text-lg mb-2 italic"></h4>
+                    <p id="detail-why" class="text-slate-400 text-xs leading-relaxed mb-4"></p>
+                    <p id="detail-angle" class="text-slate-500 text-[10px] italic pt-4 border-t border-slate-800/50">
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Traversal Lab -->
+        <section class="glass-card p-16 rounded-[4rem] bg-gradient-to-br from-cardBg/50 to-black">
+            <div class="text-center mb-20">
+                <h2 class="text-4xl font-black text-white uppercase italic tracking-tighter">觀念實驗室：走訪的足跡</h2>
+                <p class="text-slate-500 text-sm mt-3">模擬二元樹走訪的動態過程，理解從二維結構轉換為一維算式的邏輯。</p>
+            </div>
+
+            <div class="grid grid-cols-1 xl:grid-cols-2 gap-20">
+                <div class="space-y-12">
+                    <div>
+                        <label class="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-4 block">走訪方式
+                            (Traversal Type)</label>
+                        <select id="lab-type" onchange="runTraversal()"
+                            class="w-full bg-slate-950 border border-slate-800 rounded-2xl px-8 py-5 text-white focus:border-primary outline-none text-sm font-mono appearance-none">
+                            <option value="pre">Pre-order (中左右) - 前序</option>
+                            <option value="in">In-order (左中右) - 中序</option>
+                            <option value="post">Post-order (左右中) - 後序</option>
+                        </select>
+                    </div>
+
+                    <div id="traversal-result"
+                        class="p-10 bg-slate-950 rounded-[2.5rem] border border-slate-800 hidden">
+                        <div
+                            class="flex justify-between items-center mb-6 text-[9px] font-black uppercase text-accent tracking-widest italic">
+                            <span>模擬輸出</span>
+                            <span id="res-type-name">--</span>
+                        </div>
+                        <div class="space-y-6">
+                            <h4 id="res-path" class="text-4xl font-black text-white tracking-widest italic">--</h4>
+                            <p id="res-explain"
+                                class="text-slate-400 text-xs italic leading-relaxed pt-4 border-t border-slate-900">
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex flex-col justify-center gap-8">
+                    <h4 class="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em]">走訪邏輯誤區 (Mistakes)</h4>
+                    <div id="mistakes-container" class="space-y-6">
+                        <!-- Injected -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Matrix -->
+        <section class="glass-card p-16 rounded-[4rem]">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-16 gap-8">
+                <div>
+                    <h2 class="text-3xl font-black text-white italic tracking-tighter">物理映射：陣列 vs. 鏈結</h2>
+                    <p class="text-slate-500 text-sm mt-2">如何將二維分支塞入一維記憶體？</p>
+                </div>
+                <div id="dimension-chips" class="flex flex-wrap gap-2">
+                    <!-- Injected -->
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse min-w-[700px]">
+                    <thead>
+                        <tr id="matrix-header" class="border-b border-slate-800">
+                            <th class="py-6 px-6 text-slate-500 text-[9px] font-black uppercase tracking-widest italic">
+                                實作模型</th>
+                        </tr>
+                    </thead>
+                    <tbody id="matrix-body" class="text-xs">
+                        <!-- Rows -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Exam Drills -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+            <section class="glass-card p-12 rounded-[3.5rem]">
+                <h2 class="text-2xl font-black mb-12 text-white italic flex justify-between items-center">
+                    Active Recall
+                    <span id="card-index" class="text-[8px] text-slate-600 font-bold uppercase tracking-widest">1 /
+                        5</span>
+                </h2>
+                <div class="flip-card h-64 cursor-pointer" id="flashcard">
+                    <div class="flip-card-inner h-full w-full relative">
+                        <div
+                            class="flip-card-front absolute inset-0 bg-slate-900 rounded-[2.5rem] border border-slate-800 flex items-center justify-center p-10 text-center shadow-xl">
+                            <h3 id="card-front" class="text-xl font-bold text-white italic"></h3>
+                        </div>
+                        <div
+                            class="flip-card-back absolute inset-0 bg-primary/20 rounded-[2.5rem] border border-primary/30 flex items-center justify-center p-10 text-center shadow-xl backdrop-blur-lg">
+                            <p id="card-back" class="text-sm font-medium text-slate-200 leading-relaxed italic"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-center gap-8 mt-12">
+                    <button onclick="prevCard()"
+                        class="p-4 rounded-full hover:bg-slate-800 text-slate-600 transition-all active:scale-95"><svg
+                            class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7">
+                            </path>
+                        </svg></button>
+                    <button onclick="nextCard()"
+                        class="p-4 rounded-full hover:bg-slate-800 text-slate-600 transition-all active:scale-95"><svg
+                            class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7">
+                            </path>
+                        </svg></button>
+                </div>
+            </section>
+
+            <section class="glass-card p-12 rounded-[3.5rem]">
+                <h2 class="text-2xl font-black mb-12 text-white italic uppercase tracking-widest">Scenario Check</h2>
+                <div id="scenarios-list" class="space-y-6">
+                    <!-- Injected -->
+                </div>
+            </section>
+        </div>
+
+        <!-- Feynman 教案 -->
+        <section
+            class="glass-card p-16 rounded-[4.5rem] bg-gradient-to-tr from-cardBg via-slate-950 to-primary/5 relative overflow-hidden">
+            <h2 class="text-3xl font-black mb-12 text-primary italic tracking-tighter uppercase">費曼解析：階層的智慧</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-16">
+                <div class="space-y-12">
+                    <div>
+                        <h4 class="text-[9px] font-black text-slate-600 uppercase tracking-[0.5em] mb-6">白話語義 (Plain
+                            Sentence)</h4>
+                        <p id="feynman-plain" class="text-3xl font-black text-white leading-tight italic"></p>
+                    </div>
+                    <div class="p-10 bg-black/40 rounded-[2.5rem] border border-slate-900 shadow-inner">
+                        <span
+                            class="text-[8px] font-black text-secondary uppercase tracking-widest block mb-4 italic">生活比喻
+                            (Analogy)</span>
+                        <p id="feynman-analogy" class="text-slate-400 italic leading-relaxed text-sm font-light"></p>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="text-[9px] font-black text-slate-600 uppercase tracking-[0.5em] mb-10">遞進教案 (Steps)</h4>
+                    <div id="feynman-steps" class="space-y-10">
+                        <!-- Injected -->
+                    </div>
+                </div>
+            </div>
+            <div class="mt-20 pt-10 border-t border-white/5 flex flex-wrap gap-3 items-center" id="trigger-tags">
+                <!-- Tags -->
+            </div>
+        </section>
+
+        <!-- Appendix -->
+        <section>
+            <button onclick="toggleAppendix()"
+                class="w-full flex justify-between items-center py-6 px-10 glass-card rounded-2xl text-[9px] font-black text-slate-600 hover:text-white transition-all uppercase tracking-[0.4em] italic mb-4">
+                Appendix: Original Notes
+                <span id="app-icon" class="text-sm">↓</span>
+            </button>
+            <div id="appendix-content"
+                class="hidden p-10 glass-card rounded-[2rem] text-[10px] text-slate-500 font-mono leading-loose max-h-96 overflow-auto border-t-0">
+                <!-- Injected -->
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="mt-40 mb-20 text-center text-slate-800 text-[8px] font-black tracking-[0.8em] uppercase italic">
+        © Study Guide Part 08 - Tree Logic | Hierarchical Structures
+    </footer>
+
+    <script>
+        const studyData = {
+            "chapter_positioning": {
+                "one_sentence": "本章探討資料組織從『一維線性』跨越到『二維階層』的過程，建立樹狀結構標準模型，為高效搜尋與排序奠定基礎。",
+                "prerequisites": ["第七章 資料結構導論 (指標技術)", "第六章 算術式表示法"],
+                "downstream_links": ["第十章 搜尋與排序演算法", "第九章 圖形理論", "第十一章 程式設計邏輯 (遞迴)"]
+            },
+
+            "keywords": [
+                {
+                    "term": "二元樹 (Binary Tree)",
+                    "why_important": "解決複雜資料關聯的標準模型，具有嚴格的左右子樹秩序。",
+                    "common_exam_angle": "區分完整、歪斜、引線等不同二元樹的性質。"
+                },
+                {
+                    "term": "走訪 (Traversal)",
+                    "why_important": "定義如何拜訪樹中每個節點且僅一次，是處理樹狀資料的基本邏輯。",
+                    "common_exam_angle": "前序 (Pre-order)、中序 (In-order)、後序 (Post-order) 的路徑追蹤。"
+                },
+                {
+                    "term": "算術樹 (Exp Tree)",
+                    "why_important": "編譯器解析人類算式的底層模型，將算式轉化為樹狀結構。",
+                    "common_exam_angle": "透過不同的走訪方式轉換為前序/中序/後序算式。"
+                },
+                {
+                    "term": "引線樹 (Threaded)",
+                    "why_important": "利用空的指標指向前驅或後繼節點，節省記憶體並提升走訪速度。",
+                    "common_exam_angle": "如何在不使用堆疊的情況下進行走訪？"
+                },
+                {
+                    "term": "AVL 平衡樹",
+                    "why_important": "透過自動旋轉保持平衡，確保搜尋效率在最壞情況下仍保持 O(log n)。",
+                    "common_exam_angle": "判斷樹是否平衡，以及插入後如何旋轉平衡。"
+                }
+            ],
+
+            "weighting": {
+                "basis": "estimate",
+                "items": [
+                    { "topic": "二元樹的走訪 (前/中/後序) 與表示法轉換", "weight": 95, "reason": "這是全章最核心的技術觀點，也是編譯器與算術邏輯的基礎。" },
+                    { "topic": "樹的重建 (中序搭配前/後序)", "weight": 85, "reason": "考驗邏輯推理能力與對樹結構唯一性的理解。" },
+                    { "topic": "特殊二元樹 (Heap, AVL, Threaded) 的特性與優化", "weight": 80, "reason": "展示了為了特定運算效率而進行的演算法優化。" }
+                ]
+            },
+
+            "comparison_matrix": {
+                "title": "二元樹的實作權衡：陣列 (Array) vs. 鏈結串列 (Linked List)",
+                "dimensions": ["適用類型", "空間利用", "存取效率", "實作複雜度"],
+                "rows": [
+                    {
+                        "name": "一維陣列 (Array)",
+                        "values": {
+                            "適用類型": "完整二元樹 (Complete BT)",
+                            "空間利用": "完美映射，不浪費空間",
+                            "存取效率": "極快 (公式計算 2i, 2i+1)",
+                            "實作複雜度": "低，不需額外指標"
+                        },
+                        "pitfall": "若用於歪斜樹會造成嚴重的空間浪費。",
+                        "rule_of_thumb": "結構對稱、層級完整的樹適合用陣列。"
+                    },
+                    {
+                        "name": "雙向鏈結 (Linked List)",
+                        "values": {
+                            "適用類型": "一般二元樹 / 歪斜樹",
+                            "空間利用": "隨機分布，靠指標串接",
+                            "存取效率": "中 (需追蹤指標)",
+                            "實作複雜度": "高，需維護 Left/Right 指標"
+                        },
+                        "pitfall": "會產生許多空的指標 (Nil)，浪費記憶體空間。",
+                        "rule_of_thumb": "動態增刪、結構不穩定的樹適合用鏈結。"
+                    }
+                ]
+            },
+
+            "core_concept_lab": {
+                "chosen_concept": "算術樹與走訪轉換模擬器",
+                "type": "traversal_viz",
+                "learning_objective": "理解人類中序算式如何被編譯器視為後序走訪過程。",
+                "inputs": [
+                    { "id": "expression_type", "label": "欲觀察的走訪方式", "type": "select", "options": ["Pre-order (中左右)", "In-order (左中右)", "Post-order (左右中)"] },
+                    { "id": "formula_input", "label": "示例算式 (A+B)*C", "type": "text", "default": "(A+B)*C" }
+                ],
+                "interaction_logic": [
+                    "選擇不同走訪方式 → 系統展示樹狀圖上對應的軌跡動態 → 輸出該走訪下的字串結果。"
+                ],
+                "outputs": [
+                    { "id": "traversal_path", "label": "節點拜訪順序", "format": "text" },
+                    { "id": "final_output", "label": "對應表示法結果", "format": "text" }
+                ],
+                "common_mistakes": [
+                    {
+                        "id": "m1",
+                        "mistake": "分不清後序走訪與表示法的關係",
+                        "why_wrong": "忘記後序走訪 (LRN) 正是電腦計算算式的標準格式 (Postfix)。",
+                        "how_to_fix": "後序走訪的規律是：運算子永遠出現在其運算元之後。"
+                    },
+                    {
+                        "id": "m2",
+                        "mistake": "以為只要有前、後序就能重建樹",
+                        "why_wrong": "沒有中序提供的『左右分界線』，無法確認子樹的歸屬。",
+                        "how_to_fix": "重建樹必須包含中序 (In-order) 導航。"
+                    }
+                ]
+            },
+
+            "feynman_explanation": {
+                "one_sentence_plain": "資料結構從一條線變成了一棵樹：不再只是單線排隊，而是像族譜一樣有分支、有長幼、有左右之分。",
+                "analogy": "以前第七章像是單線聯絡的特務，現在第八章像是整個情報組織的指揮部。根部 (Root) 發布指令，分支 (Branch) 傳遞訊息，葉子 (Leaf) 則是具體的任務目標。透過不同的視察路徑 (Traversal)，指揮官能以不同的角度看清整個局勢。",
+                "forbidden_terms_used": ["二元樹", "算術表示法", "遞迴"]
+            },
+
+            "feynman_rebuild": {
+                "teach_flow": [
+                    "首先，樹狀結構就是『有層次的組織』。根在最上面，葉在最下面，重點在於它不能有閉迴路。",
+                    "接著，我們最常研究『二元樹』。它像是一場淘汰賽，每個人最多有兩個下屬。如果是完整的二元樹，我們甚至能用簡單的數學公式 (2i) 算出每個人的位置。",
+                    "最後，編譯器就是靠它看懂算式的！把算式畫成樹，後序走訪一遍，電腦就知道要先算括號裡的還是先乘除後加減。"
+                ],
+                "one_minute_version": "第八章標誌著資料組織進入『二維階層』時代。它以二元樹為核心，探討了如何將非線性的邏輯映射到實體記憶體（陣列 vs 鏈結）。關鍵技術在於『走訪 (Traversal)』，這定義了電腦讀取樹狀資訊的順序，並延伸出算術表示法的邏輯（前、中、後序）。最後介紹了各種為效能而生的特殊樹（如 AVL、Heap），為後續的排序與搜尋演算法埋下伏筆。",
+                "exam_trigger_phrases": [
+                    "2i, 2i+1 (索引公式)",
+                    "中序 + 前/後序 (重建唯一性)",
+                    "AVL 樹高度差 <= 1",
+                    "後序走訪 = Postfix",
+                    "引線節省空指標"
+                ]
+            },
+
+            "flashcards": [
+                { "front": "什麼是『樹跟 (Root)』？", "back": "樹狀結構中唯一沒有父節點的起源節點。" },
+                { "front": "二元樹的前序走訪順序？", "back": "根節點 -> 左子樹 -> 右子樹 (中左右)。" },
+                { "front": "AVL 樹自動平衡的目的？", "back": "確保搜尋效率在最壞情況下仍為 O(log n)，防止搜尋樹退化為鏈結串列。" },
+                { "front": "什麼是表示法轉換中的『樹根』？", "back": "通常是權限最低或最晚執行的運算子 (Operator)。" },
+                { "front": "Complete BT 的優點？", "back": "可以用陣列儲存且不浪費空間，利用索引公式快速存取。" }
+            ],
+
+            "scenario_checks": [
+                {
+                    "statement": "只要提供前序與後序的結果，就可以重建一棵唯一的二元樹。",
+                    "answer": "X",
+                    "explanation": "錯誤。必須提供中序 (In-order) 搭配前、後序其中之一，才能確定左右子樹的邊界。"
+                },
+                {
+                    "statement": "算術表示法中，中序走訪得到的結果與我們習慣的寫法最接近。",
+                    "answer": "O",
+                    "explanation": "正確。中序即為 infix 表示法，適合人類閱讀。"
+                },
+                {
+                    "statement": "引線二元樹的主要目的是為了解決鏈結實作中大量空指標造成的空間浪費。",
+                    "answer": "O",
+                    "explanation": "正確。將原本浪費的 Null 指標指向前驅或後繼節點。"
+                }
+            ],
+
+            "original_notes_for_appendix": "第八章「資料結構之樹狀結構」視為資料組織方式從「一維線性 (Linear)」跨越到「二維階層 (Hierarchical)」的分水嶺。如果說第七章的陣列與鏈結串列是「排隊」與「單線聯絡」，那麼第八章的樹狀結構就是「組織架構圖」或「家族族譜」。這一章運用指標技術來建構，並直接為第十章提供底層骨架。\n\n1. 空間維度升級：二元樹 (Binary Tree) 左右之分。完整二元樹可用陣列依序儲存 (2i, 2i+1)。\n2. 編譯器實體化：算術二元樹與走訪。Pre-Order, In-Order, Post-Order。後序對應 Postfix 表示法。\n3. 重建唯一性：中序 + (前/後序) = 唯一長相。\n4. 特殊二元樹：引線 (Threaded)、堆積 (Heap)、高度平衡樹 (AVL)。"
+        };
+
+        // UI Initialization
+        function initApp() {
+            document.getElementById('chapter-one-sentence').innerText = studyData.chapter_positioning.one_sentence;
+
+            // Weighting
+            const wCont = document.getElementById('weighting-container');
+            studyData.weighting.items.forEach(item => {
+                const div = document.createElement('div');
+                div.innerHTML = `
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">${item.topic}</span>
+                        <span class="text-xs font-black text-primary">${item.weight}%</span>
+                    </div>
+                    <div class="w-full h-[6px] bg-slate-900 rounded-full overflow-hidden">
+                        <div id="bar-${item.topic}" class="h-full bg-gradient-to-r from-primary/80 to-accent transition-all duration-1000 ease-out" style="width: 0%"></div>
+                    </div>
+                    <p class="text-[10px] text-slate-600 mt-4 leading-relaxed italic font-light">${item.reason}</p>
+                `;
+                wCont.appendChild(div);
+                setTimeout(() => document.getElementById(`bar-${item.topic}`).style.width = item.weight + '%', 100);
+            });
+
+            // Keywords
+            const kCont = document.getElementById('keywords-container');
+            studyData.keywords.forEach((k, idx) => {
+                const b = document.createElement('button');
+                b.className = "px-6 py-3 bg-slate-950/40 border border-slate-800 rounded-2xl text-[10px] text-slate-500 font-black hover:border-primary hover:text-white transition-all active:scale-95 uppercase tracking-widest shadow-lg";
+                b.innerText = k.term;
+                b.onclick = () => showKeyword(idx);
+                kCont.appendChild(b);
+            });
+
+            // Matrix
+            initMatrix();
+
+            // Lab mistakes
+            const mCont = document.getElementById('mistakes-container');
+            studyData.core_concept_lab.common_mistakes.forEach(m => {
+                mCont.innerHTML += `
+                    <div class="p-6 bg-slate-950 border border-slate-800 rounded-3xl hover:border-primary/40 transition-all shadow-xl group">
+                        <h5 class="text-primary text-[10px] font-black uppercase mb-3 flex items-center gap-2 italic">
+                            <span class="w-1.5 h-1.5 bg-primary rounded-full pulse-slow"></span> ${m.mistake}
+                        </h5>
+                        <p class="text-slate-500 text-[10px] font-light leading-relaxed italic mb-4">${m.why_wrong}</p>
+                        <div class="text-slate-300 text-[11px] font-bold border-l-2 border-slate-800 pl-4 py-1 italic group-hover:border-primary transition-all">➔ ${m.how_to_fix}</div>
+                    </div>
+                `;
+            });
+
+            // Exam Drills
+            updateCard();
+            renderScenarios();
+
+            // Feynman
+            renderFeynman();
+
+            // Appendix
+            document.getElementById('appendix-content').innerText = studyData.original_notes_for_appendix;
+        }
+
+        function showKeyword(idx) {
+            const k = studyData.keywords[idx];
+            const d = document.getElementById('keyword-detail');
+            document.getElementById('detail-term').innerText = k.term;
+            document.getElementById('detail-why').innerText = k.why_important;
+            document.getElementById('detail-angle').innerText = "Exam Perspective: " + k.common_exam_angle;
+            d.classList.remove('hidden');
+        }
+
+        function initMatrix() {
+            const chips = document.getElementById('dimension-chips');
+            studyData.comparison_matrix.dimensions.forEach(dim => {
+                const b = document.createElement('button');
+                b.className = "dimension-chip px-4 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-[8px] font-black text-slate-500 uppercase tracking-widest transition-all hover:text-white";
+                b.innerText = dim;
+                b.onclick = () => highlightDim(dim);
+                chips.appendChild(b);
+            });
+            const header = document.getElementById('matrix-header');
+            studyData.comparison_matrix.dimensions.forEach(dim => {
+                const th = document.createElement('th');
+                th.className = `py-6 px-6 text-[8px] text-slate-600 font-black uppercase tracking-widest th-${dim.replace(/\//g, '-')}`;
+                th.innerText = dim;
+                header.appendChild(th);
+            });
+            const body = document.getElementById('matrix-body');
+            studyData.comparison_matrix.rows.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-slate-800/40 hover:bg-slate-900/40 transition-all group";
+                let html = `<td class="py-8 px-6 font-black text-white italic text-base">${row.name}</td>`;
+                studyData.comparison_matrix.dimensions.forEach(dim => {
+                    html += `<td class="py-8 px-6 text-slate-500 font-light cell-${dim.replace(/\//g, '-')}">${row.values[dim]}</td>`;
+                });
+                tr.innerHTML = html;
+                body.appendChild(tr);
+
+                const infoTr = document.createElement('tr');
+                infoTr.className = "bg-primary/5 opacity-0 group-hover:opacity-100 transition-all duration-700 pointer-events-none";
+                infoTr.innerHTML = `
+                    <td colspan="${studyData.comparison_matrix.dimensions.length + 1}" class="px-10 py-6 border-b border-slate-800/20">
+                        <div class="grid grid-cols-2 gap-12">
+                            <div><span class="text-[8px] font-black text-secondary uppercase tracking-widest block mb-2 italic">Pitfall</span><p class="italic text-slate-500 font-light leading-relaxed">${row.pitfall}</p></div>
+                            <div class="border-l border-white/5 pl-10"><span class="text-[8px] font-black text-primary uppercase tracking-widest block mb-2 italic">Rule of Thumb</span><p class="font-bold text-slate-400 italic">${row.rule_of_thumb}</p></div>
+                        </div>
+                    </td>
+                `;
+                body.appendChild(infoTr);
+            });
+        }
+
+        function highlightDim(dim) {
+            const safe = dim.replace(/\//g, '-');
+            document.querySelectorAll('.dimension-chip').forEach(c => c.classList.toggle('active', c.innerText === dim));
+            document.querySelectorAll('td[class*="cell-"]').forEach(td => { td.style.color = ""; td.style.backgroundColor = ""; });
+            document.querySelectorAll(`.cell-${safe}`).forEach(td => { td.style.color = "#10b981"; td.style.backgroundColor = "rgba(16, 185, 129, 0.03)"; });
+        }
+
+        // Traversal Simulation
+        function runTraversal() {
+            const type = document.getElementById('lab-type').value;
+            const resCard = document.getElementById('traversal-result');
+            const resPath = document.getElementById('res-path');
+            const resName = document.getElementById('res-type-name');
+            const resExplain = document.getElementById('res-explain');
+
+            resCard.classList.remove('hidden');
+
+            if (type === 'pre') {
+                resName.innerText = "PRE-ORDER (NLR)";
+                resPath.innerText = "* + A B C";
+                resExplain.innerText = "中（運算子）-> 左 -> 右。這是 Prefix 表示法，能直接觀察運算的主從關係。";
+            } else if (type === 'in') {
+                resName.innerText = "IN-ORDER (LNR)";
+                resPath.innerText = "A + B * C";
+                resExplain.innerText = "左 -> 中（運算子）-> 右。這是 Infix 表示法，符合人類直覺，但電腦解析時需考慮括號優先順序。";
+            } else {
+                resName.innerText = "POST-ORDER (LRN)";
+                resPath.innerText = "A B + C *";
+                resExplain.innerText = "左 -> 右 -> 中（運算子）。這是 Postfix (RPN) 表示法，電腦最愛的格式，完全不需要括號即可唯一解析。";
+            }
+        }
+
+        // Flashcards
+        let curCard = 0;
+        function updateCard() {
+            const card = studyData.flashcards[curCard];
+            document.getElementById('flashcard').classList.remove('flipped');
+            setTimeout(() => {
+                document.getElementById('card-front').innerText = card.front;
+                document.getElementById('card-back').innerText = card.back;
+                document.getElementById('card-index').innerText = `${curCard + 1} / ${studyData.flashcards.length}`;
+            }, 300);
+        }
+        document.getElementById('flashcard').onclick = (e) => e.currentTarget.classList.toggle('flipped');
+        function nextCard() { curCard = (curCard + 1) % studyData.flashcards.length; updateCard(); }
+        function prevCard() { curCard = (curCard - 1 + studyData.flashcards.length) % studyData.flashcards.length; updateCard(); }
+
+        // Scenarios
+        function renderScenarios() {
+            const list = document.getElementById('scenarios-list');
+            studyData.scenario_checks.forEach((sc, idx) => {
+                const div = document.createElement('div');
+                div.className = "p-8 rounded-[2rem] bg-slate-950 border border-slate-900 group transition-all hover:border-slate-800";
+                div.innerHTML = `
+                    <p class="text-xs font-bold text-slate-400 mb-8 italic leading-relaxed group-hover:text-white transition-all underline decoration-white/5 underline-offset-8">${sc.statement}</p>
+                    <div class="flex gap-3">
+                        <button onclick="checkSc(${idx}, 'O')" class="flex-1 py-4 text-[9px] font-black border border-slate-800 rounded-xl hover:border-primary transition-all">是 (O)</button>
+                        <button onclick="checkSc(${idx}, 'X')" class="flex-1 py-4 text-[9px] font-black border border-slate-800 rounded-xl hover:border-secondary transition-all">否 (X)</button>
+                    </div>
+                    <div id="sc-fb-${idx}" class="mt-8 hidden p-6 rounded-2xl text-[10px] italic leading-relaxed border-l-2"></div>
+                `;
+                list.appendChild(div);
+            });
+        }
+        function checkSc(idx, choice) {
+            const sc = studyData.scenario_checks[idx];
+            const fb = document.getElementById(`sc-fb-${idx}`);
+            const correct = choice === sc.answer;
+            fb.classList.remove('hidden', 'bg-primary/10', 'text-primary', 'border-primary', 'bg-secondary/10', 'text-secondary', 'border-secondary');
+            fb.classList.add(correct ? 'bg-primary/10' : 'bg-secondary/10');
+            fb.classList.add(correct ? 'text-primary' : 'text-secondary');
+            fb.classList.add(correct ? 'border-primary' : 'border-secondary');
+            fb.innerHTML = `<b>${correct ? "BINGO!" : "WRONG."}</b><br>${sc.explanation}`;
+        }
+
+        // Feynman
+        function renderFeynman() {
+            document.getElementById('feynman-plain').innerText = studyData.feynman_explanation.one_sentence_plain;
+            document.getElementById('feynman-analogy').innerText = studyData.feynman_explanation.analogy;
+            const steps = document.getElementById('feynman-steps');
+            studyData.feynman_rebuild.teach_flow.forEach((s, idx) => {
+                steps.innerHTML += `
+                    <div class="flex gap-6 group">
+                        <div class="w-10 h-10 bg-slate-900 border border-slate-800 rounded-full flex items-center justify-center font-black text-primary text-xs italic group-hover:bg-primary group-hover:text-white transition-all shadow-xl">${idx + 1}</div>
+                        <p class="flex-1 text-slate-500 text-sm font-light leading-relaxed pt-2 group-hover:text-slate-300 transition-all">${s}</p>
+                    </div>
+                `;
+            });
+            const tags = document.getElementById('trigger-tags');
+            studyData.feynman_rebuild.exam_trigger_phrases.forEach(t => {
+                tags.innerHTML += `<span class="px-4 py-1.5 bg-slate-950 border border-slate-900 rounded-lg text-[8px] font-black text-slate-700 hover:text-primary transition-all cursor-default uppercase tracking-widest italic"># ${t}</span>`;
+            });
+        }
+
+        function toggleAppendix() {
+            const c = document.getElementById('appendix-content');
+            const i = document.getElementById('app-icon');
+            const isHidden = c.classList.contains('hidden');
+            c.classList.toggle('hidden');
+            i.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+        }
+
+        window.onload = initApp;
+    </script>
+</body>
+
+</html>
